@@ -7,7 +7,7 @@ let db: TestDb;
 let w: World;
 let keyA: string;
 let keyB: string;
-let roomIds: Record<string, string> = {};
+const roomIds: Record<string, string> = {};
 
 const sha = (s: string) => createHash('sha256').update(s).digest();
 const svc = async <T = any>(fn: string, args: unknown[]): Promise<T> =>
