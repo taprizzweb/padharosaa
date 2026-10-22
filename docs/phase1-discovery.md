@@ -1,4 +1,4 @@
-# Padharoso — Phase 1 Discovery Report (read-only)
+# Padharosaa — Phase 1 Discovery Report (read-only)
 
 Date: 2026-10-22. Scope: Part 15, Phase 1. **No code or schema was changed.** Sources: spec v2 (read in full for Parts 1–7 and 15; Parts 8–14 and the appendices were not read yet), live read-only inspection of Supabase project `menu-prod`, Vercel, and this repo.
 
@@ -11,7 +11,7 @@ Date: 2026-10-22. Scope: Part 15, Phase 1. **No code or schema was changed.** So
 | Vercel | One team, one project: `taprizz-review`. **No project for the menu app.** Spec item "locate the menu project" is unresolved. |
 | `menu-prod` data | 1 restaurant, 20 categories, 165 items, 9 `dining_tables`, 12 orders, 218 audit rows. Looks like a live pilot. |
 
-**Blocker for later phases:** the menu app's frontend/API code lives somewhere I can't see. I need its repo URL, or confirmation that Padharoso is a fresh Next.js app in this repo that talks to `menu-prod` (see Decision 1).
+**Blocker for later phases:** the menu app's frontend/API code lives somewhere I can't see. I need its repo URL, or confirmation that Padharosaa is a fresh Next.js app in this repo that talks to `menu-prod` (see Decision 1).
 
 ## 2. How `menu-prod` actually works (differs from the spec's assumptions)
 
@@ -30,7 +30,7 @@ Date: 2026-10-22. Scope: Part 15, Phase 1. **No code or schema was changed.** So
 | Reuse `orders`/`order_items` | Matches, but statuses are `placed/preparing/ready/served`; needs `table_id`+`session_id` (table sessions) | Create a `dining_tables` row of `kind='room'` per room and a `table_sessions` row per guest session so existing kitchen RPCs keep working; map `requests.status` onto order status. Needs your sign-off (Decision 2). |
 | New `requests` table wraps/extends | `service_requests`/`help_requests` too narrow | **Wrap, don't extend**: new `requests` + `request_events`; leave old tables untouched for the existing menu app. |
 | `rooms` table | Rooms are a text array on `restaurants` | New `rooms` table; backfill from `room_numbers`; keep the array in sync or deprecate. |
-| Guest session via own token cookie | Existing guests use a static room token in the URL | New `guest_sessions`; QR key (`qr_key_hash`) replaces `room_token` for Padharoso only. Existing `?k=`/token links stay for the public menu (spec 7.3.10 allows this for read-only menu). |
+| Guest session via own token cookie | Existing guests use a static room token in the URL | New `guest_sessions`; QR key (`qr_key_hash`) replaces `room_token` for Padharosaa only. Existing `?k=`/token links stay for the public menu (spec 7.3.10 allows this for read-only menu). |
 | Staff via Interim Access Keys, no login | Staff already have real Supabase Auth logins | **Conflict, needs a decision (Decision 3).** Building IAL means a second, weaker staff path next to a working one. |
 | RLS via `auth.jwt()->>'hotel_id'` claims | Existing helpers use `private.my_restaurant_id()` from `staff` table | Follow the existing helper pattern for staff; guest/IAL sessions use server-side API with narrow role, per spec's "no direct client writes". |
 | RPC-free "thin service layer" | Existing app is RPC-first | Keep RPC-first for DB-side invariants (state machine, optimistic `version`), call from Next.js route handlers. |
@@ -41,8 +41,8 @@ Date: 2026-10-22. Scope: Part 15, Phase 1. **No code or schema was changed.** So
 
 1. **Existing security advisors** (pre-existing, not caused by us): 37 `SECURITY DEFINER` functions executable by `authenticated` (all `mgr_*`/`staff_*`; presumably check role inside, must verify each does); leaked-password protection off; 7 tables RLS-on/no-policy (intentional deny-all for `plans`, `rate_limits`, `platform_admins`, `menu_events`, variants/options). Check whether `guest_*` RPCs are executable by `anon` (expected) and that `admin_*` ones are not.
 2. **Admin RPCs take `p_admin uuid` as a parameter** (`admin_*`, `owner_*`): safe only if they are callable by `service_role` alone. Must verify grants before we add platform functions in the same style.
-3. **Live pilot data in the same DB**: any migration touches production. Spec calls for staging; there is no staging project. Recommend a Supabase branch (`create_branch`) for all Padharoso migrations before merging.
-4. **`orders` is keyed to table sessions**: forcing room orders into it couples Padharoso to menu-app invariants (`order_counter`, kitchen board RPCs).
+3. **Live pilot data in the same DB**: any migration touches production. Spec calls for staging; there is no staging project. Recommend a Supabase branch (`create_branch`) for all Padharosaa migrations before merging.
+4. **`orders` is keyed to table sessions**: forcing room orders into it couples Padharosaa to menu-app invariants (`order_counter`, kitchen board RPCs).
 5. Spec internal tension: Part 1 says "no third-party fonts/scripts", Vista (Part 10) and Places (Part 9) were not read yet; revisit before Phase 10/11.
 6. Spec 3.5 shows `Add to room bill` as UPI/cash/card/room; existing `pay_mode` allows only `cash|upi|card`. Needs a new `room_bill` value (check-constraint change in a migration).
 7. Mobile numbers are encrypted at rest in the spec (`mobile_enc`); Supabase has no built-in app-level encryption, so we need an envelope-key scheme in server code (pgsodium/Vault or app-side AES-GCM). Decide in Phase 2.
@@ -67,13 +67,13 @@ Phase 2: 6–8 d; 3: 8–10 d; 4: 5 d; 5: 8–10 d; 6: 4 d; 7: 6 d; 8: 5 d; 9: 6
 
 ## 8. Update (owner answers)
 
-- **Decision 1 resolved:** Padharoso lives in this repo. The menu app (`taprizzweb/menu`, a Next.js 15 app named `gotomenu`) has been copied in at the repo root so cafes and menu+help-only customers stay on the same codebase as "Menu Lite". See `docs/PRODUCT_STRUCTURE.md`.
+- **Decision 1 resolved:** Padharosaa lives in this repo. The menu app (`taprizzweb/menu`, a Next.js 15 app named `gotomenu`) has been copied in at the repo root so cafes and menu+help-only customers stay on the same codebase as "Menu Lite". See `docs/PRODUCT_STRUCTURE.md`.
 - Menu repo findings: it already has staff login with two-step sign-in (`/account/mfa`), CI gates (`check:rls`, `check:secret-scan`, `audit`), staging docs and a threat model. This further supports skipping the Interim Access Layer (Decision 3) and reusing its security scripts.
 - Still open: Decisions 2, 3, 4 below.
 
 ## 9. Decisions needed before Phase 2
 
-1. **Where does the app live?** (a) Give me the menu app repo and I add Padharoso inside it; or (b) new Next.js app in this repo against `menu-prod`. Also which Vercel project deploys it (only `taprizz-review` exists).
+1. **Where does the app live?** (a) Give me the menu app repo and I add Padharosaa inside it; or (b) new Next.js app in this repo against `menu-prod`. Also which Vercel project deploys it (only `taprizz-review` exists).
 2. **Food orders:** reuse `orders` via room `table_sessions` (my recommendation, keeps one kitchen board) or a separate order table for hotels.
 3. **Staff access:** the spec's IAL assumes no login page, but staff already have Supabase Auth. Recommend **using existing Supabase Auth for staff now** (it already exists and is stronger) and skipping IAL, keeping the `resolveStaffIdentity()` boundary. If you want IAL anyway (e.g. shared desk PC without accounts), say so.
 4. **Staging:** OK to use a Supabase branch of `menu-prod` for all migrations?

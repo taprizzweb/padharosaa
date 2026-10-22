@@ -13,7 +13,7 @@ export async function findMock(client: Pick<Client, 'query'>): Promise<string[]>
   const problems: string[] = [];
   for (const { table, where } of CHECKS) {
     const exists = await client.query(`select to_regclass($1) as t`, [`public.${table}`]);
-    if (!exists.rows[0]?.t) continue; // Menu Lite database without Padharoso tables: nothing to check
+    if (!exists.rows[0]?.t) continue; // Menu Lite database without Padharosaa tables: nothing to check
     const r = await client.query<{ n: number }>(`select count(*)::int n from public.${table} where ${where}`);
     if ((r.rows[0]?.n ?? 0) > 0) problems.push(`${r.rows[0]!.n} active mock row(s) in public.${table}`);
   }

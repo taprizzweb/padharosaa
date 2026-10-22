@@ -29,7 +29,7 @@ async function main() {
   try {
     const clean = await findMock(db.pool);
     if (clean.length) throw new Error(`fresh database is not clean: ${clean.join('; ')}`);
-    await db.pool.query(readFileSync(join(__dirname, '..', 'supabase', 'seed', 'padharoso_demo.sql'), 'utf8'));
+    await db.pool.query(readFileSync(join(__dirname, '..', 'supabase', 'seed', 'padharosaa_demo.sql'), 'utf8'));
     const seeded = await findMock(db.pool);
     if (seeded.length < 4) throw new Error(`the guard missed demo data (found ${seeded.length} problems, expected at least 4)`);
     console.log(`No-mock check passed: a fresh database is clean and the guard catches the demo seed (${seeded.length} findings).`);
