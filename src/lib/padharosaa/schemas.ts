@@ -85,3 +85,21 @@ export const resolveBody = z
 export const rotateBody = z.object({ confirm: z.string().max(20) }).strict();
 export const enableBody = z.object({ timezone: z.string().min(3).max(60).default('Asia/Kolkata') }).strict();
 export const idParam = uuid;
+
+// ---- manager / owner settings ----
+const phone = z.string().regex(/^[0-9]{10,15}$/);
+const https = z.string().url().max(500).refine((u) => u.startsWith('https://'), 'must be https');
+const crop = z
+  .object({ zoom: z.number().min(1).max(4), x: z.number().min(0).max(1), y: z.number().min(0).max(1), aspect: z.enum(['1:1', '4:3', '16:9', '3:4', 'free']), brightness: z.number().min(0.5).max(1.5).optional(), contrast: z.number().min(0.5).max(1.5).optional() })
+  .strict();
+export const homeBody = z.object({ offer: text(0, 200).nullish(), offer_until: z.string().datetime({ offset: true }).nullish(), info: text(0, 400).nullish() }).strict();
+export const stayBody = z
+  .object({ wifi_name: text(0, 60).nullish(), wifi_password: z.string().min(1).max(63).nullish(), checkout_time: text(0, 40).nullish(), breakfast: text(0, 80).nullish(), reception_phone: phone.nullish(), manager_phone: phone.nullish() })
+  .strict();
+export const brandingBody = z
+  .object({
+    brand_color: z.string().regex(/^#[0-9a-fA-F]{6}$/).nullish(),
+    logo_path: z.string().max(300).nullish(), logo_crop: crop.nullish(), hero_path: z.string().max(300).nullish(), hero_crop: crop.nullish(),
+    instagram: z.string().regex(/^@?[A-Za-z0-9._]{1,30}$/).nullish(), google_review_url: https.nullish(), tripadvisor_url: https.nullish(), menu_url: https.nullish(),
+  })
+  .strict();

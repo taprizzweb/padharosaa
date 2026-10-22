@@ -49,6 +49,7 @@ describe('home boxes and stay info', () => {
     const h = await svc<any>('padh_guest_home', [sA]);
     expect(h.buffet).toEqual({ set: true, mode: 'in_house', name: 'Thali night', start: '19:30', end: '22:30', venue: 'Courtyard' });
     expect(h.open_requests).toBe(1);
+    expect(h.look).toMatchObject({ name: 'Cafe Aroma', brand_color: '#0d9488', is_mock: false });
     expect(h.links).toMatchObject({ instagram_url: 'https://www.instagram.com/haveli', menu_url: 'https://menu.taprizz.in/haveli' });
     expect((await svc<any>('padh_guest_home', [sB])).buffet).toEqual({ set: false });
     expect((await svcErr('padh_guest_home', [randomUUID()]))?.code).toBe('GM009');

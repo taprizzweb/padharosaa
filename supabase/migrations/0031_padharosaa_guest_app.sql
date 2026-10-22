@@ -75,6 +75,7 @@ begin
                    when b.mode = 'none' then jsonb_build_object('set', true, 'mode', 'none')
                    else jsonb_build_object('set', true, 'mode', b.mode, 'name', b.name, 'start', to_char(b.start_time, 'HH24:MI'), 'end', to_char(b.end_time, 'HH24:MI'), 'venue', b.venue) end,
     'open_requests', v_open,
+    'look', jsonb_build_object('name', r.name, 'theme', h.theme, 'brand_color', h.brand_color, 'logo_path', h.logo_path, 'logo_crop', h.logo_crop, 'hero_path', h.hero_path, 'hero_crop', h.hero_crop, 'is_mock', h.is_mock),
     'links', jsonb_build_object('instagram_url', r.instagram_url, 'google_review_url', coalesce(h.review_link, r.review_url), 'tripadvisor_url', h.tripadvisor_url, 'menu_url', h.menu_url),
     'contacts', jsonb_build_object('reception', h.reception_phone, 'manager', h.manager_phone));
 end $$;
