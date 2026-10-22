@@ -76,6 +76,8 @@ export interface Theme {
   /** filled buttons and selected chips: the picked colour, nudged only as far as needed for readable button text */
   button: string;
   onButton: string;
+  /** outline for the button: only when the button is light, so a peach button on a peach page still reads as a button */
+  buttonEdge: string;
   /** text on the top of the gradient */
   onHero: string;
   onHeroSoft: string;
@@ -112,13 +114,14 @@ export function buildTheme(input: string | null | undefined, mode: 'light' | 'da
   const accentText = contrast(picked, paper) >= 4.5 ? picked : shade(picked, paper, 4.5, mode === 'light' ? 'darker' : 'lighter');
   const tint = mix(picked, paper, mode === 'light' ? 0.14 : 0.22);
   const onTint = contrast(ink, tint) >= 4.5 ? ink : mode === 'light' ? INK : WHITE;
-  return { picked, button, onButton, onHero, onHeroSoft, paper, ink, accentText, tint, onTint, gradient: [heroFixed, mix(heroFixed, paper, 0.5), paper] };
+  const buttonEdge = onButton === WHITE ? 'rgba(16,19,26,0)' : 'rgba(16,19,26,0.55)';
+  return { picked, button, onButton, buttonEdge, onHero, onHeroSoft, paper, ink, accentText, tint, onTint, gradient: [heroFixed, mix(heroFixed, paper, 0.5), paper] };
 }
 
 /** CSS custom properties for a theme, ready to put on a wrapper element's style. Values are colours only, never user text. */
 export function themeVars(t: Theme): Record<string, string> {
   return {
-    '--brand': t.picked, '--button': t.button, '--on-button': t.onButton, '--on-hero': t.onHero, '--on-hero-soft': t.onHeroSoft,
+    '--brand': t.picked, '--button': t.button, '--on-button': t.onButton, '--btn-edge': t.buttonEdge, '--on-hero': t.onHero, '--on-hero-soft': t.onHeroSoft,
     '--paper': t.paper, '--ink': t.ink, '--accent-text': t.accentText, '--tint': t.tint, '--on-tint': t.onTint,
     '--hero-0': t.gradient[0], '--hero-1': t.gradient[1], '--hero-2': t.gradient[2],
   };

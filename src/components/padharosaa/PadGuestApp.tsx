@@ -82,7 +82,7 @@ export function PadGuestApp({ slug, qrKey, imageBase }: { slug: string; qrKey: s
 function Btn({ children, onClick, disabled, kind = 'solid', type = 'button' }: { children: ReactNode; onClick?: () => void; disabled?: boolean; kind?: 'solid' | 'soft'; type?: 'button' | 'submit' }) {
   const solid = kind === 'solid';
   return (
-    <button type={type} onClick={onClick} disabled={disabled} style={solid ? { background: 'var(--button)', color: 'var(--on-button)' } : { background: 'var(--tint)', color: 'var(--on-tint)' }}
+    <button type={type} onClick={onClick} disabled={disabled} style={solid ? { background: 'var(--button)', color: 'var(--on-button)', boxShadow: 'inset 0 0 0 2px var(--btn-edge)' } : { background: 'var(--tint)', color: 'var(--on-tint)' }}
       className="min-h-12 w-full rounded-2xl px-4 py-3 text-base font-semibold shadow-sm transition active:scale-[0.98] disabled:opacity-60">{children}</button>
   );
 }
@@ -143,7 +143,7 @@ function Login({ slug, qrKey, c, lang, setLang, onDone, imageBase }: { slug: str
         {field('name', c.name)}{field('mobile', c.mobile, { inputMode: 'tel', maxLength: 14 })}{field('room', c.roomNo, { maxLength: 10 })}{field('stay', c.stayCode, { inputMode: 'numeric', maxLength: 4 })}
         <label className="flex items-start gap-3 text-sm"><input type="checkbox" className="mt-1 h-5 w-5" onChange={(e) => { f.current.consent = e.target.checked; }} />{c.consent}</label>
         {err && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm font-medium text-red-900">{err === 'needKey' ? c.needKey : c.failed}</p>}
-        <button type="submit" disabled={busy || !hotel} style={{ background: t.button, color: t.onButton }} className="min-h-12 w-full rounded-2xl px-4 py-3 text-base font-semibold disabled:opacity-60">{c.enter}</button>
+        <button type="submit" disabled={busy || !hotel} style={{ background: t.button, color: t.onButton, boxShadow: `inset 0 0 0 2px ${t.buttonEdge}` }} className="min-h-12 w-full rounded-2xl px-4 py-3 text-base font-semibold disabled:opacity-60">{c.enter}</button>
       </form>
     </main>
   );
@@ -151,7 +151,7 @@ function Login({ slug, qrKey, c, lang, setLang, onDone, imageBase }: { slug: str
 
 function Tile({ icon, title, sub, onClick, wide }: { icon: string; title: string; sub?: string; onClick: () => void; wide?: boolean }) {
   return (
-    <button type="button" onClick={onClick} className={`flex min-h-28 flex-col items-start justify-between rounded-3xl p-4 text-left shadow-sm transition active:scale-[0.98] ${wide ? 'col-span-2' : ''}`}
+    <button type="button" onClick={onClick} className={`flex min-h-28 w-full flex-col items-start justify-between rounded-3xl p-4 text-left shadow-sm transition active:scale-[0.98] ${wide ? 'col-span-2' : ''}`}
       style={{ background: 'rgba(255,255,255,0.92)', color: '#10131a' }}>
       <span aria-hidden className="text-2xl">{icon}</span>
       <span><span className="block text-base font-bold">{title}</span>{sub && <span className="block text-sm" style={{ color: '#4a4f5a' }}>{sub}</span>}</span>
@@ -242,7 +242,7 @@ function Services({ c, back, done }: { c: Copy; back: () => void; done: (id: str
         <div className="flex flex-wrap gap-2" role="group">
           {kinds.map((k) => (
             <button key={k} type="button" aria-pressed={kind === k} onClick={() => setKind(k)} className="min-h-11 rounded-full border px-4 text-sm font-semibold"
-              style={kind === k ? { background: 'var(--button)', color: 'var(--on-button)', borderColor: 'var(--button)' } : { borderColor: 'var(--accent-text)', color: 'var(--ink)' }}>{c.types[k]}</button>
+              style={kind === k ? { background: 'var(--button)', color: 'var(--on-button)', borderColor: 'var(--ink)' } : { borderColor: 'var(--accent-text)', color: 'var(--ink)' }}>{c.types[k]}</button>
           ))}
         </div>
         {kind === 'housekeeping' && (

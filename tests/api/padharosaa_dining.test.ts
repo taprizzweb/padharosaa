@@ -21,6 +21,7 @@ import { GET as teamGET } from '@/app/api/padharosaa/v1/staff/team/route';
 import { POST as profilePOST } from '@/app/api/padharosaa/v1/staff/team/[user]/route';
 import { POST as importPOST } from '@/app/api/padharosaa/v1/staff/team/import/route';
 import { GET as alertsGET, POST as alertsPOST } from '@/app/api/padharosaa/v1/staff/alerts/route';
+import { GET as settingsGET } from '@/app/api/padharosaa/v1/staff/settings/route';
 import { POST as enablePOST } from '@/app/api/padharosaa/v1/platform/hotels/[id]/enable/route';
 
 let db: TestDb;
@@ -92,6 +93,20 @@ describe('food, handover and dining', () => {
     const n = await db.admin<any>(`select to_ref, template from public.notifications where payload->>'request_id' = $1`, [id]);
     expect(n).toEqual([{ to_ref: w.A.waiter, template: 'help_alert' }]);
     expect((await helpPOST(mk('/h', { body: { category: 'ghosts' }, cookie, idem: randomUUID() }))).status).toBe(400);
+  });
+});
+
+describe('manager settings read', () => {
+  it('owner and manager read the editable settings (never the Wi-Fi password); waiter and kitchen cannot', async () => {
+    as(w.A.manager);
+    const r = await settingsGET(mk('/s'));
+    expect(r.status).toBe(200);
+    const b = (await r.json()) as any;
+    expect(b).toHaveProperty('room_dining');
+    expect(JSON.stringify(b)).not.toMatch(/password|_enc/i);
+    for (const uid of [w.A.waiter, w.A.kitchen]) { as(uid); expect((await settingsGET(mk('/s'))).status, uid).toBeGreaterThanOrEqual(400); }
+    as(null);
+    expect((await settingsGET(mk('/s'))).status).toBe(401);
   });
 });
 

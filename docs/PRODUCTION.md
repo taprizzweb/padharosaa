@@ -3,8 +3,8 @@
 What is built, what must be switched on, and what is still open. Read top to bottom before the first hotel.
 
 ## 1. Database (Supabase)
-1. Take a backup or create a branch of `menu-prod` first. Migrations `0026` to `0033` are additive (new tables, new columns, new functions); nothing existing is dropped. Rows in `restaurants` are untouched, and `rooms` is back-filled from `restaurants.room_numbers`.
-2. Apply `0026` ... `0033` in order (Supabase SQL editor, `supabase db push`, or the MCP `apply_migration`). Each file is idempotent.
+1. Take a backup or create a branch of `menu-prod` first. Migrations `0026` to `0034` are additive (new tables, new columns, new functions); nothing existing is dropped. Rows in `restaurants` are untouched, and `rooms` is back-filled from `restaurants.room_numbers`.
+2. Apply `0026` ... `0034` in order (Supabase SQL editor, `supabase db push`, or the MCP `apply_migration`). Each file is idempotent.
 3. Run `npm run check:rls` against the result: every new table must show RLS on, with no direct write grants.
 4. Optional demo data: `supabase/seed/padharosaa_demo.sql` (marks rows `is_mock`; `npm run check:no-mock` fails CI if mock data could reach production).
 5. Enable a hotel as the platform admin: `POST /api/padharosaa/v1/platform/hotels/<restaurant id>/enable`. The QR key is returned once; print it into the room QR codes as `https://<app>/padharosaa/<slug>?k=<key>`. Rotate with `staff/qr/rotate` (typed word ROTATE).

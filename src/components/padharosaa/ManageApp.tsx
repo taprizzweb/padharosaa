@@ -33,21 +33,20 @@ export function ManageApp({ role, restaurant, supabase, appOrigin }: { role: str
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const flash = (ok: boolean, text: string) => { setMsg({ ok, text }); window.scrollTo({ top: 0, behavior: 'smooth' }); };
 
+  const [loadErr, setLoadErr] = useState(false);
   const load = useCallback(async () => {
-    const [a, b] = await Promise.all([
-      sb.from('hotel_settings').select('brand_color,logo_path,hero_path,tripadvisor_url,menu_url,review_link,offer_text,offer_until,info_text,wifi_name,checkout_time,breakfast_text,reception_phone,manager_phone,room_dining').eq('restaurant_id', restaurant.id).maybeSingle(),
-      sb.from('restaurants').select('instagram_url').eq('id', restaurant.id).maybeSingle(),
-    ]);
-    if (a.data) setS(a.data as Settings);
-    setInsta(((b.data as { instagram_url: string | null } | null)?.instagram_url ?? '').replace(/^https:\/\/www\.instagram\.com\//, '@'));
-  }, [sb, restaurant.id]);
+    try {
+      const d = await apiGet<Settings & { instagram: string | null }>('/api/padharosaa/v1/staff/settings');
+      setS(d); setInsta((d.instagram ?? '').replace(/^https:\/\/www\.instagram\.com\//, '@')); setLoadErr(false);
+    } catch { setLoadErr(true); }
+  }, []);
   useEffect(() => { void load(); }, [load]);
 
   const save = async (path: string, body: unknown, done = 'Saved.') => {
     try { await apiPost(`/api/padharosaa/v1/staff/${path}`, body); flash(true, done); await load(); } catch { flash(false, 'That could not be saved. Please check the values and try again.'); }
   };
 
-  if (!s) return <main className="p-8 text-center">Loading…</main>;
+  if (!s) return <main className="p-8 text-center">{loadErr ? <><p role="alert" className="font-semibold">The settings could not be loaded.</p><button type="button" className={btnCls + ' mt-3'} onClick={() => void load()}>Try again</button></> : 'Loading…'}</main>;
   return (
     <div className="mx-auto min-h-dvh max-w-2xl bg-stone-50 px-4 pb-24 pt-4 text-stone-900">
       <header className="flex items-center justify-between gap-2"><div><h1 className="text-xl font-extrabold">Manage Padharosaa</h1><p className="text-sm text-stone-700">{restaurant.name}</p></div><Link href="/padharosaa/desk" className="inline-flex min-h-11 items-center rounded-full border-2 border-stone-800 px-4 text-sm font-bold">Back to desk</Link></header>
