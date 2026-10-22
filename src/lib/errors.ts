@@ -24,9 +24,10 @@ export const SQL_ERRORS = {
   GM020: { status: 403, key: 'protected' },
   GM021: { status: 403, key: 'mfa_required' },
   GM022: { status: 422, key: 'unknown_room' },
+  GM024: { status: 503, key: 'verification_unavailable' },
 } as const;
 
-export type ErrorKey = (typeof SQL_ERRORS)[keyof typeof SQL_ERRORS]['key'] | 'location_required' | 'location_inaccurate' | 'too_far_from_restaurant' | 'origin_not_allowed' | 'unsupported_media_type' | 'payload_too_large' | 'unauthorized' | 'password_change_required' | 'invalid_credentials' | 'method_not_allowed' | 'server_error';
+export type ErrorKey = (typeof SQL_ERRORS)[keyof typeof SQL_ERRORS]['key'] | 'location_required' | 'location_inaccurate' | 'too_far_from_restaurant' | 'origin_not_allowed' | 'unsupported_media_type' | 'payload_too_large' | 'unauthorized' | 'password_change_required' | 'invalid_credentials' | 'method_not_allowed' | 'server_error' | 'login_failed' | 'locked';
 
 export class ApiError extends Error {
   constructor(

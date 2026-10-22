@@ -19,6 +19,15 @@ const serverSchema = publicSchema.extend({
   GUEST_COOKIE_SECRET: z.string().min(32, 'must be at least 32 characters'),
   /** Salt for hashing guest IP addresses before they are stored. Generate with: openssl rand -base64 24 */
   IP_HASH_SALT: z.string().min(16, 'must be at least 16 characters'),
+  /**
+   * Padharoso only (Menu Lite does not need it). Base64 of 32 random bytes: encrypts guests' mobile numbers and keys their lookup hash.
+   * Generate with: openssl rand -base64 32
+   */
+  PADHAROSO_DATA_KEY: z
+    .string()
+    .refine((v) => Buffer.from(v, 'base64').length === 32, 'must be base64 of exactly 32 bytes (openssl rand -base64 32)')
+    .optional()
+    .or(z.literal('').transform(() => undefined)),
   SENTRY_DSN: z.string().url().optional().or(z.literal('').transform(() => undefined)),
   LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error']).default('info'),
 });

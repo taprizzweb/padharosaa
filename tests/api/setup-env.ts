@@ -6,3 +6,4 @@ process.env.SUPABASE_SERVICE_ROLE_KEY = 'test-service-role-key-test-service-role
 process.env.GUEST_COOKIE_SECRET = 'api-test-cookie-secret-api-test-cookie-secret';
 process.env.IP_HASH_SALT = 'api-test-ip-salt-api-test';
 process.env.LOG_LEVEL = 'error';
+process.env.PADHAROSO_DATA_KEY = Buffer.alloc(32, 7).toString('base64');
