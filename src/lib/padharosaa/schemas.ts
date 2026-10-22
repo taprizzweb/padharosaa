@@ -103,3 +103,18 @@ export const brandingBody = z
     instagram: z.string().regex(/^@?[A-Za-z0-9._]{1,30}$/).nullish(), google_review_url: https.nullish(), tripadvisor_url: https.nullish(), menu_url: https.nullish(),
   })
   .strict();
+
+// ---- dining, staff directory, alerts ----
+const TEAMS = ['concierge', 'front_desk', 'housekeeping', 'kitchen', 'maintenance', 'manager'] as const;
+export const handoverBody = z.object({ version: z.number().int().min(1), mode: z.enum(['deliver', 'takeaway']) }).strict();
+export const diningBody = z.object({ room_dining: z.boolean() }).strict();
+const waNumber = z.string().max(20).regex(/^\+?[0-9 -]{8,18}$/);
+export const profileBody = z.object({ department: z.enum(TEAMS), whatsapp: waNumber.nullish(), is_head: z.boolean().default(false) }).strict();
+export const alertBody = z.object({ team: z.enum(TEAMS), muted: z.boolean() }).strict();
+export const staffRowSchema = z
+  .object({ name: text(1, 60), email: z.string().email().max(120).transform((v) => v.toLowerCase()), department: z.enum(TEAMS), whatsapp: waNumber.nullish(), is_head: z.boolean().default(false) })
+  .strict();
+export const staffImportBody = z.object({ rows: z.array(staffRowSchema).min(1).max(200) }).strict();
+export const HELP_CATEGORIES = ['ac_electrical', 'water_plumbing', 'cleanliness', 'noise', 'other'] as const;
+export const helpBody = z.object({ category: z.enum(HELP_CATEGORIES), detail: optionalText(500), urgent: z.boolean().default(false) }).strict();
+export const foodBody = z.object({ label: text(1, 120), detail: optionalText(500) }).strict();
