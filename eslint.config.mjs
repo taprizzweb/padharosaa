@@ -16,6 +16,19 @@ const config = [
     },
   },
   {
+    // Security rule (spec 7.6): never inject HTML built from guest, staff or menu text. Render text through the framework instead.
+    files: ['src/**'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        { selector: "JSXAttribute[name.name='dangerouslySetInnerHTML']", message: 'dangerouslySetInnerHTML is banned: render text through React so it is escaped.' },
+        { selector: "MemberExpression[property.name=/^(innerHTML|outerHTML)$/]", message: 'innerHTML/outerHTML are banned: use textContent or React.' },
+        { selector: "CallExpression[callee.property.name='insertAdjacentHTML']", message: 'insertAdjacentHTML is banned.' },
+        { selector: "CallExpression[callee.property.name='write'][callee.object.name='document']", message: 'document.write is banned.' },
+      ],
+    },
+  },
+  {
     // Test code inspects loosely-typed JSON returned by SQL functions.
     files: ['supabase/tests/**', 'tests/**'],
     rules: { '@typescript-eslint/no-explicit-any': 'off' },

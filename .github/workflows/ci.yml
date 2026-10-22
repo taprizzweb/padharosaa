@@ -56,6 +56,8 @@ jobs:
         run: npm run check:rls
       - name: Secret scan of the repository
         run: npm run check:secret-scan
+      - name: No demo data (guard works; fresh database is clean)
+        run: npm run check:no-mock
       - name: Dependency audit (high/critical fail)
         run: npm run audit
       - name: Build

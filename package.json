@@ -19,6 +19,7 @@
     "audit": "tsx scripts/audit.ts",
     "test:http": "tsx scripts/with-server.ts -- vitest run --project http",
     "check:secret-scan": "tsx scripts/secret-scan.ts",
+    "check:no-mock": "tsx scripts/check-no-mock.ts",
     "test:e2e": "tsx scripts/run-e2e.ts",
     "seed": "tsx supabase/seed/run.ts",
     "demo:video": "tsx scripts/demo-video.ts"
