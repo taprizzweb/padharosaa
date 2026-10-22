@@ -1,0 +1,8 @@
+// Runs before any route module is imported: the environment the routes validate at first use.
+process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://testproject.supabase.co';
+process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'test-anon-key-test-anon-key-test';
+process.env.NEXT_PUBLIC_APP_ORIGIN = 'https://gotomenu.taprizz.in';
+process.env.SUPABASE_SERVICE_ROLE_KEY = 'test-service-role-key-test-service-role';
+process.env.GUEST_COOKIE_SECRET = 'api-test-cookie-secret-api-test-cookie-secret';
+process.env.IP_HASH_SALT = 'api-test-ip-salt-api-test';
+process.env.LOG_LEVEL = 'error';

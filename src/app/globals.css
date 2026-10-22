@@ -1,0 +1,47 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* One accent per restaurant, chosen from a fixed palette that always passes WCAG AA with white text.
+   Values are R G B so Tailwind can apply opacity. Keep in sync with src/lib/accent.ts (a test checks it). */
+:root { --accent: 180 83 9; color-scheme: light; }
+[data-accent='saffron'] { --accent: 180 83 9; }
+[data-accent='tomato']  { --accent: 194 65 12; }
+[data-accent='emerald'] { --accent: 4 120 87; }
+[data-accent='teal']    { --accent: 15 118 110; }
+[data-accent='indigo']  { --accent: 67 56 202; }
+[data-accent='plum']    { --accent: 134 25 143; }
+[data-accent='rose']    { --accent: 190 18 60; }
+[data-accent='slate']   { --accent: 51 65 85; }
+
+html { -webkit-text-size-adjust: 100%; }
+body { @apply bg-stone-50 text-stone-900 antialiased; font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Noto Sans', 'Noto Sans Devanagari', sans-serif; }
+:focus-visible { outline: 3px solid #1d4ed8; outline-offset: 2px; }
+
+/* Bottom sheet (native <dialog>): slides up, respects reduced motion. */
+dialog.sheet { margin: auto 0 0 0; max-width: 100%; width: 100%; max-height: 92dvh; padding: 0; border: 0; background: transparent; }
+dialog.sheet::backdrop { background: rgb(28 25 23 / 0.5); }
+dialog.sheet[open] > .sheet-panel { animation: sheet-up 220ms ease-out; }
+@media (min-width: 768px) { dialog.sheet { margin: auto; max-width: 32rem; } }
+@keyframes sheet-up { from { transform: translateY(24px); opacity: 0; } to { transform: none; opacity: 1; } }
+
+/* Staff "larger text" mode: every rem-based size scales up. */
+html.staff-large { font-size: 125%; }
+
+.no-scrollbar { scrollbar-width: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
+}
+
+/* ---- printing QR sheets / table tents (A4) ---- */
+@page { size: A4; margin: 10mm; }
+@page tent { size: A4 landscape; margin: 0; }
+@media print {
+  body { background: #fff; }
+  .print-sheet { grid-template-columns: repeat(2, 1fr); }
+  .print-card { height: 88mm; break-inside: avoid; }
+  .print-tent { page: tent; width: 297mm; height: 210mm; break-after: page; }
+  .print-tent:last-child { break-after: auto; }
+}

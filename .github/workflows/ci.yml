@@ -1,0 +1,114 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: gm_test
+          POSTGRES_PASSWORD: gm_test
+          POSTGRES_DB: postgres
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U gm_test" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      NEXT_TELEMETRY_DISABLED: '1'
+      TEST_DATABASE_URL: postgres://gm_test:gm_test@127.0.0.1:5432/postgres
+      # Dummy values: the build and header tests need the variables to exist, not to be real.
+      NEXT_PUBLIC_SUPABASE_URL: https://testproject.supabase.co
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: test-anon-key-test-anon-key-test
+      NEXT_PUBLIC_APP_ORIGIN: https://gotomenu.taprizz.in
+      SUPABASE_SERVICE_ROLE_KEY: SENTINEL-service-role-key-do-not-leak-0001
+      GUEST_COOKIE_SECRET: SENTINEL-cookie-secret-do-not-leak-0000000002
+      IP_HASH_SALT: SENTINEL-ip-salt-do-not-leak-3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Lint (warnings fail the build)
+        run: npm run lint
+      - name: Type check
+        run: npm run typecheck
+      - name: Unit tests
+        run: npm test
+      - name: API tests (route handlers against real Postgres)
+        run: npm run test:api
+      - name: SQL tests against real Postgres (isolation, roles, state machine, races)
+        run: npm run test:sql
+      - name: Every table has RLS and anon has no access
+        run: npm run check:rls
+      - name: Secret scan of the repository
+        run: npm run check:secret-scan
+      - name: Dependency audit (high/critical fail)
+        run: npm run audit
+      - name: Build
+        run: npm run build
+      - name: Service-role key and other secrets are absent from the client bundle
+        run: npm run check:secrets
+      - name: Security headers on a running server
+        run: npm run test:http
+
+  # The browser tests take about 20 minutes on one runner, so they run as three parallel shards (each with its own database).
+  e2e:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: gm_test
+          POSTGRES_PASSWORD: gm_test
+          POSTGRES_DB: postgres
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U gm_test" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      NEXT_TELEMETRY_DISABLED: '1'
+      TEST_DATABASE_URL: postgres://gm_test:gm_test@127.0.0.1:5432/postgres
+      # Dummy values: the build and header tests need the variables to exist, not to be real.
+      NEXT_PUBLIC_SUPABASE_URL: https://testproject.supabase.co
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: test-anon-key-test-anon-key-test
+      NEXT_PUBLIC_APP_ORIGIN: https://gotomenu.taprizz.in
+      SUPABASE_SERVICE_ROLE_KEY: SENTINEL-service-role-key-do-not-leak-0001
+      GUEST_COOKIE_SECRET: SENTINEL-cookie-secret-do-not-leak-0000000002
+      IP_HASH_SALT: SENTINEL-ip-salt-do-not-leak-3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Install browser for end-to-end tests
+        run: npx playwright install --with-deps chromium
+      # No separate build here: the runner builds the app itself with the local test stack's address baked in.
+      - name: End-to-end tests (phone and tablet) incl. accessibility scan, shard ${{ matrix.shard }} of 3
+        run: npm run test:e2e -- --shard=${{ matrix.shard }}/3
+      - name: Upload failure screenshots and traces
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-results-${{ matrix.shard }}
+          path: test-results
+          retention-days: 7

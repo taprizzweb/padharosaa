@@ -1,0 +1,101 @@
+'use client';
+import { useState } from 'react';
+import { formatPaise } from '@/lib/money';
+import { lineLabel, unitPrice } from '@/lib/guest/options';
+import type { MenuItem } from '@/lib/guest/types';
+import type { Translator } from '@/lib/i18n';
+import type { Cart } from './hooks';
+import { Alert, IconMinus, IconPlus, Notice, Sheet, btnPrimary } from './ui';
+
+export function CartSheet({
+  open, onClose, t, cart, items, placing, error, adjusted, onPlace,
+}: {
+  open: boolean; onClose: () => void; t: Translator; cart: Cart; items: Map<string, MenuItem>;
+  placing: boolean; error: string | null; adjusted: boolean; onPlace: () => void;
+}) {
+  const [openNotes, setOpenNotes] = useState<Set<string>>(new Set());
+  return (
+    <Sheet open={open} onClose={onClose} title={t('cart.title')} closeLabel={t('cart.close')}>
+      {cart.lines.length === 0 ? (
+        <p className="py-8 text-center text-stone-600">{t('cart.empty')}</p>
+      ) : (
+        <div className="space-y-5">
+          {adjusted && <Notice>{t('cart.priceChanged')}</Notice>}
+          <ul className="divide-y divide-stone-200">
+            {cart.lines.map((l) => {
+              const item = items.get(l.item_id);
+              if (!item) return null;
+              const name = item.name_en;
+              const label = lineLabel(item, l.variant_id, l.option_ids ?? []);
+              const unit = unitPrice(item, l.variant_id, l.option_ids ?? []) ?? item.price_paise;
+              const noteOpen = openNotes.has(l.id) || !!l.note;
+              return (
+                <li key={l.id} className="py-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="font-semibold leading-snug">{name}</p>
+                      {label && <p className="text-sm font-medium text-stone-800">{label}</p>}
+                      <p className="text-sm text-stone-600">{formatPaise(unit)} × {l.qty} = <span className="font-semibold text-stone-900">{formatPaise(unit * l.qty)}</span></p>
+                    </div>
+                    <div className="flex shrink-0 items-center rounded-xl border border-stone-300">
+                      <button type="button" onClick={() => cart.setQty(l.id, l.qty - 1)} aria-label={l.qty === 1 ? t('cart.remove', { name }) : t('item.decrease', { name })} className="flex h-11 w-11 items-center justify-center">
+                        <IconMinus />
+                      </button>
+                      <span className="min-w-6 text-center font-bold" aria-live="polite">{l.qty}</span>
+                      <button type="button" onClick={() => cart.setQty(l.id, l.qty + 1)} disabled={l.qty >= 10} aria-label={t('item.increase', { name })} className="flex h-11 w-11 items-center justify-center disabled:opacity-40">
+                        <IconPlus />
+                      </button>
+                    </div>
+                  </div>
+                  {noteOpen ? (
+                    <label className="mt-2 block text-sm font-medium text-stone-800">
+                      {t('cart.itemNote')}
+                      <input
+                        type="text"
+                        value={l.note ?? ''}
+                        maxLength={100}
+                        onChange={(e) => cart.setLineNote(l.id, e.target.value)}
+                        placeholder={t('cart.itemNoteHint')}
+                        className="mt-1 h-11 w-full rounded-xl border border-stone-300 px-3 text-base font-normal"
+                      />
+                    </label>
+                  ) : (
+                    <button type="button" onClick={() => setOpenNotes((s) => new Set(s).add(l.id))} className="mt-1 inline-flex min-h-11 items-center text-sm font-semibold text-accent underline underline-offset-2">
+                      + {t('cart.itemNote')}
+                    </button>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+
+          <label className="block text-sm font-medium text-stone-800">
+            {t('cart.kitchenNote')}
+            <textarea
+              value={cart.note}
+              maxLength={200}
+              rows={2}
+              onChange={(e) => cart.setNote(e.target.value)}
+              placeholder={t('cart.kitchenNoteHint')}
+              className="mt-1 w-full rounded-xl border border-stone-300 px-3 py-2 text-base font-normal"
+            />
+          </label>
+
+          <div>
+            <div className="flex items-baseline justify-between">
+              <span className="text-lg font-bold">{t('cart.total')}</span>
+              <span className="text-2xl font-extrabold">{formatPaise(cart.totalPaise)}</span>
+            </div>
+            <p className="mt-1 text-xs text-stone-600">{t('cart.totalHint')}</p>
+          </div>
+
+          {error && <Alert>{error}</Alert>}
+
+          <button type="button" onClick={onPlace} disabled={placing} className={`${btnPrimary} w-full min-h-14 text-lg`}>
+            {placing ? t('cart.placing') : t('cart.place')}
+          </button>
+        </div>
+      )}
+    </Sheet>
+  );
+}

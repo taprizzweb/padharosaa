@@ -1,0 +1,5 @@
+body { margin: 0; font-family: system-ui, sans-serif; background: #fafaf9; color: #1c1917; }
+main { max-width: 28rem; margin: 0 auto; min-height: 100vh; display: flex; flex-direction: column; justify-content: center; padding: 1.5rem; text-align: center; }
+h1 { font-size: 1.75rem; margin: 0 0 0.75rem; }
+p { line-height: 1.5; margin: 0 0 1.5rem; }
+a { display: inline-block; min-height: 44px; line-height: 44px; padding: 0 1.5rem; background: #1c1917; color: #fff; border-radius: 12px; text-decoration: none; font-weight: 700; }

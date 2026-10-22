@@ -1,0 +1,26 @@
+category,name,description,price,diet,spice,bestseller,chef_pick,available
+Coffee,Espresso,Single shot of rich house espresso,90,veg,0,no,no,yes
+Coffee,Cappuccino,Espresso with steamed milk and thick foam,140,veg,0,yes,no,yes
+Coffee,Cafe Latte,Smooth espresso with extra steamed milk,150,veg,0,no,no,yes
+Coffee,Hazelnut Latte,Latte with roasted hazelnut syrup,180,veg,0,no,yes,yes
+Coffee,Cold Coffee,Blended iced coffee with ice cream,170,veg,0,yes,no,yes
+Coffee,Iced Americano,Double espresso over ice,130,veg,0,no,no,yes
+Tea & Others,Masala Chai,Strong tea with ginger and cardamom,60,veg,1,yes,no,yes
+Tea & Others,Green Tea,Light and refreshing,80,veg,0,no,no,yes
+Tea & Others,Hot Chocolate,Thick rich chocolate with whipped cream,160,veg,0,no,no,yes
+Cold Drinks,Fresh Lime Soda,Sweet or salted,80,veg,0,no,no,yes
+Cold Drinks,Virgin Mojito,Mint lime and soda over crushed ice,140,veg,0,yes,no,yes
+Cold Drinks,Oreo Shake,Thick shake with Oreo cookies,190,veg,0,no,yes,yes
+Cold Drinks,Mango Smoothie,Fresh mango blended with yoghurt,170,veg,0,no,no,yes
+Snacks,French Fries,Crispy salted fries,120,veg,0,yes,no,yes
+Snacks,Peri Peri Fries,Fries tossed in spicy peri peri masala,150,veg,2,no,no,yes
+Snacks,Nachos with Cheese,Corn chips with cheese sauce and salsa,180,veg,1,no,no,yes
+Snacks,Chicken Wings,Crispy wings in smoky BBQ sauce,260,nonveg,2,no,yes,yes
+Sandwiches,Veg Grilled Sandwich,Grilled with veggies and cheese,150,veg,0,no,no,yes
+Sandwiches,Paneer Tikka Sandwich,Tandoori paneer with mint chutney,190,veg,1,yes,no,yes
+Sandwiches,Chicken Club Sandwich,Three layers with grilled chicken and egg,240,nonveg,1,no,no,yes
+Sandwiches,Egg Bhurji Toast,Spiced scrambled eggs on butter toast,140,egg,1,no,no,yes
+Desserts,Chocolate Brownie,Warm fudgy brownie,150,veg,0,yes,no,yes
+Desserts,Brownie with Ice Cream,Brownie topped with vanilla ice cream,210,veg,0,no,yes,yes
+Desserts,Cheesecake Slice,Classic baked cheesecake,200,veg,0,no,no,yes
+Desserts,Waffle with Nutella,Crisp waffle with Nutella and banana,220,veg,0,no,no,yes

@@ -65,7 +65,13 @@ Guest PWA shell (login, chat engine, dock, cards: Stay, Services, Dining, Buffet
 
 Phase 2: 6–8 d; 3: 8–10 d; 4: 5 d; 5: 8–10 d; 6: 4 d; 7: 6 d; 8: 5 d; 9: 6–8 d; 10: 8–10 d; 11: 4 d; 12: 8–10 d (excl. external pen-test).
 
-## 8. Decisions needed before Phase 2
+## 8. Update (owner answers)
+
+- **Decision 1 resolved:** Padharoso lives in this repo. The menu app (`taprizzweb/menu`, a Next.js 15 app named `gotomenu`) has been copied in at the repo root so cafes and menu+help-only customers stay on the same codebase as "Menu Lite". See `docs/PRODUCT_STRUCTURE.md`.
+- Menu repo findings: it already has staff login with two-step sign-in (`/account/mfa`), CI gates (`check:rls`, `check:secret-scan`, `audit`), staging docs and a threat model. This further supports skipping the Interim Access Layer (Decision 3) and reusing its security scripts.
+- Still open: Decisions 2, 3, 4 below.
+
+## 9. Decisions needed before Phase 2
 
 1. **Where does the app live?** (a) Give me the menu app repo and I add Padharoso inside it; or (b) new Next.js app in this repo against `menu-prod`. Also which Vercel project deploys it (only `taprizz-review` exists).
 2. **Food orders:** reuse `orders` via room `table_sessions` (my recommendation, keeps one kitchen board) or a separate order table for hotels.
