@@ -14,7 +14,7 @@ interface Home {
 }
 interface Me { name: string; room: string; language: string; hotel_name: string }
 interface ReqView {
-  request: { id: string; label: string; status: string; dismissed_reason: string | null; created_at: string; accepted_at: string | null; completed_at: string | null; version: number };
+  request: { id: string; label: string; status: string; dismissed_reason: string | null; created_at: string; accepted_at: string | null; completed_at: string | null; version: number; resolution: string | null; followup_asked: boolean };
   updates: { at: string; key: string; params: Record<string, string> | null }[];
 }
 type Screen = { s: 'home' } | { s: 'services' } | { s: 'stay' } | { s: 'track'; id: string };
@@ -221,13 +221,16 @@ function Services({ c, back, done }: { c: Copy; back: () => void; done: (id: str
   const [label, setLabel] = useState<string>(c.hk[0]!);
   const [detail, setDetail] = useState('');
   const [urgent, setUrgent] = useState(false);
+  const [cat, setCat] = useState<keyof Copy['helpCats']>('ac_electrical');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(false);
   const kinds = ['housekeeping', 'wake', 'cab', 'late_checkout', 'help'] as const;
   const send = async () => {
     setBusy(true); setErr(false);
-    const text = kind === 'housekeeping' ? `${c.types.housekeeping}: ${label}` : kind === 'help' ? `${c.types.help}` : c.types[kind];
-    const r = await api<{ id?: string; request_id?: string }>('requests', { method: 'POST', idem: true, body: JSON.stringify({ type: kind, label: text, ...(detail.trim() ? { detail: detail.trim() } : {}), urgent: kind === 'help' ? urgent : false }) });
+    const text = kind === 'housekeeping' ? `${c.types.housekeeping}: ${label}` : c.types[kind as 'wake'];
+    const r = kind === 'help'
+      ? await api<{ id?: string; request_id?: string }>('requests/help', { method: 'POST', idem: true, body: JSON.stringify({ category: cat, ...(detail.trim() ? { detail: detail.trim() } : {}), urgent }) })
+      : await api<{ id?: string; request_id?: string }>('requests', { method: 'POST', idem: true, body: JSON.stringify({ type: kind, label: text, ...(detail.trim() ? { detail: detail.trim() } : {}), urgent: false }) });
     setBusy(false);
     const id = r.ok ? (r.data.id ?? r.data.request_id) : null;
     if (id) done(id); else setErr(true);
@@ -248,6 +251,11 @@ function Services({ c, back, done }: { c: Copy; back: () => void; done: (id: str
           </fieldset>
         )}
         <label className="block text-sm font-semibold">{c.detail}<textarea maxLength={500} rows={3} value={detail} onChange={(e) => setDetail(e.target.value)} className="mt-1 w-full rounded-xl border bg-white p-3 text-base text-stone-900" /></label>
+        {kind === 'help' && (
+          <fieldset><legend className="mb-1 text-sm font-semibold">{c.helpLabel}</legend>
+            {(Object.keys(c.helpCats) as (keyof Copy['helpCats'])[]).map((k) => <label key={k} className="flex min-h-11 items-center gap-3"><input type="radio" name="cat" checked={cat === k} onChange={() => setCat(k)} className="h-5 w-5" />{c.helpCats[k]}</label>)}
+          </fieldset>
+        )}
         {kind === 'help' && <label className="flex min-h-11 items-center gap-3 text-sm font-semibold"><input type="checkbox" checked={urgent} onChange={(e) => setUrgent(e.target.checked)} className="h-5 w-5" />{c.urgent}</label>}
         {err && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm font-medium text-red-900">{c.failed}</p>}
         <Btn onClick={() => void send()} disabled={busy}>{busy ? c.sending : c.send}</Btn>
@@ -275,6 +283,7 @@ function Track({ id, c, back }: { id: string; c: Copy; back: () => void }) {
   const declined = q?.status === 'dismissed', cancelled = q?.status === 'cancelled', finished = q?.status === 'completed';
   const headline = !q ? '…' : declined ? c.declined : cancelled ? c.cancelled : finished ? c.done : q.accepted_at ? c.accepted : c.sent;
   const steps = [{ k: c.sent, at: q?.created_at ?? null, on: true }, { k: declined ? c.declined : c.accepted, at: q?.accepted_at ?? null, on: !!q?.accepted_at || declined }, { k: c.done, at: q?.completed_at ?? null, on: finished }];
+  const confirm = async (ok: boolean) => { await api(`requests/${id}/confirm`, { method: 'POST', body: JSON.stringify({ ok }) }); await load(); };
   const cancel = async () => { await api(`requests/${id}/cancel`, { method: 'POST', body: '{}' }); await load(); };
   return (
     <main className="flex-1 pb-4">
@@ -283,6 +292,16 @@ function Track({ id, c, back }: { id: string; c: Copy; back: () => void }) {
         {steps.map((s) => <li key={s.k} className="flex items-center justify-between gap-3"><span className="flex items-center gap-3"><span aria-hidden className="h-4 w-4 rounded-full" style={{ background: s.on ? (declined && s.k === c.declined ? '#b3261e' : '#1f6f43') : '#e5d8c8' }} /><span className={s.on ? 'font-bold' : 'text-stone-600'}>{s.k}</span></span><span className="text-sm text-stone-600">{time(s.at)}</span></li>)}
       </ol>
       {declined && q?.dismissed_reason && <p className="mx-5 mt-3 rounded-2xl bg-white p-4 text-stone-900 shadow-sm"><span className="block text-xs font-bold uppercase tracking-wide text-stone-600">{c.fromTeam}</span>{q.dismissed_reason}</p>}
+      {v && v.updates.length > 0 && (
+        <section className="mx-5 mt-3" aria-label={c.updates}>
+          <h2 className="mb-1 text-xs font-bold uppercase tracking-wide" style={{ color: 'var(--accent-text)' }}>{c.updates}</h2>
+          <ul className="space-y-2">{v.updates.map((u, i) => <li key={i} className="flex gap-3 rounded-2xl bg-white p-3 text-sm text-stone-900 shadow-sm"><span className="shrink-0 text-stone-600">{time(u.at)}</span><span>{fill(c.upd[u.key] ?? u.key, { ...(u.params ?? {}), at: time((u.params as Record<string, string> | null)?.at ?? u.at) })}</span></li>)}</ul>
+        </section>
+      )}
+      {finished && q?.resolution && !q.followup_asked && (
+        <section className="mx-5 mt-3 rounded-2xl bg-white p-4 text-stone-900 shadow-sm"><p className="mb-3 font-bold">{c.ok}</p>
+          <div className="grid grid-cols-2 gap-2"><Btn onClick={() => void confirm(true)}>{c.yes}</Btn><Btn kind="soft" onClick={() => void confirm(false)}>{c.no}</Btn></div></section>
+      )}
       {q?.status === 'received' && <div className="mx-5 mt-4"><Btn kind="soft" onClick={() => void cancel()}>{c.cancel}</Btn></div>}
       <div className="mx-5 mt-4"><Btn onClick={back}>{c.home}</Btn></div>
     </main>

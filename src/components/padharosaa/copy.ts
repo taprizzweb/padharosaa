@@ -14,6 +14,8 @@ const en = {
   fromTeam: 'Message from the team', ok: 'Is everything okay now?', yes: 'Yes, all good', no: 'Not yet', none: 'No requests yet.',
   types: { housekeeping: 'Housekeeping', wake: 'Wake-up call', cab: 'Cab', late_checkout: 'Late check-out', reservation: 'Table reservation', help: 'Help / problem' },
   hk: ['Extra towels', 'Clean my room', 'Extra pillows', 'Toiletries'], hkLabel: 'What do you need?',
+  helpLabel: 'What is the problem?', helpCats: { ac_electrical: 'AC or electrical', water_plumbing: 'Water or plumbing', cleanliness: 'Cleanliness', noise: 'Noise', other: 'Something else' },
+  upd: { 'msg.sent': 'Your request was sent to the team.', 'msg.accepted': 'Accepted by {team} at {at}.', 'msg.completed': 'Done: {label}.', 'msg.dismissed': 'We could not take this up. {reason}', 'msg.passed': 'Passed to {team}.', 'msg.sorry_problem': 'Sorry about this. Reception has been told.', 'msg.resolved': 'We have fixed it. Is everything okay now?', 'msg.handover_deliver': 'Your order will be delivered to your room.', 'msg.handover_takeaway': 'Your order is for takeaway. Please collect it from the restaurant.' } as Record<string, string>,
 };
 const hi: typeof en = {
   hello: 'नमस्ते, {name}', room: 'कमरा {room} · आप क्या चाहेंगे?',
@@ -30,6 +32,8 @@ const hi: typeof en = {
   fromTeam: 'टीम की ओर से संदेश', ok: 'क्या अब सब ठीक है?', yes: 'हाँ, सब ठीक', no: 'अभी नहीं', none: 'अभी कोई अनुरोध नहीं।',
   types: { housekeeping: 'हाउसकीपिंग', wake: 'वेक-अप कॉल', cab: 'कैब', late_checkout: 'लेट चेक-आउट', reservation: 'टेबल बुकिंग', help: 'मदद / समस्या' },
   hk: ['अतिरिक्त तौलिए', 'कमरा साफ़ करें', 'अतिरिक्त तकिए', 'टॉयलेटरीज़'], hkLabel: 'आपको क्या चाहिए?',
+  helpLabel: 'क्या समस्या है?', helpCats: { ac_electrical: 'AC या बिजली', water_plumbing: 'पानी या प्लंबिंग', cleanliness: 'सफ़ाई', noise: 'शोर', other: 'कुछ और' },
+  upd: { 'msg.sent': 'आपका अनुरोध टीम को भेज दिया गया।', 'msg.accepted': '{team} ने {at} बजे स्वीकार किया।', 'msg.completed': 'पूरा हुआ: {label}।', 'msg.dismissed': 'हम यह नहीं कर पाए। {reason}', 'msg.passed': '{team} को भेजा गया।', 'msg.sorry_problem': 'असुविधा के लिए खेद है। रिसेप्शन को बता दिया गया है।', 'msg.resolved': 'हमने इसे ठीक कर दिया है। क्या अब सब ठीक है?', 'msg.handover_deliver': 'आपका ऑर्डर आपके कमरे में पहुँचाया जाएगा।', 'msg.handover_takeaway': 'आपका ऑर्डर टेकअवे है। कृपया रेस्टोरेंट से ले लें।' } as Record<string, string>,
 };
 export const COPY = { en, hi };
 export type Copy = typeof en;

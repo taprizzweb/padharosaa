@@ -28,6 +28,13 @@ const serverSchema = publicSchema.extend({
     .refine((v) => Buffer.from(v, 'base64').length === 32, 'must be base64 of exactly 32 bytes (openssl rand -base64 32)')
     .optional()
     .or(z.literal('').transform(() => undefined)),
+  /** Padharosaa alerts: WhatsApp Business Cloud API. All optional; without them queued alerts wait in the outbox (see docs/PRODUCTION.md). */
+  WHATSAPP_TOKEN: z.string().min(20).optional().or(z.literal('').transform(() => undefined)),
+  WHATSAPP_PHONE_ID: z.string().regex(/^[0-9]{5,30}$/).optional().or(z.literal('').transform(() => undefined)),
+  WHATSAPP_HELP_TEMPLATE: z.string().regex(/^[a-z0-9_]{1,60}$/).default('padharosaa_help_alert'),
+  WHATSAPP_TEMPLATE_LANG: z.string().regex(/^[a-z]{2}(_[A-Z]{2})?$/).default('en'),
+  /** Shared secret for /api/padharosaa/v1/cron/notify (Vercel Cron sends it as a bearer token). Generate with: openssl rand -base64 32 */
+  CRON_SECRET: z.string().min(24).optional().or(z.literal('').transform(() => undefined)),
   SENTRY_DSN: z.string().url().optional().or(z.literal('').transform(() => undefined)),
   LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error']).default('info'),
 });

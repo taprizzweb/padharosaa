@@ -4,7 +4,7 @@ import { newNonce, securityHeaders } from '@/lib/security/csp';
 
 // Edge-safe: only reads NEXT_PUBLIC_* values (inlined at build time). The full env check runs at boot
 // in instrumentation.ts.
-const PROTECTED = /^\/(staff|dash|admin|account)(\/|$)/;
+const PROTECTED = /^\/(staff|dash|admin|account|padharosaa\/(desk|manage))(\/|$)/;
 
 export async function middleware(request: NextRequest) {
   const nonce = newNonce();

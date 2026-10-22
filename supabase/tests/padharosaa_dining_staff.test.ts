@@ -105,3 +105,38 @@ describe('staff directory, mutes and problem alerts', () => {
     expect((await svcErr('padh_guest_create_help', [sB, 'noise', null, false, 'short']))?.code).toBe('GM015');
   });
 });
+
+describe('notification worker doors', () => {
+  it('claims due alerts once, resolves the number at send time, retries with backoff, then gives up; inactive people are suppressed', async () => {
+    await db.admin(`delete from public.notifications`);
+    await staff(w.A.manager, 'padh_staff_profile_set', [w.A.waiter, 'front_desk', '+919876500001', true]);
+    const ins = async (key: string, user: string) => (await db.admin<{ id: string }>(`insert into public.notifications (restaurant_id, channel, to_ref, template, payload, dedupe_key) values ($1,'whatsapp',$2,'help_alert','{"room":"204","label":"AC","urgent":true}',$3) returning id`, [w.A.rid, user, key]))[0]!.id;
+    const a = await ins('w-a', w.A.waiter);
+    const claimed = await svc<any[]>('padh_claim_notifications', [10]);
+    expect(claimed).toHaveLength(1);
+    expect(claimed[0]).toMatchObject({ id: a, to: '+919876500001', attempts: 1, payload: { room: '204' } });
+    await svc('padh_finish_notification', [a, false, 'http_500']);
+    const row = (await db.admin<any>(`select status, attempts, last_error, scheduled_at > now() as later from public.notifications where id = $1`, [a]))[0];
+    expect(row).toMatchObject({ status: 'queued', attempts: 1, last_error: 'http_500', later: true });
+    expect(await svc<any[]>('padh_claim_notifications', [10])).toHaveLength(0); // backing off, not due yet
+    await db.admin(`update public.notifications set scheduled_at = now(), attempts = 4 where id = $1`, [a]);
+    expect((await svc<any[]>('padh_claim_notifications', [10]))[0].attempts).toBe(5);
+    await svc('padh_finish_notification', [a, false, 'http_500']);
+    expect((await db.admin<any>(`select status from public.notifications where id = $1`, [a]))[0].status).toBe('failed');
+
+    const b = await ins('w-b', w.A.waiter);
+    const [c] = await svc<any[]>('padh_claim_notifications', [10]);
+    await svc('padh_finish_notification', [c.id, true, null]);
+    expect((await db.admin<any>(`select status, sent_at is not null as sent from public.notifications where id = $1`, [b]))[0]).toMatchObject({ status: 'sent', sent: true });
+
+    await db.admin(`update public.staff set active = false where user_id = $1`, [w.A.waiter]);
+    await ins('w-c', w.A.waiter);
+    const [d] = await svc<any[]>('padh_claim_notifications', [10]);
+    expect(d.to).toBeNull(); // deactivated: no number is released
+    await svc('padh_finish_notification', [d.id, false, 'no_recipient']);
+    expect((await db.admin<any>(`select status from public.notifications where id = $1`, [d.id]))[0].status).toBe('suppressed');
+    await db.admin(`update public.staff set active = true where user_id = $1`, [w.A.waiter]);
+    for (const uid of [w.A.manager, w.stranger]) expect((await staffErr(uid, 'padh_claim_notifications', [5]))?.code, uid).toBeTruthy();
+    expect((await svcErr('padh_claim_notifications', [0]))?.code).toBe('GM015');
+  });
+});
