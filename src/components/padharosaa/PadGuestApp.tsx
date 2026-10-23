@@ -91,7 +91,7 @@ function Login({ slug, qrKey, c, lang, setLang, onDone, imageBase }: { slug: str
       body: JSON.stringify({ k: qrKey, name: v.name, cc: '+91', mobile: v.mobile, language: lang, room: v.room, ...(v.stay ? { stay_code: v.stay } : {}), consent: v.consent, ...(v.consent ? { consent_version: 'v1' } : {}) }),
     });
     setBusy(false);
-    if (r.ok) await onDone(); else setErr('failed');
+    if (r.ok) await onDone(); else setErr(r.key === 'unknown_room' || r.key === 'login_failed' || r.key === 'locked' || r.key === 'not_configured' ? r.key : 'failed');
   };
   const field = (k: 'name' | 'mobile' | 'room' | 'stay', label: string, props: { inputMode?: 'numeric' | 'tel'; maxLength?: number } = {}) => (
     <label className="block text-sm font-semibold">{label}
@@ -117,7 +117,7 @@ function Login({ slug, qrKey, c, lang, setLang, onDone, imageBase }: { slug: str
       <form className="space-y-3 px-5 pb-8" onSubmit={(e) => { e.preventDefault(); void submit(); }} style={{ color: t.ink }}>
         {field('name', c.name)}{field('mobile', c.mobile, { inputMode: 'tel', maxLength: 14 })}{field('room', c.roomNo, { maxLength: 10 })}{field('stay', c.stayCode, { inputMode: 'numeric', maxLength: 4 })}
         <label className="flex items-start gap-3 text-sm"><input type="checkbox" className="mt-1 h-5 w-5" onChange={(e) => { f.current.consent = e.target.checked; }} />{c.consent}</label>
-        {err && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm font-medium text-red-900">{err === 'needKey' ? c.needKey : c.failed}</p>}
+        {err && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm font-medium text-red-900">{err === 'needKey' ? c.needKey : err === 'unknown_room' ? c.roomNotFound : err === 'login_failed' ? c.loginFailed : err === 'locked' ? c.tooManyTries : err === 'not_configured' ? c.notReady : c.failed}</p>}
         <button type="submit" disabled={busy || !hotel} style={{ background: t.button, color: t.onButton, boxShadow: `inset 0 0 0 2px ${t.buttonEdge}` }} className="min-h-12 w-full rounded-2xl px-4 py-3 text-base font-semibold disabled:opacity-60">{c.enter}</button>
       </form>
     </main>

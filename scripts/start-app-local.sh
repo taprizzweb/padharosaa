@@ -9,6 +9,7 @@ export NEXT_PUBLIC_APP_ORIGIN="http://localhost:${PORT}"
 export SUPABASE_SERVICE_ROLE_KEY="local-service-role-key-local-service-role"
 export GUEST_COOKIE_SECRET="local-cookie-secret-local-cookie-secret-local-1"
 export IP_HASH_SALT="local-ip-salt-local-ip-salt"
+export PADHAROSAA_DATA_KEY="bG9jYWwtcGFkaGFyb3NhYS1kYXRhLWtleS0zMmJ5dGU="
 export LOG_LEVEL="${LOG_LEVEL:-info}"
 [ "${SKIP_BUILD:-}" = "1" ] || node_modules/.bin/next build
 exec node_modules/.bin/next start -p "$PORT" -H 127.0.0.1

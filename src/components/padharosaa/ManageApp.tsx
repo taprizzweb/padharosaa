@@ -7,6 +7,7 @@ import { ImageCropper } from '@/components/dash/ImageCropper';
 import { apiGet, apiPost } from '@/components/staff/hooks';
 import { BuffetManager } from './BuffetManager';
 import { GuideManager } from './GuideManager';
+import { GuestLinkCard, RoomsCard } from './RoomsLink';
 import { parseStaffCsv } from '@/lib/padharosaa/csv';
 import { buildTheme, contrast, normaliseHex } from '@/lib/padharosaa/theme';
 
@@ -15,7 +16,7 @@ const TEAMS: [Team, string][] = [['front_desk', 'Front desk'], ['concierge', 'Co
 interface Settings {
   brand_color: string | null; logo_path: string | null; hero_path: string | null; tripadvisor_url: string | null; menu_url: string | null; review_link: string | null;
   offer_text: string | null; offer_until: string | null; info_text: string | null; wifi_name: string | null; checkout_time: string | null; breakfast_text: string | null;
-  reception_phone: string | null; manager_phone: string | null; room_dining: boolean;
+  reception_phone: string | null; manager_phone: string | null; room_dining: boolean; server_ready?: boolean;
 }
 interface Person { user_id: string; email: string; name: string; role: string; active: boolean; department: Team | null; whatsapp: string | null; is_head: boolean }
 interface ImportResult { email: string; ok: boolean; error?: string; temporary_password?: string }
@@ -53,6 +54,9 @@ export function ManageApp({ role, restaurant, supabase, appOrigin }: { role: str
     <div className="mx-auto min-h-dvh max-w-2xl bg-stone-50 px-4 pb-24 pt-4 text-stone-900">
       <header className="flex items-center justify-between gap-2"><div><h1 className="text-xl font-extrabold">Manage Padharosaa</h1><p className="text-sm text-stone-700">{restaurant.name}</p></div><Link href="/padharosaa/desk" className="inline-flex min-h-11 items-center rounded-full border-2 border-stone-800 px-4 text-sm font-bold">Back to desk</Link></header>
       {msg && <p role={msg.ok ? 'status' : 'alert'} className={`mt-3 rounded-xl p-3 text-sm font-semibold ${msg.ok ? 'bg-emerald-50 text-emerald-950' : 'bg-red-50 text-red-900'}`}>{msg.text}</p>}
+      {s.server_ready === false && <p role="alert" className="mt-3 rounded-xl bg-red-50 p-3 text-sm font-semibold text-red-900">Guest sign-in is switched off: the setting PADHAROSAA_DATA_KEY is missing on the server. Add it in your hosting settings (Vercel → Environment Variables) and redeploy. Until then guests cannot enter.</p>}
+      <RoomsCard flash={flash} />
+      <GuestLinkCard origin={appOrigin} slug={restaurant.slug} flash={flash} />
       <HomeCard s={s} save={save} />
       <StayCard s={s} save={save} />
       <LookCard s={s} insta={insta} restaurantId={restaurant.id} sb={sb} save={save} />
@@ -62,7 +66,6 @@ export function ManageApp({ role, restaurant, supabase, appOrigin }: { role: str
       <BuffetManager flash={flash} />
       <GuideManager flash={flash} />
       <TeamCard canImport={role === 'owner'} flash={flash} />
-      <Card title="Guest QR code" hint="Each room's QR opens this link. Ask Taprizz support to enable the hotel and print the QR sheet."><code className="block break-all rounded-lg bg-stone-100 p-2 text-sm">{`${appOrigin}/padharosaa/${restaurant.slug}?k=…`}</code></Card>
     </div>
   );
 }

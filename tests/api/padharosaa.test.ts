@@ -25,6 +25,9 @@ import { POST as guestActionPOST } from '@/app/api/padharosaa/v1/requests/[id]/[
 import { POST as staffReqPOST } from '@/app/api/padharosaa/v1/staff/requests/[id]/[action]/route';
 import { POST as staffSessPOST } from '@/app/api/padharosaa/v1/staff/sessions/[id]/[action]/route';
 import { POST as staffRoomPOST } from '@/app/api/padharosaa/v1/staff/rooms/[id]/[action]/route';
+import { serverEnv } from '@/env';
+import { GET as settingsGET } from '@/app/api/padharosaa/v1/staff/settings/route';
+import { GET as roomsGET, POST as roomsPOST } from '@/app/api/padharosaa/v1/staff/rooms/route';
 import { POST as rotatePOST } from '@/app/api/padharosaa/v1/staff/qr/rotate/route';
 import { POST as enablePOST } from '@/app/api/padharosaa/v1/platform/hotels/[id]/enable/route';
 
@@ -273,6 +276,46 @@ describe('staff actions over the API', () => {
     expect((await guestActionPOST(mk(`/api/padharosaa/v1/requests/${h}/confirm`, { body: {}, cookie: c }), p({ id: h, action: 'confirm' }))).status).toBe(400);
   });
 
+  it('without the data key a guest gets a clear 503, never a raw 500, and managers are warned', async () => {
+    const env = serverEnv() as { PADHAROSAA_DATA_KEY?: string }; // the validated environment is cached, so change it there
+    const key = env.PADHAROSAA_DATA_KEY;
+    env.PADHAROSAA_DATA_KEY = undefined;
+    try {
+      const res = await login({ mobile: '9877777777' });
+      expect(res.status).toBe(503);
+      expect((await json(res)).error.key).toBe('not_configured');
+      as(w.A.manager);
+      expect((await json(await settingsGET(mk('/api/padharosaa/v1/staff/settings')))).server_ready).toBe(false);
+    } finally {
+      env.PADHAROSAA_DATA_KEY = key;
+    }
+    as(w.A.manager);
+    expect((await json(await settingsGET(mk('/api/padharosaa/v1/staff/settings')))).server_ready).toBe(true);
+  });
+  it('rooms: managers add them, desk staff list them, and a room can be switched off and on', async () => {
+    const add = (numbers: unknown) => roomsPOST(mk('/api/padharosaa/v1/staff/rooms', { body: { numbers } }));
+    expect((await add(['301'])).status).toBe(401);
+    as(w.A.kitchen);
+    expect((await add(['301'])).status).toBe(403);
+    as(w.A.manager);
+    expect((await add(['301', '302'])).status).toBe(200);
+    expect((await add(['<b>'])).status).toBe(400);
+    expect((await add([])).status).toBe(400);
+    expect((await add('301')).status).toBe(400);
+    as(w.A.waiter);
+    const list = (await json(await roomsGET(mk('/api/padharosaa/v1/staff/rooms')))).rooms as { id: string; number: string; active: boolean }[];
+    expect(list.map((r) => r.number)).toEqual(expect.arrayContaining(['204', '301', '302']));
+    const id = list.find((r) => r.number === '302')!.id;
+    const toggle = (active: unknown) => staffRoomPOST(mk(`/api/padharosaa/v1/staff/rooms/${id}/active`, { body: { active } }), p({ id, action: 'active' }));
+    expect((await toggle(false)).status).toBe(403); // only owner/manager
+    as(w.A.manager);
+    expect((await toggle('no')).status).toBe(400);
+    expect((await toggle(false)).status).toBe(200);
+    expect((await db.admin<any>(`select active from public.rooms where id = $1`, [id]))[0].active).toBe(false);
+    as(w.B.manager);
+    expect((await toggle(true)).status).toBe(404); // another hotel's room
+    expect((await json(await roomsGET(mk('/api/padharosaa/v1/staff/rooms')))).rooms.map((r: any) => r.number)).not.toContain('302');
+  });
   it('end/block sessions, stay codes, check-out and QR rotation are role- and hotel-scoped', async () => {
     const c = await guest('9888888883');
     const sid = (await db.admin<any>(`select id from public.guest_sessions order by started_at desc limit 1`))[0].id as string;

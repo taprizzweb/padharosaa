@@ -2,11 +2,15 @@ import 'server-only';
 import { createCipheriv, createDecipheriv, createHash, createHmac, randomBytes } from 'node:crypto';
 import { serverEnv } from '@/env';
 import { ApiError } from '@/lib/errors';
+import { log } from '@/lib/log';
 
-/** Padharosaa data key (32 bytes). Menu Lite deployments do not set it; Padharosaa routes then answer 500 instead of storing plaintext. */
+/** Padharosaa data key (32 bytes). Menu Lite deployments do not set it; Padharosaa routes then answer 503 not_configured instead of storing plaintext. */
 function dataKey(): Buffer {
   const k = serverEnv().PADHAROSAA_DATA_KEY;
-  if (!k) throw Object.assign(new Error('PADHAROSAA_DATA_KEY is not set'), { dbCode: 'CONFIG' });
+  if (!k) {
+    log('error', 'PADHAROSAA_DATA_KEY is not set: guests cannot sign in until it is added to the deployment settings');
+    throw new ApiError(503, 'not_configured');
+  }
   return Buffer.from(k, 'base64');
 }
 

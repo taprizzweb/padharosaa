@@ -135,16 +135,6 @@ export const fakeUserClient = {
       return { error: null };
     },
   },
-  // only what the app reads directly: the signed-in staff member's own hotel_settings row (RLS: own hotel only)
-  from: (table: string) => ({
-    select: () => ({
-      maybeSingle: async () => {
-        if (table !== 'hotel_settings' || !authState.userId) return { data: null, error: null };
-        const r = await state.pool!.query(`select h.enabled from public.hotel_settings h join public.staff s on s.restaurant_id = h.restaurant_id where s.user_id = $1`, [authState.userId]);
-        return { data: r.rows[0] ?? null, error: null };
-      },
-    }),
-  }),
   rpc: async (name: string, args: Record<string, unknown>) => {
     state.calls.push(name);
     if (!authState.userId) return { data: null, error: { code: 'PGRST301', message: 'JWT expired' } };

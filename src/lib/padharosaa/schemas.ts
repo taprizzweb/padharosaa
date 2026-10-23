@@ -178,3 +178,7 @@ export const planAddBody = z.object({ name: text(1, 100), when_label: optionalTe
 export const planRemoveBody = z.object({ item: uuid }).strict();
 export const planUseBody = z.object({ itinerary: uuid }).strict();
 export const feedbackBody = z.object({ rating: z.enum(['great', 'okay', 'not_good']) }).strict();
+
+/** room numbers for the manager page: each is 1 to 10 characters, upper-case letters, digits, space or dash */
+export const roomsBody = z.object({ numbers: z.array(z.string().max(12)).min(1).max(100) }).strict();
+export const roomActiveBody = z.object({ active: z.boolean() }).strict();

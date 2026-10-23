@@ -24,6 +24,6 @@ export default async function StaffPage() {
     );
   }
   const env = publicEnv();
-  const { data: hs } = await db.from('hotel_settings').select('enabled').maybeSingle();
-  return <StaffApp me={me as StaffMe} hotel={!!hs?.enabled} supabase={{ url: env.NEXT_PUBLIC_SUPABASE_URL, anonKey: env.NEXT_PUBLIC_SUPABASE_ANON_KEY }} />;
+  const { data: alerts } = await db.rpc('padh_my_alerts'); // answers only for staff of an enabled Padharosaa hotel
+  return <StaffApp me={me as StaffMe} hotel={!!alerts} supabase={{ url: env.NEXT_PUBLIC_SUPABASE_URL, anonKey: env.NEXT_PUBLIC_SUPABASE_ANON_KEY }} />;
 }
