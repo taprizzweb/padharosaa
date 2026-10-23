@@ -227,10 +227,10 @@ describe('storage policies (menu photos)', () => {
     db.asErr('authenticated', uid, `insert into storage.objects (bucket_id, name, owner) values ('menu-images', $1, $2)`, [name, uid]);
   const file = (rid: string) => `${rid}/${randomUUID()}.webp`;
 
-  it('bucket is public, images only, 2 MB max', async () => {
+  it('bucket is public, images only, 20 MB max', async () => {
     const [b] = await db.admin<{ public: boolean; file_size_limit: string; allowed_mime_types: string[] }>(`select public, file_size_limit, allowed_mime_types from storage.buckets where id = 'menu-images'`);
     expect(b!.public).toBe(true);
-    expect(Number(b!.file_size_limit)).toBe(2097152);
+    expect(Number(b!.file_size_limit)).toBe(20971520);
     expect(b!.allowed_mime_types.sort()).toEqual(['image/jpeg', 'image/png', 'image/webp']);
   });
   it('owner and manager can upload into their own restaurant folder', async () => {

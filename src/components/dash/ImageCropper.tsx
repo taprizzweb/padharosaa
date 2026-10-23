@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Sheet, btnPrimary, btnSecondary } from '@/components/guest/ui';
 import { clampCenter, scaleOf, sourceRect } from '@/lib/dash/crop';
+import { MAX_PHOTO_BYTES } from '@/lib/dash/image';
 
 /**
  * Pick the visible part of a photo: drag it, zoom with the slider (or arrow keys / +/- when the frame is focused).
@@ -22,6 +23,7 @@ export function ImageCropper({ file, aspect, outWidth, title, onCancel, onDone }
   const frameH = frameW / aspect;
 
   useEffect(() => {
+    if (file.size > MAX_PHOTO_BYTES) { setErr('This photo is larger than 20 MB. Please choose a smaller one.'); return; }
     const u = URL.createObjectURL(file);
     setUrl(u);
     const img = new Image();
@@ -67,9 +69,9 @@ export function ImageCropper({ file, aspect, outWidth, title, onCancel, onDone }
       if (!ctx) throw new Error('This browser cannot crop photos.');
       ctx.drawImage(bitmap, sx, sy, sw, sh, 0, 0, w, h);
       bitmap.close();
-      for (const q of [0.84, 0.72, 0.58]) {
+      for (const q of [0.9, 0.84, 0.72, 0.58]) {
         const blob = await new Promise<Blob | null>((r) => canvas.toBlob(r, 'image/webp', q));
-        if (blob && blob.size <= 1.8 * 1024 * 1024) return onDone(blob);
+        if (blob && blob.size <= MAX_PHOTO_BYTES) return onDone(blob);
       }
       throw new Error('This photo is still too large. Please choose a smaller one.');
     } catch (e) {

@@ -13,7 +13,7 @@ import type { Pool } from 'pg';
 import { callRpc } from './rpc';
 import { newSecret, totpValid } from './totp';
 
-const MAX_UPLOAD_BYTES = 2_097_152;
+const MAX_UPLOAD_BYTES = 20_971_520;
 const ALLOWED_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 const WEAK = /^(password|12345678|qwerty|letmein)/i;
 
@@ -224,7 +224,7 @@ export function startLocalSupabase(pool: Pool, port: number, opts: { ttlSeconds?
           return send(res, 200, {}, origin);
         }
       }
-      // ---- Storage: same access rules as the real bucket (RLS on storage.objects, 2 MB, images only)
+      // ---- Storage: same access rules as the real bucket (RLS on storage.objects, 20 MB, images only)
       const up = /^\/storage\/v1\/object\/menu-images\/(.+)$/.exec(url.pathname);
       if (up && req.method === 'POST') {
         const claims = bearer ? verifyJwt(bearer) : null;
