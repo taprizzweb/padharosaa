@@ -114,8 +114,14 @@ export function buildTheme(input: string | null | undefined, mode: 'light' | 'da
   const accentText = contrast(picked, paper) >= 4.5 ? picked : shade(picked, paper, 4.5, mode === 'light' ? 'darker' : 'lighter');
   const tint = mix(picked, paper, mode === 'light' ? 0.14 : 0.22);
   const onTint = contrast(ink, tint) >= 4.5 ? ink : mode === 'light' ? INK : WHITE;
+  // the lower stop of the hero gradient also sits under text: soften it only as far as the text stays readable
+  let heroEnd = heroFixed;
+  for (const amount of [0.5, 0.35, 0.2, 0.1]) {
+    const g = mix(heroFixed, paper, amount);
+    if (contrast(onHero, g) >= 4.5) { heroEnd = g; break; }
+  }
   const buttonEdge = onButton === WHITE ? 'rgba(16,19,26,0)' : 'rgba(16,19,26,0.55)';
-  return { picked, button, onButton, buttonEdge, onHero, onHeroSoft, paper, ink, accentText, tint, onTint, gradient: [heroFixed, mix(heroFixed, paper, 0.5), paper] };
+  return { picked, button, onButton, buttonEdge, onHero, onHeroSoft, paper, ink, accentText, tint, onTint, gradient: [heroFixed, heroEnd, paper] };
 }
 
 /** CSS custom properties for a theme, ready to put on a wrapper element's style. Values are colours only, never user text. */

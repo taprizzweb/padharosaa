@@ -3,8 +3,8 @@
 What is built, what must be switched on, and what is still open. Read top to bottom before the first hotel.
 
 ## 1. Database (Supabase)
-1. Take a backup or create a branch of `menu-prod` first. Migrations `0026` to `0034` are additive (new tables, new columns, new functions); nothing existing is dropped. Rows in `restaurants` are untouched, and `rooms` is back-filled from `restaurants.room_numbers`.
-2. Apply `0026` ... `0034` in order (Supabase SQL editor, `supabase db push`, or the MCP `apply_migration`). Each file is idempotent.
+1. Take a backup or create a branch of `menu-prod` first. Migrations `0026` to `0038` are additive (new tables, new columns, new functions); nothing existing is dropped. Rows in `restaurants` are untouched, and `rooms` is back-filled from `restaurants.room_numbers`.
+2. Apply `0026` ... `0038` in order (Supabase SQL editor, `supabase db push`, or the MCP `apply_migration`). Each file is idempotent.
 3. Run `npm run check:rls` against the result: every new table must show RLS on, with no direct write grants.
 4. Optional demo data: `supabase/seed/padharosaa_demo.sql` (marks rows `is_mock`; `npm run check:no-mock` fails CI if mock data could reach production).
 5. Enable a hotel as the platform admin: `POST /api/padharosaa/v1/platform/hotels/<restaurant id>/enable`. The QR key is returned once; print it into the room QR codes as `https://<app>/padharosaa/<slug>?k=<key>`. Rotate with `staff/qr/rotate` (typed word ROTATE).
@@ -27,17 +27,22 @@ The existing menu-app variables are unchanged. Menu Lite (cafes) needs none of t
 ## 4. People
 - Owner: `/padharosaa/manage` -> Team -> add many people from a CSV (name, email, department, whatsapp, head). Each gets a login with a one-time temporary password (shown once, downloadable as CSV, must be changed at first sign-in). Passwords are never stored or readable afterwards; "reset password" in `/dash/staff` makes a new one.
 - Department heads get the WhatsApp for problems of their department and for reception. Every person mutes their own alerts on `/padharosaa/desk`; a manager can mute the kitchen for themself without affecting the kitchen.
-- Role mapping: owner and manager see everything; every other department except kitchen signs in as "waiter" (can act on all teams); kitchen sees kitchen requests only and never sees guest phone numbers. Per-department visibility for housekeeping and maintenance is **not** built (a limitation, not a bug).
+- Visibility: owner, manager, reception and concierge see everything. A person whose department is **housekeeping** or **maintenance** sees and acts on their own team's requests only (enforced in the database: board, row-level security, every action, alert settings). Kitchen sees kitchen only and never sees guest phone numbers. Set the department in Manage -> Team (or the CSV).
+
+## 4b. Dining (food): how it works
+- Dining on the guest home shows chips: Veg / Jain plus every category of the restaurant's menu. The guest picks several, taps Show menu, and the restaurant's own menu page opens with the room already filled in, those categories selected, and a "Back to hotel" link. The same chips (several categories at once) are also on the menu page itself.
+- Items keep everything the menu app already has: photos, sizes, toppings and extras, quantities, cart, order status. The order lands on the kitchen screen (`/staff`, with its buzzer) as "Room 204".
+- On the kitchen screen a room order has two buttons, **Room delivery** and **Takeaway** (kitchen or manager decides; the guest sees it on their order). If the manager has switched room dining off, Room delivery is not shown and the database refuses it.
+- Which menu opens: the link pasted in Manage -> "Menu link for Dining" (a separate cafe's **room-service link**, the one that asks for a room number), otherwise this hotel's own restaurant on its room-service link (enable room service in `/dash` first). Declining an order is the existing cancel-with-reason on the kitchen screen.
 
 ## 5. Screens
-- Guest: `/padharosaa/<slug>?k=<key>` (login, home, services, help with category, stay and Wi-Fi, tracking with decline reasons, Google / TripAdvisor / Instagram, Powered by Taprizz).
+- Guest: `/padharosaa/<slug>?k=<key>` (login, home, services, Help dialog with several problem chips and a note, stay and Wi-Fi, tracking with decline reasons, Google / TripAdvisor / Instagram, Powered by Taprizz).
 - Desk: `/padharosaa/desk` (alarm sound, accept, decline with a written reason, pass, resolve, delivery or takeaway for food, personal mutes).
 - Manage: `/padharosaa/manage` (offer and info boxes, Wi-Fi, colour with live contrast preview, logo and photo with crop, links, room-dining switch, team).
 
 ## 6. Not built yet (be honest with the first hotel)
 - Jaipur guide, itineraries, "Plan my day", buffet automation and the places engine: the database tables and read paths exist, the editing and guest screens do not.
 - Jaipur Vista, ratings invitations after checkout, push notifications, and the interim Access Layer (staff use the existing Supabase login + MFA instead).
-- Guest food ordering inside Padharosaa: Dining opens the restaurant's own menu page; a Padharosaa food request (`POST requests/food`) exists for the kitchen bridge but the menu page does not call it yet.
 - Realtime updates: the desk polls every 4 seconds and the guest tracker every 5 seconds.
 - Crop settings are applied when the photo is saved (the browser crops it); stored zoom/offset values are not used by the guest page.
 - No load test has been run. Expect fine behaviour for tens of rooms; test before hundreds.

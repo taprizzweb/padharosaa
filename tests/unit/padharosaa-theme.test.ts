@@ -43,6 +43,7 @@ describe('buildTheme: every text pair is readable for ANY colour the hotel picks
           ['link/label text', t.accentText, t.paper],
           ['tinted area text', t.onTint, t.tint],
           ['hero text', t.onHero, t.gradient[0]],
+          ['hero text, lower stop', t.onHero, t.gradient[1]],
         ];
         for (const [name, fg, bg] of pairs) if (contrast(fg, bg) < 4.5) bad.push(`${p} ${name} ${fg} on ${bg} = ${contrast(fg, bg).toFixed(2)}`);
       }
