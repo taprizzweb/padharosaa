@@ -257,7 +257,7 @@ describe('manager and staff attacks: request control', () => {
       ['padh_resolve', [r.request_id, r.version, 'fixed']],
       ['padh_dismiss', [r.request_id, r.version, 'because']],
     ] as const)
-      expect((await staffErr(w.B.manager, fn, a as unknown[]))?.code, fn).toBe('GM012');
+      expect((await staffErr(w.B.manager, fn, [...a]))?.code, fn).toBe('GM012');
     expect((await row(r.request_id)).status).toBe('received');
   });
   it('29 a stale version is a conflict, never a silent overwrite', async () => {
@@ -276,7 +276,7 @@ describe('manager and staff attacks: request control', () => {
     const c = await staff<any>(w.A.waiter, 'padh_complete', [r.request_id, a.version]);
     const v = c.version ?? a.version + 1;
     for (const [fn, args] of [['padh_accept', [r.request_id, v]], ['padh_dismiss', [r.request_id, v, 'late']], ['padh_pass', [r.request_id, v, 'concierge']]] as const)
-      expect((await staffErr(w.A.manager, fn, args as unknown[]))?.code, fn).toBeTruthy();
+      expect((await staffErr(w.A.manager, fn, [...args]))?.code, fn).toBeTruthy();
   });
   it('32 passing to a made-up team is refused', async () => {
     const r = await create(sA, 'errand', `Pass ${randomUUID()}`);

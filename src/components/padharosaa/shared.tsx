@@ -1,6 +1,6 @@
 'use client';
 
-import type { ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import type { Copy } from './copy';
 
 export async function api<T>(path: string, init?: RequestInit & { idem?: boolean }): Promise<{ ok: true; data: T } | { ok: false; status: number; key: string }> {
@@ -36,5 +36,27 @@ export function Header({ title, sub, back, c }: { title: string; sub?: string; b
       {sub && <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--accent-text)' }}>{sub}</p>}
       <h1 className="text-2xl font-extrabold tracking-tight">{title}</h1>
     </header>
+  );
+}
+
+const COOKIE_KEY = 'padh_cookies_ok';
+/** First-open notice. The session cookie is strictly necessary, so this informs and records the guest's OK on this phone only. */
+export function CookieNotice({ c }: { c: Copy }) {
+  const [show, setShow] = useState(false);
+  useEffect(() => {
+    try { setShow(localStorage.getItem(COOKIE_KEY) !== '1'); } catch { setShow(true); }
+  }, []);
+  if (!show) return null;
+  const accept = () => {
+    try { localStorage.setItem(COOKIE_KEY, '1'); } catch { /* private mode: just hide for this visit */ }
+    setShow(false);
+  };
+  return (
+    <div role="dialog" aria-label="Cookies" className="fixed inset-x-0 bottom-0 z-50 mx-auto max-w-md p-3">
+      <div style={{ background: 'var(--paper)', color: 'var(--ink)', boxShadow: '0 -2px 18px rgba(0,0,0,.18), inset 0 0 0 1px var(--btn-edge)' }} className="rounded-2xl p-4">
+        <p className="mb-3 text-sm">{c.cookieText}</p>
+        <Btn onClick={accept}>{c.cookieOk}</Btn>
+      </div>
+    </div>
   );
 }

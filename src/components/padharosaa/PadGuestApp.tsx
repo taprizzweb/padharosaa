@@ -5,7 +5,7 @@ import { POWERED_BY, instagramUrl } from '@/lib/brand';
 import { buildTheme, themeVars } from '@/lib/padharosaa/theme';
 import { COPY, fill, type Copy, type Lang } from './copy';
 import { BuffetScreen, GuideScreen, PlanScreen } from './GuideScreens';
-import { Btn, Header, api, safeUrl, telHref, time } from './shared';
+import { Btn, CookieNotice, Header, api, safeUrl, telHref, time } from './shared';
 
 interface Look { name: string; brand_color: string | null; logo_path: string | null; hero_path: string | null }
 interface Home {
@@ -66,6 +66,7 @@ export function PadGuestApp({ slug, qrKey, imageBase }: { slug: string; qrKey: s
           </>
         )}
       </div>
+      <CookieNotice c={c} />
     </div>
   );
 }
@@ -101,6 +102,7 @@ function Login({ slug, qrKey, c, lang, setLang, onDone, imageBase }: { slug: str
   return (
     <main className="flex-1" style={{ background: `linear-gradient(${t.gradient[0]}, ${t.gradient[1]} 18rem, var(--paper) 30rem)` }}>
       <div className="px-5 pb-6 pt-8" style={{ color: t.onHero }}>
+        {/* eslint-disable-next-line @next/next/no-img-element -- own storage, tiny logo */}
         {hotel?.logo_path && <img src={`${imageBase}${hotel.logo_path}`} alt="" width={56} height={56} className="mb-3 h-14 w-14 rounded-2xl bg-white object-cover" />}
         <p className="text-sm font-semibold" style={{ color: t.onHeroSoft }}>{hotel?.name ?? ''}</p>
         <h1 className="text-3xl font-extrabold tracking-tight">{c.loginTitle}</h1>
@@ -140,6 +142,7 @@ function HomeScreen({ me, home, c, go, imageBase, lang, setLang }: { me: Me; hom
       <div className="px-5 pb-5 pt-6" style={{ background: `linear-gradient(var(--hero-0), var(--hero-1))`, color: 'var(--on-hero)' }}>
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2">
+            {/* eslint-disable-next-line @next/next/no-img-element -- own storage, tiny logo */}
             {home.look.logo_path && <img src={`${imageBase}${home.look.logo_path}`} alt="" width={40} height={40} className="h-10 w-10 rounded-xl bg-white object-cover" />}
             <span className="text-sm font-bold">{home.look.name}</span>
           </div>

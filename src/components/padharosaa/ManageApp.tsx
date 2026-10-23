@@ -112,7 +112,8 @@ function LookCard({ s, insta, restaurantId, sb, save }: { s: Settings; insta: st
   const pick = (kind: 'logo' | 'hero', label: string) => (
     <div>
       <p className="text-sm font-semibold">{label}</p>
-      {f[kind] && /* eslint-disable-next-line @next/next/no-img-element */ <img src={`${imageBase}${f[kind]}`} alt="" className="my-1 h-20 rounded-lg bg-stone-100 object-cover" />}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      {f[kind] && <img src={`${imageBase}${f[kind]}`} alt="" className="my-1 h-20 rounded-lg bg-stone-100 object-cover" />}
       <input type="file" accept="image/jpeg,image/png,image/webp" aria-label={`Choose ${label.toLowerCase()}`} className="block min-h-11 w-full text-base" onChange={(e) => { const file = e.target.files?.[0]; e.target.value = ''; if (file) setCropping({ kind, file }); }} />
       {f[kind] && <button type="button" className="min-h-11 text-sm font-semibold underline" onClick={() => setF({ ...f, [kind]: '' })}>Remove</button>}
     </div>
