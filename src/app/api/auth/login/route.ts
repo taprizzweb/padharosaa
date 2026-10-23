@@ -37,7 +37,8 @@ export async function POST(req: Request) {
     }
     // A Padharosaa hotel's staff land on the hotel desk by default; everyone else keeps the menu live screen.
     const hotel = me && !body.next ? await db.from('hotel_settings').select('enabled').maybeSingle() : null;
-    const home = isAdmin ? '/admin' : hotel?.data?.enabled ? '/padharosaa/desk' : '/staff';
+    const onPadHost = /^padharosaa\./i.test(req.headers.get('x-forwarded-host') ?? req.headers.get('host') ?? '');
+    const home = isAdmin ? '/admin' : hotel?.data?.enabled || onPadHost ? '/padharosaa/desk' : '/staff';
     return jsonOk({ ok: true, next: body.next ? safeNext(body.next) : home }, ctx.requestId);
   });
 }

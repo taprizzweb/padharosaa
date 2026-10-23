@@ -160,11 +160,14 @@ export interface PostOpts {
   ip?: string;
   rawBody?: string;
   method?: string;
+  /** serve the request as if it came in on this host (x-forwarded-host), e.g. padharosaa.taprizz.in */
+  host?: string;
 }
 
 export function req(path: string, body?: unknown, o: PostOpts = {}): Request {
   const headers = new Headers();
-  if (o.origin !== null) headers.set('origin', o.origin ?? APP);
+  if (o.host) headers.set('x-forwarded-host', o.host);
+  if (o.origin !== null) headers.set('origin', o.origin ?? (o.host ? `https://${o.host}` : APP));
   if (o.referer) headers.set('referer', o.referer);
   if (o.contentType !== null) headers.set('content-type', o.contentType ?? 'application/json');
   if (o.cookie) headers.set('cookie', o.cookie);

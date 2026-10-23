@@ -10,6 +10,8 @@ const publicSchema = z.object({
   NEXT_PUBLIC_SUPABASE_URL: z.string().url().refine(httpsInProd, 'must start with https:// in production'),
   NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(20, 'looks too short to be a Supabase anon/publishable key'),
   NEXT_PUBLIC_APP_ORIGIN: z.string().url().refine(httpsInProd, 'must start with https:// in production'),
+  /** Optional: the Padharosaa hotel address (e.g. https://padharosaa.taprizz.in). Used for guest QR links; falls back to the app origin. */
+  NEXT_PUBLIC_PADHAROSAA_ORIGIN: z.string().url().refine(httpsInProd, 'must start with https:// in production').optional(),
 });
 
 const serverSchema = publicSchema.extend({
@@ -86,5 +88,6 @@ export function publicEnv(): PublicEnv {
     NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
     NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
     NEXT_PUBLIC_APP_ORIGIN: process.env.NEXT_PUBLIC_APP_ORIGIN,
+    NEXT_PUBLIC_PADHAROSAA_ORIGIN: process.env.NEXT_PUBLIC_PADHAROSAA_ORIGIN || undefined,
   });
 }

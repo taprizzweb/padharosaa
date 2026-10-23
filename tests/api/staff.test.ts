@@ -272,6 +272,13 @@ describe('POST /api/auth/login', () => {
       await db.admin(`delete from public.hotel_settings where restaurant_id = $1`, [w.A.rid]);
     }
   });
+  it('on padharosaa.* a sign-in with no next lands on the hotel desk, on the menu host it still goes to the menu screen', async () => {
+    const email = await emailOf(w.A.waiter);
+    const pad = await call({ email, password: PASSWORD }, { host: 'padharosaa.taprizz.in' });
+    expect(pad.status).toBe(200);
+    expect((await json(pad)).next).toBe('/padharosaa/desk');
+    expect((await json(await call({ email, password: PASSWORD }, { host: 'menu.taprizz.in' }))).next).toBe('/staff');
+  });
   it('wrong password, unknown email and a non-staff account all give the SAME answer (no account enumeration)', async () => {
     const wrongPw = await call({ email: await emailOf(w.A.owner), password: 'nope' });
     const unknown = await call({ email: 'nobody@nowhere.test', password: 'whatever' });

@@ -27,6 +27,22 @@ export async function middleware(request: NextRequest) {
     res.headers.set('x-request-id', requestId);
     return res;
   };
+  // padharosaa.* is the hotel product: its front door is the Padharosaa sign-in, and the menu live screen is not its home.
+  // Any other host (the menu app) is untouched.
+  const host = (request.headers.get('x-forwarded-host') ?? request.headers.get('host') ?? '').toLowerCase();
+  if (host.startsWith('padharosaa.')) {
+    const p = request.nextUrl.pathname;
+    if (p === '/staff') {
+      const to = request.nextUrl.clone();
+      to.pathname = '/padharosaa/desk';
+      return decorate(NextResponse.redirect(to));
+    }
+    if (p === '/' || p === '/login') {
+      const to = request.nextUrl.clone();
+      to.pathname = '/padharosaa/login';
+      return decorate(NextResponse.rewrite(to, { request: { headers: requestHeaders } }));
+    }
+  }
   let response = decorate(NextResponse.next({ request: { headers: requestHeaders } }));
 
   if (PROTECTED.test(request.nextUrl.pathname)) {
