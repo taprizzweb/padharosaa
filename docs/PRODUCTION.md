@@ -60,3 +60,17 @@ The existing menu-app variables are unchanged. Menu Lite (cafes) needs none of t
 
 ## 8. How migrations 0026-0038 were applied to menu-prod
 They were applied with the Supabase SQL tool in small pieces (the tool times out on statements containing DROP, so the three DROP lines became `alter policy` / a `revoke`, and SQL comments were left out). They are **not** in the Supabase migration history table. After applying, every `padh_*` function was compared (hash of its definition, comments ignored) against the database built from the repo files used by the tests: all identical. To re-check later, run the same comparison. The repo files stay the source of truth.
+
+## 9. Deploying on Vercel (about 5 minutes)
+1. Vercel -> Add New -> Project -> import `taprizzweb/padharosaa` (production branch: the one that has this code), framework Next.js, no other settings.
+2. Environment Variables (Production):
+   - `NEXT_PUBLIC_SUPABASE_URL` = `https://kevapgvgalvhfjrutsmm.supabase.co`
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY` = the project's anon (or publishable) key (Supabase -> Project Settings -> API)
+   - `SUPABASE_SERVICE_ROLE_KEY` = Supabase -> Project Settings -> API -> service_role (secret; never in the browser)
+   - `NEXT_PUBLIC_APP_ORIGIN` = the exact final address, e.g. `https://padharosaa.vercel.app` (or your own domain). It must match exactly or every POST is refused.
+   - `GUEST_COOKIE_SECRET` = `openssl rand -base64 48`, `IP_HASH_SALT` = `openssl rand -base64 24`
+   - `PADHAROSAA_DATA_KEY` = `openssl rand -base64 32` (keep a copy outside Vercel; losing it makes stored guest numbers unreadable)
+   - optional: `CRON_SECRET`, `WHATSAPP_*`, `AI_*` (see `.env.example`)
+3. Deploy. Check `https://<address>/api/health` returns `{"ok":true}`.
+4. Enable the hotel: sign in as the platform admin, call `POST /api/padharosaa/v1/platform/hotels/<restaurant id>/enable`; print the QR key into the room QR links.
+5. Supabase -> Authentication -> URL configuration: set Site URL to the same address. Turn on "Leaked password protection".
