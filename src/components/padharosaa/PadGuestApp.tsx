@@ -5,7 +5,7 @@ import { POWERED_BY, instagramUrl } from '@/lib/brand';
 import { buildTheme, themeVars } from '@/lib/padharosaa/theme';
 import { COPY, fill, type Copy, type Lang } from './copy';
 import { BuffetScreen, GuideScreen, PlanScreen } from './GuideScreens';
-import { Btn, CookieNotice, Header, api, safeUrl, telHref, time } from './shared';
+import { Btn, BrandPill, CookieNotice, Header, Hero, Icon, IconBox, PoweredPill, api, safeUrl, telHref, time, type IconName } from './shared';
 
 interface Look { name: string; brand_color: string | null; logo_path: string | null; hero_path: string | null }
 interface Home {
@@ -72,7 +72,7 @@ export function PadGuestApp({ slug, qrKey, imageBase }: { slug: string; qrKey: s
 }
 
 function Login({ slug, qrKey, c, lang, setLang, onDone, imageBase }: { slug: string; qrKey: string | null; c: Copy; lang: Lang; setLang: (l: Lang) => void; onDone: () => Promise<void>; imageBase: string }) {
-  const [hotel, setHotel] = useState<{ name: string; brand_color: string | null; logo_path: string | null } | null>(null);
+  const [hotel, setHotel] = useState<{ name: string; brand_color: string | null; logo_path: string | null; hero_path?: string | null } | null>(null);
   const [err, setErr] = useState<string | null>(qrKey ? null : 'needKey');
   const [busy, setBusy] = useState(false);
   const f = useRef({ name: '', mobile: '', room: '', stay: '', consent: false });
@@ -100,36 +100,36 @@ function Login({ slug, qrKey, c, lang, setLang, onDone, imageBase }: { slug: str
     </label>
   );
   return (
-    <main className="flex-1" style={{ background: `linear-gradient(${t.gradient[0]}, ${t.gradient[1]} 18rem, var(--paper) 30rem)` }}>
-      <div className="px-5 pb-6 pt-8" style={{ color: t.onHero }}>
-        {/* eslint-disable-next-line @next/next/no-img-element -- own storage, tiny logo */}
-        {hotel?.logo_path && <img src={`${imageBase}${hotel.logo_path}`} alt="" width={56} height={56} className="mb-3 h-14 w-14 rounded-2xl bg-white object-cover" />}
-        <p className="text-sm font-semibold" style={{ color: t.onHeroSoft }}>{hotel?.name ?? ''}</p>
-        <h1 className="text-3xl font-extrabold tracking-tight">{c.loginTitle}</h1>
-        <p className="mt-1" style={{ color: t.onHeroSoft }}>{c.loginSub}</p>
+    <main className="relative flex-1 pb-6" style={{ background: `linear-gradient(${t.gradient[0]}, ${t.gradient[1]} 18rem, var(--paper) 30rem)` }}>
+      <Hero photo={hotel?.hero_path ? `${imageBase}${hotel.hero_path}` : null} />
+      <div className="relative z-10 px-5 pb-4 pt-6" style={{ color: t.onHero }}>
+        <BrandPill name={hotel?.name ?? ''} logo={hotel?.logo_path ? `${imageBase}${hotel.logo_path}` : null} />
+        <h1 className="mt-6 text-3xl font-semibold leading-tight tracking-tight" style={{ fontFamily: "Marcellus, 'Iowan Old Style', Georgia, serif", textShadow: '0 1px 12px rgba(60,20,12,.25)' }}>{hotel?.name || c.loginTitle}</h1>
+        <p className="mt-1.5" style={{ color: t.onHeroSoft }}>{c.loginTitle}. {c.loginSub}</p>
         <div className="mt-3 flex gap-2" role="group" aria-label={c.language}>
           {(['en', 'hi'] as const).map((l) => (
             <button key={l} type="button" aria-pressed={lang === l} onClick={() => setLang(l)} className="min-h-11 rounded-full border px-4 text-sm font-semibold"
-              style={lang === l ? { background: t.onHero, color: t.gradient[0], borderColor: t.onHero } : { color: t.onHero, borderColor: t.onHero }}>{l === 'en' ? 'English' : 'हिन्दी'}</button>
+              style={lang === l ? { background: '#fff', color: '#5b4a40', borderColor: '#fff' } : { background: 'rgba(60,20,12,.32)', color: '#fff', borderColor: 'rgba(255,255,255,.55)' }}>{l === 'en' ? 'English' : 'हिन्दी'}</button>
           ))}
         </div>
       </div>
-      <form className="space-y-3 px-5 pb-8" onSubmit={(e) => { e.preventDefault(); void submit(); }} style={{ color: t.ink }}>
+      <form className="relative z-10 mx-4 space-y-3 rounded-3xl p-4 shadow-lg" onSubmit={(e) => { e.preventDefault(); void submit(); }} style={{ color: t.ink, background: 'rgba(255,255,255,.94)' }}>
         {field('name', c.name)}{field('mobile', c.mobile, { inputMode: 'tel', maxLength: 14 })}{field('room', c.roomNo, { maxLength: 10 })}{field('stay', c.stayCode, { inputMode: 'numeric', maxLength: 4 })}
         <label className="flex items-start gap-3 text-sm"><input type="checkbox" className="mt-1 h-5 w-5" onChange={(e) => { f.current.consent = e.target.checked; }} />{c.consent}</label>
         {err && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm font-medium text-red-900">{err === 'needKey' ? c.needKey : err === 'unknown_room' ? c.roomNotFound : err === 'login_failed' ? c.loginFailed : err === 'locked' ? c.tooManyTries : err === 'not_configured' ? c.notReady : c.failed}</p>}
         <button type="submit" disabled={busy || !hotel} style={{ background: t.button, color: t.onButton, boxShadow: `inset 0 0 0 2px ${t.buttonEdge}` }} className="min-h-12 w-full rounded-2xl px-4 py-3 text-base font-semibold disabled:opacity-60">{c.enter}</button>
       </form>
+      <div className="relative z-10 mt-5 flex justify-center"><PoweredPill href={instagramUrl(POWERED_BY.instagram)} label={c.poweredBy} /></div>
     </main>
   );
 }
 
-function Tile({ icon, title, sub, onClick, wide }: { icon: string; title: string; sub?: string; onClick: () => void; wide?: boolean }) {
+function Tile({ icon, title, sub, onClick, big, wide }: { icon: IconName; title: string; sub?: string; onClick: () => void; big?: boolean; wide?: boolean }) {
   return (
-    <button type="button" onClick={onClick} className={`flex min-h-28 w-full flex-col items-start justify-between rounded-3xl p-4 text-left shadow-sm transition active:scale-[0.98] ${wide ? 'col-span-2' : ''}`}
-      style={{ background: 'rgba(255,255,255,0.92)', color: '#10131a' }}>
-      <span aria-hidden className="text-2xl">{icon}</span>
-      <span><span className="block text-base font-bold">{title}</span>{sub && <span className="block text-sm" style={{ color: '#4a4f5a' }}>{sub}</span>}</span>
+    <button type="button" onClick={onClick} className={`flex w-full flex-col items-center justify-center gap-2.5 rounded-3xl p-4 text-center shadow-sm transition active:scale-[0.97] ${big ? 'min-h-36' : 'min-h-28'} ${wide ? 'col-span-2' : ''}`}
+      style={{ background: 'rgba(255,255,255,.94)', color: '#10131a' }}>
+      <IconBox name={icon} />
+      <span><span className={`block font-semibold ${big ? 'text-lg' : 'text-base'}`}>{title}</span>{sub && <span className="mt-0.5 block text-sm font-medium" style={{ color: '#4a4f5a' }}>{sub}</span>}</span>
     </button>
   );
 }
@@ -137,46 +137,96 @@ function Tile({ icon, title, sub, onClick, wide }: { icon: string; title: string
 function HomeScreen({ me, home, c, go, imageBase, lang, setLang }: { me: Me; home: Home; c: Copy; go: (s: Screen) => void; imageBase: string; lang: Lang; setLang: (l: Lang) => void }) {
   const b = home.buffet;
   const buffetSub = !b.set ? c.buffetNotSet : b.mode === 'none' ? c.buffetNone : `${b.name ?? ''} ${b.start ?? ''}–${b.end ?? ''}`.trim();
+  const logo = home.look.logo_path ? `${imageBase}${home.look.logo_path}` : null;
+  const photo = home.look.hero_path ? `${imageBase}${home.look.hero_path}` : null;
   return (
-    <main className="flex-1 pb-4">
-      <div className="px-5 pb-5 pt-6" style={{ background: `linear-gradient(var(--hero-0), var(--hero-1))`, color: 'var(--on-hero)' }}>
+    <main className="relative flex-1 pb-4" style={{ background: 'linear-gradient(180deg, var(--hero-0) 0, var(--hero-1) 15rem, var(--paper) 30rem)' }}>
+      <Hero photo={photo} />
+      <div className="relative z-10 space-y-3 px-5 pb-1 pt-6">
         <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            {/* eslint-disable-next-line @next/next/no-img-element -- own storage, tiny logo */}
-            {home.look.logo_path && <img src={`${imageBase}${home.look.logo_path}`} alt="" width={40} height={40} className="h-10 w-10 rounded-xl bg-white object-cover" />}
-            <span className="text-sm font-bold">{home.look.name}</span>
-          </div>
-          <button type="button" className="min-h-11 rounded-full border px-3 text-sm font-semibold" style={{ borderColor: 'var(--on-hero)' }} onClick={() => setLang(lang === 'en' ? 'hi' : 'en')}>{lang === 'en' ? 'हिन्दी' : 'English'}</button>
+          <BrandPill name={home.look.name} logo={logo} />
+          <button type="button" className="min-h-11 rounded-full border px-3.5 text-sm font-semibold" style={{ borderColor: 'rgba(255,255,255,.55)', background: 'rgba(60,20,12,.32)', color: '#fff' }} onClick={() => setLang(lang === 'en' ? 'hi' : 'en')}>{lang === 'en' ? 'हिन्दी' : 'English'}</button>
         </div>
-        <h1 className="mt-4 text-3xl font-extrabold tracking-tight">{fill(c.hello, { name: me.name })}</h1>
-        <p style={{ color: 'var(--on-hero-soft)' }}>{fill(c.room, { room: me.room })}</p>
-        {home.offer && <p className="mt-3 rounded-2xl p-3 text-sm font-semibold" style={{ background: 'var(--paper)', color: 'var(--ink)' }}>{home.offer}</p>}
+        <div className="pb-1 pt-5" style={{ color: 'var(--on-hero)' }}>
+          <h1 className="text-4xl font-semibold leading-[1.06] tracking-tight" style={{ textShadow: '0 1px 12px rgba(60,20,12,.25)' }}>{fill(c.hello, { name: me.name })}</h1>
+          <p className="mt-2 text-base" style={{ color: 'var(--on-hero-soft)' }}>{fill(c.room, { room: me.room })}</p>
+        </div>
+        {home.offer && (
+          <div className="rounded-[22px] p-4 text-white shadow-lg" style={{ background: 'linear-gradient(135deg,#8E1B2D 0%,#C42B45 60%,#B32A48 130%)' }}>
+            <span className="text-[11px] font-bold uppercase tracking-[.16em] text-white/95">● {c.offerTag}</span>
+            <p className="mt-1.5 whitespace-pre-line text-base font-semibold leading-snug">{home.offer}</p>
+          </div>
+        )}
+        {home.info && (
+          <div className="rounded-[22px] p-4 shadow-md" style={{ background: 'linear-gradient(140deg,#fff1b0 0%,#fcd34d 55%,#f0a020 135%)', color: '#3a2704' }}>
+            <span className="text-[11px] font-bold uppercase tracking-[.16em]" style={{ color: 'rgba(88,56,4,.85)' }}>{c.infoTag}</span>
+            <p className="mt-1.5 whitespace-pre-line text-base font-semibold leading-snug">{home.info}</p>
+          </div>
+        )}
       </div>
-      <div className="grid grid-cols-2 gap-3 px-5 pt-4">
-        <Tile wide icon="🍽️" title={c.dining} sub={c.diningSub} onClick={() => go({ s: 'dining' })} />
-        <Tile icon="🛎️" title={c.services} onClick={() => go({ s: 'services' })} />
-        <Tile icon="📶" title={c.stay} onClick={() => go({ s: 'stay' })} />
-        <Tile wide icon="🥞" title={c.buffet} sub={buffetSub} onClick={() => go({ s: 'buffet' })} />
-        <Tile wide icon="🧭" title={c.guideTitle} sub={c.guideSub} onClick={() => go({ s: 'guide' })} />
+      <MyRequests c={c} open={(id) => go({ s: 'track', id })} />
+      <div className="relative z-10 grid grid-cols-2 gap-3 px-5 pt-3">
+        <Tile big wide icon="dining" title={c.dining} sub={c.diningSub} onClick={() => go({ s: 'dining' })} />
+        <Tile icon="services" title={c.services} onClick={() => go({ s: 'services' })} />
+        <Tile icon="wifi" title={c.stay} onClick={() => go({ s: 'stay' })} />
+        <Tile icon="buffet" title={c.buffet} sub={buffetSub} onClick={() => go({ s: 'buffet' })} />
+        <Tile icon="guide" title={c.guideTitle} sub={c.guideSub} onClick={() => go({ s: 'guide' })} />
       </div>
-      <div className="px-5 pt-3"><Btn kind="soft" onClick={() => go({ s: 'help' })}>⚠️ {c.help} — {c.helpSub}</Btn></div>
+      <div className="relative z-10 px-5 pt-3">
+        <button type="button" onClick={() => go({ s: 'help' })} className="flex min-h-[68px] w-full items-center gap-3.5 rounded-3xl p-3.5 text-left shadow-sm transition active:scale-[0.985]" style={{ background: '#F8EBCB', color: '#7a4e0a' }}>
+          <IconBox name="help" bg="#8A5A0E" fg="#F8EBCB" size={40} />
+          <span className="flex-1 font-semibold">{c.help}<span className="block text-sm font-medium">{c.helpSub}</span></span>
+          <span aria-hidden className="text-xl">›</span>
+        </button>
+      </div>
       <Reviews home={home} c={c} />
     </main>
+  );
+}
+
+interface MyReq { id: string; label: string; status: string; created_at: string }
+/** The guest's own requests with their live status, so a reply from the team is always one tap away from the home screen. */
+function MyRequests({ c, open }: { c: Copy; open: (id: string) => void }) {
+  const [list, setList] = useState<MyReq[]>([]);
+  const load = useCallback(async () => { const r = await api<{ requests: MyReq[] }>('requests'); if (r.ok) setList(r.data.requests.slice(0, 5)); }, []);
+  useEffect(() => { void load(); const t = setInterval(() => { if (!document.hidden) void load(); }, 6000); return () => clearInterval(t); }, [load]);
+  if (list.length === 0) return null;
+  const word = (s: string) => (s === 'completed' ? c.done : s === 'dismissed' ? c.declined : s === 'cancelled' ? c.cancelled : s === 'received' ? c.sent : c.accepted);
+  return (
+    <section className="relative z-10 px-5 pt-3" aria-label={c.myRequests}>
+      <h2 className="mb-2 text-xs font-bold uppercase tracking-wide" style={{ color: 'var(--on-hero)' }}>{c.myRequests}</h2>
+      <ul className="space-y-2">
+        {list.map((q) => (
+          <li key={q.id}>
+            <button type="button" onClick={() => open(q.id)} className="flex min-h-14 w-full items-center justify-between gap-3 rounded-2xl bg-white p-3 text-left text-stone-900 shadow-sm">
+              <span className="min-w-0"><span className="block truncate font-semibold">{q.label}</span><span className="block text-xs text-stone-600">{time(q.created_at)} · {c.seeAll}</span></span>
+              <span className="shrink-0 rounded-full px-3 py-1 text-xs font-bold" style={{ background: 'var(--tint)', color: 'var(--on-tint)' }}>{word(q.status)}</span>
+            </button>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 
 function Reviews({ home, c }: { home: Home; c: Copy }) {
   const g = safeUrl(home.links.google_review_url), t = safeUrl(home.links.tripadvisor_url), ig = home.links.instagram_url ? safeUrl(home.links.instagram_url) : null;
   if (!g && !t && !ig) return null;
-  const chip = 'flex min-h-12 flex-1 items-center justify-center rounded-xl border px-3 text-sm font-bold';
+  const btn = 'flex min-h-12 flex-1 items-center justify-center gap-2 rounded-2xl border bg-white px-3 text-sm font-bold text-stone-900 shadow-sm';
+  const handle = ig ? `@${ig.replace(/\/+$/, '').split('/').pop() ?? ''}` : '';
   return (
-    <section className="mx-5 mt-4 rounded-3xl bg-white p-4 text-stone-900 shadow-sm">
+    <section className="relative z-10 mx-5 mt-3 space-y-2.5 rounded-3xl p-4 shadow-sm" style={{ background: 'rgba(255,255,255,.94)', color: '#10131a' }}>
       {(g || t) && (<><h2 className="font-bold">{c.reviewTitle}</h2><p className="text-sm text-stone-600">{c.reviewSub}</p>
-        <div className="mt-3 flex gap-2">
-          {g && <a className={chip} href={g} target="_blank" rel="noopener noreferrer">{c.google}</a>}
-          {t && <a className={chip} href={t} target="_blank" rel="noopener noreferrer">{c.trip}</a>}
+        <div className="flex gap-2">
+          {g && <a className={btn} style={{ borderColor: '#e3cdb4' }} href={g} target="_blank" rel="noopener noreferrer"><b aria-hidden className="grid h-6 w-6 place-items-center rounded-full border bg-white text-[13px] text-[#1A5FD0]">G</b>{c.google}</a>}
+          {t && <a className={btn} style={{ borderColor: '#e3cdb4' }} href={t} target="_blank" rel="noopener noreferrer"><IconBox name="owl" size={26} />{c.trip}</a>}
         </div></>)}
-      {ig && <a href={ig} target="_blank" rel="noopener noreferrer" className="mt-3 flex min-h-12 items-center justify-center rounded-xl px-3 text-sm font-bold text-white" style={{ background: '#a1217a' }}>{c.follow}</a>}
+      {ig && (
+        <a href={ig} target="_blank" rel="noopener noreferrer" className="flex min-h-[52px] items-center gap-3 rounded-2xl px-3.5 py-2 font-bold text-white" style={{ background: 'linear-gradient(135deg,#b45309,#be185d 55%,#6d28d9)' }}>
+          <span className="grid h-7 w-7 place-items-center rounded-lg bg-white/20"><Icon name="instagram" size={17} /></span>
+          <span className="text-sm">{c.followHandle}<span className="block text-xs font-medium opacity-95">{handle}</span></span>
+        </a>
+      )}
     </section>
   );
 }
@@ -185,10 +235,16 @@ function Footer({ home, c }: { home: Home; c: Copy }) {
   const ig = instagramUrl(POWERED_BY.instagram);
   const phone = home.contacts.reception;
   return (
-    <footer className="sticky bottom-0 px-5 pb-3 pt-6" style={{ background: 'linear-gradient(transparent, var(--paper) 40%)' }}>
-      {ig && <div className="mb-2 flex justify-center"><a href={ig} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center rounded-full bg-white px-4 text-xs font-semibold text-stone-700 shadow-sm">{c.poweredBy}</a></div>}
-      {phone && <a href={telHref(phone)} className="flex min-h-12 items-center justify-center rounded-2xl border-2 px-4 text-base font-bold" style={{ background: 'var(--tint)', color: 'var(--on-tint)', borderColor: 'var(--accent-text)' }}>📞 {c.call}</a>}
-    </footer>
+    <>
+      <div className="flex justify-center px-5 pb-3 pt-5"><PoweredPill href={ig} label={c.poweredBy} /></div>
+      {phone && (
+        <div className="sticky bottom-0 z-20 px-3 pb-3 pt-2" style={{ background: 'linear-gradient(transparent, var(--paper) 35%)' }}>
+          <a href={telHref(phone)} className="flex min-h-12 items-center justify-center gap-2.5 rounded-2xl border-[1.5px] text-base font-bold shadow-sm" style={{ background: '#E2F1E7', color: '#1F6B3E', borderColor: '#1F6B3E' }}>
+            <IconBox name="phone" bg="#1F6B3E" fg="#fff" size={28} />{c.call}
+          </a>
+        </div>
+      )}
+    </>
   );
 }
 
@@ -232,11 +288,24 @@ function Services({ c, back, done }: { c: Copy; back: () => void; done: (id: str
 
 function Stay({ c, back }: { c: Copy; back: () => void }) {
   const [s, setS] = useState<{ wifi_name: string | null; wifi_password: string | null; checkout_time: string | null; breakfast: string | null } | null>(null);
+  const [copied, setCopied] = useState(false);
   useEffect(() => { void api<NonNullable<typeof s>>('stay').then((r) => { if (r.ok) setS(r.data); }); }, []);
-  const row = (k: string, v: string | null | undefined) => v ? <div className="flex justify-between gap-4 border-b py-3" style={{ borderColor: 'var(--tint)' }}><dt className="text-sm font-semibold">{k}</dt><dd className="select-all text-right font-bold">{v}</dd></div> : null;
+  const copy = async () => { try { await navigator.clipboard.writeText(s?.wifi_password ?? ''); setCopied(true); setTimeout(() => setCopied(false), 2000); } catch { /* the password is shown, select it by hand */ } };
+  const row = (k: string, v: string | null | undefined) => v ? <div className="flex justify-between gap-4 border-t py-3 first:border-t-0" style={{ borderColor: 'var(--tint)' }}><dt className="text-sm font-semibold text-stone-600">{k}</dt><dd className="text-right font-bold">{v}</dd></div> : null;
   return (
-    <main className="flex-1 pb-4"><Header c={c} back={back} title={c.stay} />
-      <dl className="mx-5 rounded-3xl bg-white px-4 text-stone-900 shadow-sm">{row(c.wifiName, s?.wifi_name)}{row(c.wifiPass, s?.wifi_password)}{row(c.checkout, s?.checkout_time)}{row(c.breakfast, s?.breakfast)}</dl>
+    <main className="flex-1 space-y-3 pb-4"><Header c={c} back={back} title={c.stay} />
+      {(s?.wifi_name || s?.wifi_password) && (
+        <div className="mx-5 flex items-center gap-3.5 rounded-3xl bg-white p-4 text-stone-900 shadow-sm">
+          <IconBox name="wifi" />
+          <div className="min-w-0 flex-1">
+            {s.wifi_name && <><span className="block text-xs font-semibold text-stone-600">{c.wifiName}</span><b className="block truncate text-lg">{s.wifi_name}</b></>}
+            {s.wifi_password && <><span className="mt-1 block text-xs font-semibold text-stone-600">{c.wifiPass}</span><b className="block select-all break-all font-mono text-lg">{s.wifi_password}</b></>}
+          </div>
+          {s.wifi_password && <button type="button" onClick={() => void copy()} className="min-h-11 rounded-full border-2 px-4 text-sm font-bold" style={{ borderColor: 'var(--accent-text)', color: 'var(--accent-text)' }}>{copied ? c.wifiCopied : c.wifiCopy}</button>}
+        </div>
+      )}
+      <dl className="mx-5 rounded-3xl bg-white px-4 text-stone-900 shadow-sm">{row(c.checkout, s?.checkout_time)}{row(c.breakfast, s?.breakfast)}</dl>
+      {s && !s.wifi_name && !s.wifi_password && !s.checkout_time && !s.breakfast && <p className="mx-5 rounded-3xl bg-white p-4 text-stone-900 shadow-sm">{c.buffetEmpty}</p>}
     </main>
   );
 }

@@ -55,6 +55,7 @@ export function ManageApp({ role, restaurant, supabase, appOrigin }: { role: str
       <header className="flex items-center justify-between gap-2"><div><h1 className="text-xl font-extrabold">Manage Padharosaa</h1><p className="text-sm text-stone-700">{restaurant.name}</p></div><Link href="/padharosaa/desk" className="inline-flex min-h-11 items-center rounded-full border-2 border-stone-800 px-4 text-sm font-bold">Back to desk</Link></header>
       {msg && <p role={msg.ok ? 'status' : 'alert'} className={`mt-3 rounded-xl p-3 text-sm font-semibold ${msg.ok ? 'bg-emerald-50 text-emerald-950' : 'bg-red-50 text-red-900'}`}>{msg.text}</p>}
       {s.server_ready === false && <p role="alert" className="mt-3 rounded-xl bg-red-50 p-3 text-sm font-semibold text-red-900">Guest sign-in is switched off: the setting PADHAROSAA_DATA_KEY is missing on the server. Add it in your hosting settings (Vercel → Environment Variables) and redeploy. Until then guests cannot enter.</p>}
+      <Checklist s={s} insta={insta} />
       <RoomsCard flash={flash} />
       <GuestLinkCard origin={appOrigin} slug={restaurant.slug} flash={flash} />
       <HomeCard s={s} save={save} />
@@ -67,6 +68,26 @@ export function ManageApp({ role, restaurant, supabase, appOrigin }: { role: str
       <GuideManager flash={flash} />
       <TeamCard canImport={role === 'owner'} flash={flash} />
     </div>
+  );
+}
+
+/** What a guest sees only appears once it is set here. Each line says what is missing and where to set it. */
+function Checklist({ s, insta }: { s: Settings; insta: string }) {
+  const items: [boolean, string][] = [
+    [!!s.reception_phone, 'Reception phone, so guests get a Call reception button (Stay, Wi-Fi and phone numbers)'],
+    [!!s.wifi_name, 'Wi-Fi name and password (Stay, Wi-Fi and phone numbers)'],
+    [!!s.logo_path, 'Hotel logo (Colour, logo and links)'],
+    [!!s.review_link, 'Google review link (Colour, logo and links)'],
+    [!!s.tripadvisor_url, 'TripAdvisor link (Colour, logo and links)'],
+    [!!insta.trim(), 'Instagram handle (Colour, logo and links)'],
+  ];
+  const todo = items.filter(([ok]) => !ok);
+  if (todo.length === 0) return null;
+  return (
+    <Card title="Finish setup" hint="Guests only see what you fill in. These are still empty:">
+      <ul className="space-y-1 text-sm">{todo.map(([, t]) => <li key={t} className="flex gap-2"><span aria-hidden>☐</span><span>{t}</span></li>)}</ul>
+      <p className="text-sm text-stone-700">Requests from guests arrive on the desk board (<Link href="/padharosaa/desk" className="font-bold underline">open the desk</Link>). A guest sees the reply as soon as someone taps Accept there.</p>
+    </Card>
   );
 }
 
