@@ -35,6 +35,9 @@ export async function POST(req: Request) {
       await db.auth.signOut();
       return fail(401, 'invalid_credentials');
     }
-    return jsonOk({ ok: true, next: isAdmin && !body.next ? '/admin' : safeNext(body.next) }, ctx.requestId);
+    // A Padharosaa hotel's staff land on the hotel desk by default; everyone else keeps the menu live screen.
+    const hotel = me && !body.next ? await db.from('hotel_settings').select('enabled').maybeSingle() : null;
+    const home = isAdmin ? '/admin' : hotel?.data?.enabled ? '/padharosaa/desk' : '/staff';
+    return jsonOk({ ok: true, next: body.next ? safeNext(body.next) : home }, ctx.requestId);
   });
 }

@@ -67,6 +67,7 @@ export function DeskApp({ role, hotel }: { role: string; hotel: string }) {
         <div><h1 className="text-xl font-extrabold">Padharosaa desk</h1><p className="text-sm text-stone-700">{hotel}</p></div>
         <div className="flex gap-2">
           <button type="button" className="min-h-11 rounded-full border-2 border-stone-800 px-4 text-sm font-bold" onClick={async () => setSoundOn(await sound.current.enable())} aria-pressed={soundOn}>{soundOn ? 'Alarm sound is ON' : 'Turn alarm sound on'}</button>
+          <Link href="/staff" prefetch={false} className="inline-flex min-h-11 items-center rounded-full border-2 border-stone-800 px-4 text-sm font-bold">Food orders</Link>
           {(role === 'owner' || role === 'manager') && <Link href="/padharosaa/manage" className="inline-flex min-h-11 items-center rounded-full bg-stone-900 px-4 text-sm font-bold text-white">Manage</Link>}
         </div>
       </header>

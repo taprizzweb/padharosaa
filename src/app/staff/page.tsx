@@ -24,5 +24,6 @@ export default async function StaffPage() {
     );
   }
   const env = publicEnv();
-  return <StaffApp me={me as StaffMe} supabase={{ url: env.NEXT_PUBLIC_SUPABASE_URL, anonKey: env.NEXT_PUBLIC_SUPABASE_ANON_KEY }} />;
+  const { data: hs } = await db.from('hotel_settings').select('enabled').maybeSingle();
+  return <StaffApp me={me as StaffMe} hotel={!!hs?.enabled} supabase={{ url: env.NEXT_PUBLIC_SUPABASE_URL, anonKey: env.NEXT_PUBLIC_SUPABASE_ANON_KEY }} />;
 }

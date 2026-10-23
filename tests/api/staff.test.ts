@@ -261,6 +261,17 @@ describe('POST /api/auth/login', () => {
     expect(await json(r)).toMatchObject({ ok: true, next: '/staff' });
     expect(authState.userId).toBe(w.A.waiter);
   });
+  it('staff of a Padharosaa hotel land on the hotel desk by default; an explicit next still wins', async () => {
+    await db.admin(`insert into public.hotel_settings (restaurant_id) values ($1) on conflict do nothing`, [w.A.rid]);
+    try {
+      expect((await json(await call({ email: await emailOf(w.A.kitchen), password: PASSWORD }))).next).toBe('/padharosaa/desk');
+      expect((await json(await call({ email: await emailOf(w.A.owner), password: PASSWORD, next: '/padharosaa/manage' }))).next).toBe('/padharosaa/manage');
+      expect((await json(await call({ email: await emailOf(w.A.owner), password: PASSWORD, next: '/staff' }))).next).toBe('/staff');
+      expect((await json(await call({ email: await emailOf(w.B.waiter), password: PASSWORD }))).next).toBe('/staff'); // a Menu Lite cafe is unchanged
+    } finally {
+      await db.admin(`delete from public.hotel_settings where restaurant_id = $1`, [w.A.rid]);
+    }
+  });
   it('wrong password, unknown email and a non-staff account all give the SAME answer (no account enumeration)', async () => {
     const wrongPw = await call({ email: await emailOf(w.A.owner), password: 'nope' });
     const unknown = await call({ email: 'nobody@nowhere.test', password: 'whatever' });

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { ApiFailure } from '@/lib/guest/client';
 import { errorMessageKey, t } from '@/lib/i18n';
 import type { BoardOrder, BoardSession, Role } from '@/lib/staff/logic';
-import { Alert, IconBell, Sheet, btnSecondary } from '@/components/guest/ui';
+import { Alert, IconBell, Sheet, btnPrimary, btnSecondary } from '@/components/guest/ui';
 import { CancelDialog, CloseDialog, LiveView, type Actions } from './LiveView';
 import { SoldOutView } from './SoldOutView';
 import { apiPost, handleAuthFailure, useAlerts, useBoard, useRealtimeHint, useWakeLock } from './hooks';
@@ -22,7 +22,7 @@ const LARGE_KEY = 'gm:staff:large';
 const fmtClock = (d: Date) => new Intl.DateTimeFormat('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true, timeZone: 'Asia/Kolkata' }).format(d);
 const errText = (e: unknown) => t(errorMessageKey(e instanceof ApiFailure ? (e.status === 0 ? 'network' : e.key) : 'server_error'));
 
-export function StaffApp({ me, supabase }: { me: StaffMe; supabase: { url: string; anonKey: string } }) {
+export function StaffApp({ me, supabase, hotel = false }: { me: StaffMe; supabase: { url: string; anonKey: string }; hotel?: boolean }) {
   const [tab, setTab] = useState<'live' | 'soldout'>('live');
   const [cancelOrder, setCancelOrder] = useState<BoardOrder | null>(null);
   const [closeSession, setCloseSession] = useState<BoardSession | null>(null);
@@ -211,6 +211,7 @@ export function StaffApp({ me, supabase }: { me: StaffMe; supabase: { url: strin
       <Sheet open={menu} onClose={() => setMenu(false)} title="Account" closeLabel="Close">
         <div className="space-y-3">
           <p className="text-stone-800">Signed in as <strong>{me.display_name}</strong> ({ROLE_LABEL[me.role]}).</p>
+          {hotel && <Link href="/padharosaa/desk" prefetch={false} className={`${btnPrimary} min-h-12 w-full`}>Open Padharosaa desk</Link>}
           {(me.role === 'owner' || me.role === 'manager') && (
             <Link href="/dash/menu" prefetch={false} className={`${btnSecondary} min-h-12 w-full`}>Open dashboard</Link>
           )}
