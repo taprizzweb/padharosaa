@@ -20,7 +20,7 @@ export async function POST(req: Request) {
     const me = await staffRpc<{ role: string; restaurant: { status: string } } | null>(ctx.db, 'staff_me');
     if (!me || me.role !== 'owner') throw new ApiError(403, 'forbidden');
     if (me.restaurant.status !== 'active') throw new ApiError(403, 'restaurant_suspended');
-    await limit(`psi:${ctx.userId}`, 5, 600); // 5 imports per 10 minutes
+    await limit(`psi:${ctx.userId}`, 30, 600); // 30 imports per 10 minutes (one person at a time is common)
     const admin = adminClient();
     const results: Result[] = [];
     for (const row of b.rows) {

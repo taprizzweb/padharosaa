@@ -169,6 +169,7 @@ function TeamCard({ canImport, flash }: { canImport: boolean; flash: (ok: boolea
   const [csv, setCsv] = useState('');
   const [results, setResults] = useState<ImportResult[] | null>(null);
   const [busy, setBusy] = useState(false);
+  const [one, setOne] = useState({ name: '', email: '', department: 'front_desk' as Team, whatsapp: '', head: false });
   const load = useCallback(async () => { try { setPeople((await apiGet<{ staff: Person[] }>('/api/padharosaa/v1/staff/team')).staff); } catch { setPeople([]); } }, []);
   useEffect(() => { void load(); }, [load]);
   const setProfile = async (p: Person, patch: Partial<Person>) => {
@@ -181,6 +182,18 @@ function TeamCard({ canImport, flash }: { canImport: boolean; flash: (ok: boolea
     setBusy(true);
     try { setResults((await apiPost<{ results: ImportResult[] }>('/api/padharosaa/v1/staff/team/import', { rows })).results); if (bad) flash(false, `${bad} row(s) were skipped because they were not valid.`); await load(); }
     catch { flash(false, 'The import did not go through. Please check the rows and try again.'); }
+    setBusy(false);
+  };
+  const addOne = async () => {
+    const rows = [{ name: one.name.trim(), email: one.email.trim(), department: one.department, whatsapp: one.whatsapp.trim() || null, is_head: one.head }];
+    if (!rows[0]!.name || !/^\S+@\S+\.\S+$/.test(rows[0]!.email)) { flash(false, 'Please type the name and a correct email.'); return; }
+    setBusy(true);
+    try {
+      const r = (await apiPost<{ results: ImportResult[] }>('/api/padharosaa/v1/staff/team/import', { rows })).results;
+      setResults(r);
+      if (r[0]?.ok) { setOne({ name: '', email: '', department: one.department, whatsapp: '', head: false }); flash(true, `${rows[0]!.name} can now sign in. Their one-time password is below.`); } else flash(false, r[0]?.error === 'exists' ? 'That email already has a login.' : 'That person could not be added.');
+      await load();
+    } catch { flash(false, 'The person could not be added. Please check the details.'); }
     setBusy(false);
   };
   const download = () => {
@@ -202,6 +215,25 @@ function TeamCard({ canImport, flash }: { canImport: boolean; flash: (ok: boolea
           </li>
         ))}
       </ul>
+      {canImport && (
+        <form className="rounded-xl bg-stone-50 p-3" onSubmit={(e) => { e.preventDefault(); void addOne(); }}>
+          <h3 className="font-bold">Add one person</h3>
+          <p className="text-sm text-stone-700">They get their own login. After signing in at <code>padharosaa.taprizz.in/login</code> each person lands on their own page.</p>
+          <div className="mt-2 grid gap-2 sm:grid-cols-2">
+            <Field label="Name"><input className={inputCls} value={one.name} maxLength={80} onChange={(e) => setOne({ ...one, name: e.target.value })} /></Field>
+            <Field label="Email"><input type="email" inputMode="email" autoComplete="off" className={inputCls} value={one.email} maxLength={254} onChange={(e) => setOne({ ...one, email: e.target.value })} /></Field>
+            <Field label="Team (their page)">
+              <select className={inputCls} value={one.department} onChange={(e) => setOne({ ...one, department: e.target.value as Team })}>
+                <option value="front_desk">Reception (/reception)</option><option value="concierge">Concierge (/reception)</option><option value="housekeeping">Housekeeping (/housekeeping)</option>
+                <option value="maintenance">Maintenance (/housekeeping)</option><option value="kitchen">Kitchen (/kitchen)</option><option value="manager">Manager (/manager)</option>
+              </select>
+            </Field>
+            <Field label="WhatsApp (optional, for alerts)"><input inputMode="tel" className={inputCls} placeholder="+91 98765 43210" value={one.whatsapp} onChange={(e) => setOne({ ...one, whatsapp: e.target.value })} /></Field>
+          </div>
+          <label className="mt-2 flex min-h-11 items-center gap-2 text-sm font-semibold"><input type="checkbox" className="h-5 w-5" checked={one.head} onChange={(e) => setOne({ ...one, head: e.target.checked })} />Head of this team (gets the WhatsApp alerts)</label>
+          <button type="submit" disabled={busy} className={btnCls + ' mt-2'}>{busy ? 'Adding…' : 'Add person'}</button>
+        </form>
+      )}
       {canImport && (
         <div className="rounded-xl bg-stone-50 p-3">
           <h3 className="font-bold">Add many people (CSV)</h3>
