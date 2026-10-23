@@ -47,7 +47,7 @@ export function ManageApp({ role, restaurant, supabase }: { role: string; restau
   useEffect(() => { void load(); }, [load]);
 
   const save = async (path: string, body: unknown, done = 'Saved.') => {
-    try { await apiPost(`/api/padharosaa/v1/staff/${path}`, body); flash(true, done); await load(); } catch { flash(false, 'That could not be saved. Please check the values and try again.'); }
+    try { await apiPost(`/api/padharosaa/v1/staff/${path}`, body); flash(true, done); await load(); } catch (e) { flash(false, e instanceof ApiFailure && e.status === 400 ? 'That could not be saved. Please check the phone numbers (digits, like 9828114008) and the links (like https://...).' : 'That could not be saved. Please try again in a moment.'); }
   };
 
   if (!s) return <main className="p-8 text-center">{loadErr === 'forbidden' ? <p role="alert" className="mx-auto max-w-md font-semibold">This restaurant is not a Padharosaa hotel yet. Please ask Taprizz to switch Padharosaa on for it, then reload this page.</p> : loadErr ? <><p role="alert" className="font-semibold">The settings could not be loaded.</p><button type="button" className={btnCls + ' mt-3'} onClick={() => void load()}>Try again</button></> : 'Loading…'}</main>;
@@ -115,7 +115,7 @@ function StayCard({ s, save }: { s: Settings; save: Save }) {
       <Field label="Wi-Fi password (never shown again)"><input type="password" autoComplete="new-password" className={inputCls} maxLength={63} value={f.pass} onChange={set('pass')} /></Field>
       <Field label="Check-out time"><input className={inputCls} maxLength={40} value={f.out} onChange={set('out')} /></Field>
       <Field label="Breakfast"><input className={inputCls} maxLength={80} value={f.bf} onChange={set('bf')} /></Field>
-      <Field label="Reception phone (digits, with country code)"><input inputMode="tel" className={inputCls} value={f.rec} onChange={set('rec')} /></Field>
+      <Field label="Reception phone (e.g. 9828114008)"><input inputMode="tel" className={inputCls} value={f.rec} onChange={set('rec')} /></Field>
       <Field label="Manager phone"><input inputMode="tel" className={inputCls} value={f.mgr} onChange={set('mgr')} /></Field>
       <button type="button" className={btnCls} onClick={() => void save('stay', { wifi_name: f.wifi || null, wifi_password: f.pass || null, checkout_time: f.out || null, breakfast: f.bf || null, reception_phone: f.rec || null, manager_phone: f.mgr || null })}>Save stay info</button>
     </Card>

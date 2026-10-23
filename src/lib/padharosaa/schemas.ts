@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { normInsta, normPhone, normUrl } from './normalize';
 
 const uuid = z.string().uuid();
 export const slug = z.string().regex(/^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/);
@@ -88,8 +89,8 @@ export const enableBody = z.object({ timezone: z.string().min(3).max(60).default
 export const idParam = uuid;
 
 // ---- manager / owner settings ----
-const phone = z.string().regex(/^[0-9]{10,15}$/);
-const https = z.string().url().max(500).refine((u) => u.startsWith('https://'), 'must be https');
+const phone = z.preprocess(normPhone, z.string().regex(/^[0-9]{10,15}$/));
+const https = z.preprocess(normUrl, z.string().url().max(500).refine((u) => u.startsWith('https://'), 'must be https'));
 const crop = z
   .object({ zoom: z.number().min(1).max(4), x: z.number().min(0).max(1), y: z.number().min(0).max(1), aspect: z.enum(['1:1', '4:3', '16:9', '3:4', 'free']), brightness: z.number().min(0.5).max(1.5).optional(), contrast: z.number().min(0.5).max(1.5).optional() })
   .strict();
@@ -101,7 +102,7 @@ export const brandingBody = z
   .object({
     brand_color: z.string().regex(/^#[0-9a-fA-F]{6}$/).nullish(),
     logo_path: z.string().max(300).nullish(), logo_crop: crop.nullish(), hero_path: z.string().max(300).nullish(), hero_crop: crop.nullish(),
-    instagram: z.string().regex(/^@?[A-Za-z0-9._]{1,30}$/).nullish(), google_review_url: https.nullish(), tripadvisor_url: https.nullish(), menu_url: https.nullish(),
+    instagram: z.preprocess(normInsta, z.string().regex(/^@?[A-Za-z0-9._]{1,30}$/)).nullish(), google_review_url: https.nullish(), tripadvisor_url: https.nullish(), menu_url: https.nullish(),
   })
   .strict();
 
