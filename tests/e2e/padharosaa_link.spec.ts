@@ -17,7 +17,9 @@ async function signIn(page: Page, email: string, landing: RegExp, next: string) 
 }
 
 test.beforeAll(async () => { await q(`delete from public.hotel_settings where restaurant_id = ${RID}`); });
-test.afterAll(async () => { await q(`delete from public.hotel_settings where restaurant_id = ${RID}`); });
+test.afterAll(async () => {
+  await q(`delete from public.hotel_settings where restaurant_id in (${RID}, (select id from public.restaurants where slug = 'cafe-aroma'))`);
+});
 
 let first = '';
 let second = '';
@@ -93,5 +95,24 @@ test('a first-time owner link: no tick is asked for, and one tap creates it', as
   await page.getByLabel('Your password to confirm').fill(DEMO_PASSWORD);
   await page.getByRole('button', { name: 'Create new link' }).click();
   await expect(page.getByLabel('Guest link')).toBeVisible();
-  expect(await linkOf(page)).toMatch(/\?k=[0-9a-f]{64}$/);
+  second = await linkOf(page); // the newest link is the one that works from here on
+  expect(second).toMatch(/\?k=[0-9a-f]{64}$/);
+});
+
+test('a guest login left over from one hotel never opens another hotel\'s page', async ({ browser }) => {
+  await q(`insert into public.rooms (restaurant_id, number) values (${RID}, '204') on conflict do nothing`);
+  const admin = (await q<{ id: string }>(`select id from auth.users where email = 'admin@gotomenu.demo'`))[0]!.id;
+  const out = (await q<{ r: { qr_key: string } }>(`select public.padh_admin_enable_hotel($1, (select id from public.restaurants where slug = 'cafe-aroma')) as r`, [admin]))[0]!.r;
+  const ctx = await browser.newContext();
+  const g = await ctx.newPage();
+  await g.goto(second);
+  await g.getByLabel('Your name').fill('Anita Sharma');
+  await g.getByLabel('Mobile number').fill('9811111111');
+  await g.getByLabel('Room number').fill('204');
+  await g.getByRole('button', { name: 'Enter' }).click();
+  await expect(g.getByText('Namaste, Anita')).toBeVisible();
+  await g.goto(`/padharosaa/cafe-aroma?k=${out.qr_key}`);
+  await expect(g.getByLabel('Your name')).toBeVisible(); // the other hotel's own sign-in, not Spice Garden's home
+  await expect(g.getByText('Namaste, Anita')).toHaveCount(0);
+  await ctx.close();
 });

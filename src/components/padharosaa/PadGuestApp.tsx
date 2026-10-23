@@ -14,7 +14,7 @@ interface Home {
   links: { instagram_url: string | null; google_review_url: string | null; tripadvisor_url: string | null; menu_url: string | null };
   contacts: { reception: string | null; manager: string | null };
 }
-interface Me { name: string; room: string; language: string; hotel_name: string }
+interface Me { name: string; room: string; language: string; hotel_name: string; slug?: string }
 interface ReqView {
   request: { id: string; label: string; status: string; dismissed_reason: string | null; created_at: string; accepted_at: string | null; completed_at: string | null; version: number; resolution: string | null; followup_asked: boolean };
   updates: { at: string; key: string; params: Record<string, string> | null }[];
@@ -38,9 +38,10 @@ export function PadGuestApp({ slug, qrKey, imageBase }: { slug: string; qrKey: s
   useEffect(() => {
     void (async () => {
       const r = await api<Me>('sessions/me');
-      if (r.ok) { setMe(r.data); setLang(r.data.language === 'hi' ? 'hi' : 'en'); await loadHome(); } else setMe(null);
+      // a login cookie left over from ANOTHER hotel must not open this hotel's page: show this hotel's own login instead
+      if (r.ok && (!r.data.slug || r.data.slug === slug)) { setMe(r.data); setLang(r.data.language === 'hi' ? 'hi' : 'en'); await loadHome(); } else setMe(null);
     })();
-  }, [loadHome]);
+  }, [loadHome, slug]);
 
   const brand = home?.look.brand_color ?? null;
   const theme = useMemo(() => buildTheme(brand), [brand]);
