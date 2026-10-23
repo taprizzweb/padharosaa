@@ -9,7 +9,7 @@ const PROTECTED = /^\/(staff|dash|admin|account|padharosaa\/(desk|manage|owner|m
 const PAD_ROUTES: Record<string, string> = {
   '/': '/padharosaa/login', '/login': '/padharosaa/login', '/orders': '/staff',
   '/owner': '/padharosaa/owner', '/manager': '/padharosaa/manager', '/kitchen': '/padharosaa/kitchen', '/reception': '/padharosaa/reception',
-  '/housekeeping': '/padharosaa/housekeeping', '/desk': '/padharosaa/desk',
+  '/housekeeping': '/padharosaa/housekeeping', '/desk': '/padharosaa/desk', '/demo': '/padharosaa/demo/rambagh', '/demo/rambagh': '/padharosaa/demo/rambagh',
 };
 
 export async function middleware(request: NextRequest) {

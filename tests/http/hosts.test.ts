@@ -35,6 +35,15 @@ describe('one app, two front doors', () => {
       expect(await res.text(), a).not.toContain('Hotel staff sign in');
     }
   });
+  it('the public Rambagh demo opens without signing in, on both address styles', async () => {
+    for (const [path, headers] of [['/demo', pad], ['/demo/rambagh', pad], ['/padharosaa/demo/rambagh', {}]] as const) {
+      const res = await fetch(BASE + path, { headers, redirect: 'manual' });
+      expect(res.status, path).toBe(200);
+      const html = await res.text();
+      expect(html, path).toContain('Rambagh Hotel, Jaipur');
+      expect(html, path).toContain('Demo with sample data');
+    }
+  });
   it('the menu host is untouched: /login is the menu staff sign-in', async () => {
     const html = await (await fetch(BASE + '/login', { headers: { 'x-forwarded-host': 'menu.taprizz.in' } })).text();
     expect(html).toContain('Staff sign in');
