@@ -3,8 +3,8 @@
 What is built, what must be switched on, and what is still open. Read top to bottom before the first hotel.
 
 ## 1. Database (Supabase)
-1. Take a backup or create a branch of `menu-prod` first. Migrations `0026` to `0038` are additive (new tables, new columns, new functions); nothing existing is dropped. Rows in `restaurants` are untouched, and `rooms` is back-filled from `restaurants.room_numbers`.
-2. Apply `0026` ... `0038` in order (Supabase SQL editor, `supabase db push`, or the MCP `apply_migration`). Each file is idempotent.
+1. Take a backup or create a branch of `menu-prod` first. Migrations `0026` to `0039` are additive (new tables, new columns, new functions); nothing existing is dropped. Rows in `restaurants` are untouched, and `rooms` is back-filled from `restaurants.room_numbers`.
+2. Apply `0026` ... `0039` in order (Supabase SQL editor, `supabase db push`, or the MCP `apply_migration`). Each file is idempotent.
 3. Run `npm run check:rls` against the result: every new table must show RLS on, with no direct write grants.
 4. Optional demo data: `supabase/seed/padharosaa_demo.sql` (marks rows `is_mock`; `npm run check:no-mock` fails CI if mock data could reach production).
 5. Enable a hotel as the platform admin: `POST /api/padharosaa/v1/platform/hotels/<restaurant id>/enable`. The QR key is returned once; print it into the room QR codes as `https://<app>/padharosaa/<slug>?k=<key>`. Rotate with `staff/qr/rotate` (typed word ROTATE).
@@ -35,17 +35,28 @@ The existing menu-app variables are unchanged. Menu Lite (cafes) needs none of t
 - On the kitchen screen a room order has two buttons, **Room delivery** and **Takeaway** (kitchen or manager decides; the guest sees it on their order). If the manager has switched room dining off, Room delivery is not shown and the database refuses it.
 - Which menu opens: the link pasted in Manage -> "Menu link for Dining" (a separate cafe's **room-service link**, the one that asks for a room number), otherwise this hotel's own restaurant on its room-service link (enable room service in `/dash` first). Declining an order is the existing cancel-with-reason on the kitchen screen.
 
+## 4c. Jaipur guide, day plans, buffet, feedback
+- Manager (`/padharosaa/manage`): save the hotel location (stand in the hotel and tap "Use my current location"). "Find places" lists real named places within 2-10 km from OpenStreetMap (free, no key; if the map service is down it says so). Picking some adds them as **drafts**. "Write descriptions with AI" fills English and Hindi text for drafts. Nothing reaches guests until the manager reads it and presses Publish. If AI is off or fails, write the text by hand (the screen says so). Opening hours, prices, ratings and links are stripped from AI text.
+- Free AI: set `AI_BASE_URL`, `AI_API_KEY`, `AI_MODEL` (Gemini free tier or Groq free tier both work; see `.env.example`). Without them the guide still works by hand.
+- Day plans (e.g. "48-hour classic") are edited by the manager. Guests can add places or a whole day plan to **My plan** and send it to the concierge as one request (cab, tickets), or share/copy it. Directions are Google Maps links built from the hotel location (no Maps API key).
+- Buffet: the manager or reception sets today and the next 7 days (hotel / outdoor / none, name, time, venue, what is served). Guests see today and the next two days.
+- "How was it?" after a request is done: a good rating offers Google and TripAdvisor equally; a poor one alerts the manager. There is no review gating.
+- Nothing is deleted in these tables: removing archives. Everything is checked again in SQL.
+
 ## 5. Screens
 - Guest: `/padharosaa/<slug>?k=<key>` (login, home, services, Help dialog with several problem chips and a note, stay and Wi-Fi, tracking with decline reasons, Google / TripAdvisor / Instagram, Powered by Taprizz).
 - Desk: `/padharosaa/desk` (alarm sound, accept, decline with a written reason, pass, resolve, delivery or takeaway for food, personal mutes).
 - Manage: `/padharosaa/manage` (offer and info boxes, Wi-Fi, colour with live contrast preview, logo and photo with crop, links, room-dining switch, team).
 
 ## 6. Not built yet (be honest with the first hotel)
-- Jaipur guide, itineraries, "Plan my day", buffet automation and the places engine: the database tables and read paths exist, the editing and guest screens do not.
-- Jaipur Vista, ratings invitations after checkout, push notifications, and the interim Access Layer (staff use the existing Supabase login + MFA instead).
+- Buffet reminders (WhatsApp/push before the buffet) and the Google Places ratings engine (`places` table): the tables exist, nothing fills or sends them yet.
+- Jaipur Vista, post-checkout review invitations, push notifications, and the interim Access Layer (staff use the existing Supabase login + MFA instead).
 - Realtime updates: the desk polls every 4 seconds and the guest tracker every 5 seconds.
 - Crop settings are applied when the photo is saved (the browser crops it); stored zoom/offset values are not used by the guest page.
 - No load test has been run. Expect fine behaviour for tens of rooms; test before hundreds.
 
 ## 7. Release checklist
 `npm run lint && npm run typecheck && npm test && npm run test:api && npm run test:sql`, `npm run check:rls`, `npm run check:no-mock`, `npm run check:secret-scan`, `npm run build`. Then smoke-test on a Vercel preview with a Supabase branch: enable a hotel, log in as a guest on a phone, create a request, accept it on the desk, decline another with a reason, switch room dining off and confirm delivery disappears.
+
+## 8. How migrations 0026-0038 were applied to menu-prod
+They were applied with the Supabase SQL tool in small pieces (the tool times out on statements containing DROP, so the three DROP lines became `alter policy` / a `revoke`, and SQL comments were left out). They are **not** in the Supabase migration history table. After applying, every `padh_*` function was compared (hash of its definition, comments ignored) against the database built from the repo files used by the tests: all identical. To re-check later, run the same comparison. The repo files stay the source of truth.
