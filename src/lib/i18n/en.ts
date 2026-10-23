@@ -79,7 +79,11 @@ export const en = {
   // status
   'status.title': 'Your orders',
   'status.orderNo': 'Order #{n}',
+  'back.hotel': 'Back to hotel',
+  'menu.catChips': 'Pick what you feel like (choose several)',
   'status.notAccepted': 'Waiting for the team to accept',
+  'status.handover.deliver': 'Room delivery: we will bring it to your room.',
+  'status.handover.takeaway': 'Takeaway: please collect it from the restaurant.',
   'status.stage.placed': 'Sent',
   'status.stage.preparing': 'Preparing',
   'status.stage.ready': 'Ready',

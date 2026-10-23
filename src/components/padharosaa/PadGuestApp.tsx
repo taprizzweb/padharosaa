@@ -17,7 +17,7 @@ interface ReqView {
   request: { id: string; label: string; status: string; dismissed_reason: string | null; created_at: string; accepted_at: string | null; completed_at: string | null; version: number; resolution: string | null; followup_asked: boolean };
   updates: { at: string; key: string; params: Record<string, string> | null }[];
 }
-type Screen = { s: 'home' } | { s: 'services' } | { s: 'stay' } | { s: 'help' } | { s: 'track'; id: string };
+type Screen = { s: 'home' } | { s: 'services' } | { s: 'stay' } | { s: 'help' } | { s: 'dining' } | { s: 'track'; id: string };
 
 async function api<T>(path: string, init?: RequestInit & { idem?: boolean }): Promise<{ ok: true; data: T } | { ok: false; status: number; key: string }> {
   try {
@@ -69,6 +69,7 @@ export function PadGuestApp({ slug, qrKey, imageBase }: { slug: string; qrKey: s
           <>
             {screen.s === 'home' && <HomeScreen me={me} home={home} c={c} go={setScreen} imageBase={imageBase} lang={lang} setLang={setLang} />}
             {screen.s === 'services' && <Services c={c} back={() => setScreen({ s: 'home' })} done={(id) => { void loadHome(); setScreen({ s: 'track', id }); }} />}
+            {screen.s === 'dining' && <DiningScreen c={c} back={() => setScreen({ s: 'home' })} />}
             {screen.s === 'help' && <HelpDialog c={c} close={() => setScreen({ s: 'home' })} done={(id) => { void loadHome(); setScreen({ s: 'track', id }); }} />}
             {screen.s === 'stay' && <Stay c={c} back={() => setScreen({ s: 'home' })} />}
             {screen.s === 'track' && <Track id={screen.id} c={c} back={() => { void loadHome(); setScreen({ s: 'home' }); }} />}
@@ -163,7 +164,6 @@ function Tile({ icon, title, sub, onClick, wide }: { icon: string; title: string
 function HomeScreen({ me, home, c, go, imageBase, lang, setLang }: { me: Me; home: Home; c: Copy; go: (s: Screen) => void; imageBase: string; lang: Lang; setLang: (l: Lang) => void }) {
   const b = home.buffet;
   const buffetSub = !b.set ? c.buffetNotSet : b.mode === 'none' ? c.buffetNone : `${b.name ?? ''} ${b.start ?? ''}–${b.end ?? ''}`.trim();
-  const menu = safeUrl(home.links.menu_url);
   return (
     <main className="flex-1 pb-4">
       <div className="px-5 pb-5 pt-6" style={{ background: `linear-gradient(var(--hero-0), var(--hero-1))`, color: 'var(--on-hero)' }}>
@@ -179,7 +179,7 @@ function HomeScreen({ me, home, c, go, imageBase, lang, setLang }: { me: Me; hom
         {home.offer && <p className="mt-3 rounded-2xl p-3 text-sm font-semibold" style={{ background: 'var(--paper)', color: 'var(--ink)' }}>{home.offer}</p>}
       </div>
       <div className="grid grid-cols-2 gap-3 px-5 pt-4">
-        {menu ? <a href={menu} target="_blank" rel="noopener noreferrer" className="col-span-2 block"><Tile wide icon="🍽️" title={c.dining} sub={c.diningSub} onClick={() => undefined} /></a> : null}
+        <Tile wide icon="🍽️" title={c.dining} sub={c.diningSub} onClick={() => go({ s: 'dining' })} />
         <Tile icon="🛎️" title={c.services} onClick={() => go({ s: 'services' })} />
         <Tile icon="📶" title={c.stay} onClick={() => go({ s: 'stay' })} />
         <Tile wide icon="🥞" title={c.buffet} sub={buffetSub} onClick={() => go({ s: 'stay' })} />
@@ -344,5 +344,48 @@ function HelpDialog({ c, close, done }: { c: Copy; close: () => void; done: (id:
         <Btn onClick={() => void send()} disabled={busy}>{busy ? c.sending : c.helpSend}</Btn>
       </div>
     </dialog>
+  );
+}
+
+interface DiningData { available: boolean; room_dining: boolean; base?: string; chips?: { id: string; name: string }[] }
+
+/** Dining: pick what you feel like (several categories, Veg / Jain), then the restaurant's own menu opens already filtered, with your room filled in. */
+function DiningScreen({ c, back }: { c: Copy; back: () => void }) {
+  const [d, setD] = useState<DiningData | null>(null);
+  const [failed, setFailed] = useState(false);
+  const [cats, setCats] = useState<Set<string>>(new Set());
+  const [diet, setDiet] = useState<Set<string>>(new Set());
+  useEffect(() => { void api<DiningData>('dining').then((r) => { if (r.ok) setD(r.data); else setFailed(true); }); }, []);
+  const flip = (set: Set<string>, k: string, put: (s: Set<string>) => void) => { const n = new Set(set); if (n.has(k)) n.delete(k); else n.add(k); put(n); };
+  const go = (filtered: boolean) => {
+    if (!d?.base) return;
+    const u = new URL(d.base);
+    if (filtered && cats.size) u.searchParams.set('cats', [...cats].join(','));
+    if (filtered && diet.size) u.searchParams.set('diet', [...diet].join(','));
+    window.location.assign(u.toString());
+  };
+  const chip = (on: boolean) => on ? { background: 'var(--button)', color: 'var(--on-button)', borderColor: 'var(--ink)' } : { background: '#fff', color: '#10131a', borderColor: 'var(--accent-text)' };
+  return (
+    <main className="flex-1 pb-4">
+      <Header c={c} back={back} title={c.dineTitle} />
+      <div className="space-y-4 px-5">
+        {failed || (d && !d.available) ? <p role="alert" className="rounded-2xl bg-white p-4 text-stone-900 shadow-sm">{c.dineNone}</p> : !d ? <p role="status">…</p> : (
+          <>
+            <p>{c.dineSub}</p>
+            <fieldset><legend className="text-sm font-bold">{c.dineDiet}</legend>
+              <div className="mt-2 flex flex-wrap gap-2">{(['veg', 'jain'] as const).map((k) => <button key={k} type="button" aria-pressed={diet.has(k)} onClick={() => flip(diet, k, setDiet)} className="min-h-12 rounded-full border-2 px-4 text-base font-semibold" style={chip(diet.has(k))}>{diet.has(k) ? '✓ ' : ''}{c[k]}</button>)}</div>
+            </fieldset>
+            {(d.chips?.length ?? 0) > 0 && (
+              <div className="flex flex-wrap gap-2" role="group" aria-label={c.dineTitle}>
+                {d.chips!.map((k) => <button key={k.id} type="button" aria-pressed={cats.has(k.id)} onClick={() => flip(cats, k.id, setCats)} className="min-h-12 rounded-full border-2 px-4 text-base font-semibold" style={chip(cats.has(k.id))}>{cats.has(k.id) ? '✓ ' : ''}{k.name}</button>)}
+              </div>
+            )}
+            <p className="text-sm" style={{ opacity: 0.85 }}>{d.room_dining ? c.dineHow : c.dineTakeaway}</p>
+            <Btn onClick={() => go(true)}>{c.showMenu}</Btn>
+            {(cats.size > 0 || diet.size > 0) && <Btn kind="soft" onClick={() => go(false)}>{c.fullMenu}</Btn>}
+          </>
+        )}
+      </div>
+    </main>
   );
 }

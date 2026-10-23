@@ -52,6 +52,7 @@ function OrderCard({ o, t }: { o: StatusOrder; t: Translator }) {
         </p>
       ) : (
         <>
+          {o.handover && <p className="mt-3 rounded-lg bg-sky-50 px-3 py-2 text-sm font-semibold text-sky-950">{t(`status.handover.${o.handover}` as 'status.handover.deliver')}</p>}
           <Stepper status={o.status as Exclude<OrderStatus, 'cancelled'>} t={t} />
           {o.status === 'placed' && <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-center text-sm font-semibold text-amber-900">{t('status.notAccepted')}</p>}
         </>

@@ -181,3 +181,38 @@ describe('shared table link', () => {
     expect((await db.admin<any>(`select count(*)::int n from public.audit_log where restaurant_id = $1 and action = 'table_link_updated'`, [w.A.rid]))[0].n).toBeGreaterThan(0);
   });
 });
+
+describe('room order handover (room delivery or takeaway)', () => {
+  it('kitchen chooses delivery or takeaway for a room order; the guest status shows it; table orders refuse it', async () => {
+    const { token } = await getRooms(w.A.owner);
+    const open = await svc<{ token: string }>('guest_open_room', [w.A.slug, token, '204', null]);
+    const o = await placeOrder(db, w.A, { token: open.token }, line(w.A.chai));
+    const board0 = (await rpc(db, w.A.kitchen, `public.staff_get_board()`))[0]!.r as any;
+    expect(board0.room_dining).toBe(true);
+    const card = board0.orders.find((x: any) => x.id === o.order_id);
+    expect(card).toMatchObject({ is_room: true, handover: null });
+
+    const set = (uid: string, mode: string) => rpc(db, uid, `public.staff_set_order_handover($1, $2)`, [o.order_id, mode]);
+    expect((await set(w.A.kitchen, 'deliver'))[0]!.r).toMatchObject({ handover: 'deliver' });
+    expect(((await rpc(db, w.A.waiter, `public.staff_get_board()`))[0]!.r as any).orders.find((x: any) => x.id === o.order_id).handover).toBe('deliver');
+    const st = await svc<any>('guest_get_status', [o.session_id, 30]);
+    expect(st.orders.find((x: any) => x.order_no === o.order_no).handover).toBe('deliver');
+    expect((await set(w.A.manager, 'takeaway'))[0]!.r).toMatchObject({ handover: 'takeaway' });
+
+    expect((await rpcErr(db, w.A.kitchen, `public.staff_set_order_handover($1, 'bike')`, [o.order_id]))?.code).toBe('GM015');
+    expect((await rpcErr(db, w.B.kitchen, `public.staff_set_order_handover($1, 'deliver')`, [o.order_id]))?.code).toBe('GM012'); // another restaurant
+    expect((await rpcErr(db, w.stranger, `public.staff_set_order_handover($1, 'deliver')`, [o.order_id]))?.code).toBe('GM011');
+    const tableOrder = await placeOrder(db, w.A, { token: w.A.t1.token }, line(w.A.chai));
+    expect((await rpcErr(db, w.A.kitchen, `public.staff_set_order_handover($1, 'deliver')`, [tableOrder.order_id]))?.code).toBe('GM010'); // only room orders
+  });
+
+  it('with room dining switched off at a hotel, delivery is refused and takeaway still works', async () => {
+    await db.admin(`insert into public.hotel_settings (restaurant_id, enabled, room_dining) values ($1, true, false) on conflict (restaurant_id) do update set room_dining = false`, [w.A.rid]);
+    const { token } = await getRooms(w.A.owner);
+    const open = await svc<{ token: string }>('guest_open_room', [w.A.slug, token, '204', null]);
+    const o = await placeOrder(db, w.A, { token: open.token }, line(w.A.chai));
+    expect((await rpcErr(db, w.A.kitchen, `public.staff_set_order_handover($1, 'deliver')`, [o.order_id]))?.code).toBe('GM015');
+    expect((await rpc(db, w.A.kitchen, `public.staff_set_order_handover($1, 'takeaway')`, [o.order_id]))[0]!.r).toMatchObject({ handover: 'takeaway' });
+    expect(((await rpc(db, w.A.kitchen, `public.staff_get_board()`))[0]!.r as any).room_dining).toBe(false);
+  });
+});

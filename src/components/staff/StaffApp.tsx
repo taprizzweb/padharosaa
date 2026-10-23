@@ -94,6 +94,7 @@ export function StaffApp({ me, supabase }: { me: StaffMe; supabase: { url: strin
   const actions: Actions = {
     busy,
     advance: (id, to) => void run(id, () => apiPost('/api/staff/order-status', { order_id: id, status: to })),
+    handover: (id, mode) => void run(id, () => apiPost('/api/staff/order-handover', { order_id: id, mode })),
     cancel: (o) => {
       setDialogError(null);
       setCancelOrder(o);

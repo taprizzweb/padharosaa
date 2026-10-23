@@ -14,6 +14,9 @@ export interface BoardOrder {
   created_at: string;
   preparing_at: string | null;
   ready_at: string | null;
+  /** room orders only: how it reaches the guest */
+  handover?: 'deliver' | 'takeaway' | null;
+  is_room?: boolean;
   items: { name: string; qty: number; note: string | null }[];
 }
 export interface BoardRequest {
@@ -48,6 +51,8 @@ export interface BoardData {
   orders: BoardOrder[];
   requests: BoardRequest[];
   sessions: BoardSession[];
+  /** false when a hotel has switched room dining off: then only takeaway is offered */
+  room_dining?: boolean;
   /** open problems; absent only while an older database is still being upgraded */
   help?: BoardHelp[];
 }

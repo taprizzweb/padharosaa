@@ -64,6 +64,8 @@ export interface StatusOrder {
   total_paise: number;
   created_at: string;
   cancel_reason: string | null;
+  /** room orders: how the order reaches the guest, chosen by the kitchen */
+  handover?: 'deliver' | 'takeaway' | null;
   items: StatusOrderItem[];
 }
 export interface StatusRequest {

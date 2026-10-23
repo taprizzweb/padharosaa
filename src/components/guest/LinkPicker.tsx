@@ -1,5 +1,5 @@
 'use client';
-import { useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { ApiFailure, openRoom, openTable } from '@/lib/guest/client';
 import { errorMessageKey, t } from '@/lib/i18n';
 import { normalizeRoom } from '@/lib/rooms';
@@ -10,16 +10,17 @@ import { Alert, btnPrimary } from './ui';
  * Either way the page then reloads as that room's / table's own link, exactly like scanning its QR.
  * A room link only ever asks for rooms and a table link only ever asks for tables.
  */
-export function LinkPicker({ kind, slug, token, options }: { kind: 'room' | 'table'; slug: string; token: string; options: string[] | null | undefined }) {
+export function LinkPicker({ kind, slug, token, options, prefill, carry = '' }: { kind: 'room' | 'table'; slug: string; token: string; options: string[] | null | undefined; prefill?: string | null; carry?: string }) {
   const id = useId();
-  const [value, setValue] = useState('');
+  const [value, setValue] = useState(prefill ?? '');
+  const auto = useRef(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const room = kind === 'room';
   const list = options && options.length > 0 && options.length <= (room ? 80 : 400) ? options : null;
 
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const submit = async (e?: React.FormEvent) => {
+    e?.preventDefault();
     const clean = room ? normalizeRoom(value) : value.trim();
     if (!clean) {
       setError(t(room ? 'room.invalid' : 'tablepick.invalid'));
@@ -30,12 +31,20 @@ export function LinkPicker({ kind, slug, token, options }: { kind: 'room' | 'tab
     try {
       const r = room ? await openRoom(slug, token, clean) : await openTable(slug, token, clean);
       // A full load: the page now behaves exactly like a scan of this room's / table's own link.
-      window.location.assign(`/${slug}?k=${r.token}`);
+      window.location.assign(`/${slug}?k=${r.token}${carry}`);
     } catch (err) {
       setBusy(false);
       setError(err instanceof ApiFailure ? (err.key === 'network' ? t('error.network') : t(errorMessageKey(err.key))) : t('error.server_error'));
     }
   };
+
+  // a hotel guest arrives with the room number already known (from the Padharosaa app): open the room without asking again
+  useEffect(() => {
+    if (!prefill || auto.current) return;
+    auto.current = true;
+    void submit();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const k = room ? 'room' : 'tablepick';
   return (

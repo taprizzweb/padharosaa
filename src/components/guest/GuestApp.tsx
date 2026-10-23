@@ -1,6 +1,6 @@
 'use client';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { formatPaise } from '@/lib/money';
 import { ApiFailure, askBill, callWaiter, currentPosition, placeOrder } from '@/lib/guest/client';
@@ -25,6 +25,14 @@ export function GuestApp({
   menu: MenuData; slug: string; token: string | null; hasCookie: boolean; imageBase: string;
 }) {
   const router = useRouter();
+  // Optional hand-over from the Padharosaa hotel app: which room, where "back" goes, and which food chips were already picked.
+  const qs = useSearchParams();
+  const roomParam = (qs.get('room') ?? '').slice(0, 10) || null;
+  const backRaw = qs.get('back') ?? '';
+  const back = /^\/(?![/\\])/.test(backRaw) || /^https:\/\/[^\s]+$/i.test(backRaw) ? backRaw.slice(0, 300) : null;
+  const catsParam = (qs.get('cats') ?? '').split(',').filter((x) => /^[0-9a-f-]{36}$/.test(x)).slice(0, 30);
+  const dietParam = (qs.get('diet') ?? '').split(',').filter((x): x is 'veg' | 'jain' => x === 'veg' || x === 'jain');
+  const carry = [back ? `&back=${encodeURIComponent(back)}` : '', catsParam.length ? `&cats=${catsParam.join(',')}` : '', dietParam.length ? `&diet=${dietParam.join(',')}` : ''].join('');
   const categories = useMemo(() => menu.categories ?? [], [menu.categories]);
   const items = useMemo(() => new Map<string, MenuItem>(categories.flatMap((c) => c.items).map((i) => [i.id, i])), [categories]);
   const cart = useCart(slug, items);
@@ -164,11 +172,12 @@ export function GuestApp({
 
   return (
     <div data-accent={accent} className="min-h-dvh pb-44">
+      {back && <div className="mx-auto max-w-5xl px-4 pt-3"><a href={back} className="inline-flex min-h-11 items-center text-sm font-bold underline underline-offset-2">← {t('back.hotel')}</a></div>}
       <RestaurantHero r={menu.restaurant} imageBase={imageBase} tableLabel={menu.table_label} t={t} compact={showStatus} />
 
       {!online && <div className="mx-auto max-w-5xl px-4 pt-3"><Notice>{t('state.offline')}</Notice></div>}
       {menu.room_link && token && (
-        <div className="mx-auto max-w-5xl px-4 pt-4"><LinkPicker kind="room" slug={slug} token={token} options={menu.rooms} /></div>
+        <div className="mx-auto max-w-5xl px-4 pt-4"><LinkPicker kind="room" slug={slug} token={token} options={menu.rooms} prefill={roomParam} carry={carry} /></div>
       )}
       {menu.table_link && token && (
         <div className="mx-auto max-w-5xl px-4 pt-4"><LinkPicker kind="table" slug={slug} token={token} options={menu.tables} /></div>
@@ -185,7 +194,7 @@ export function GuestApp({
         ) : showStatus ? (
           <StatusView data={status} t={t} onAddMore={() => setView('menu')} />
         ) : (
-          <MenuView categories={categories} t={t} canOrder={canOrder} imageBase={imageBase} qtyOf={cart.qtyOf} onAdd={(id) => { track('cart_add', { item_id: id }); cart.add(id); }} onSet={cart.setQty} onCustomise={setChoosing} onTrack={track} />
+          <MenuView initialCats={catsParam} initialDiet={dietParam} categories={categories} t={t} canOrder={canOrder} imageBase={imageBase} qtyOf={cart.qtyOf} onAdd={(id) => { track('cart_add', { item_id: id }); cart.add(id); }} onSet={cart.setQty} onCustomise={setChoosing} onTrack={track} />
         )}
         {!showStatus && <RestaurantInfo r={menu.restaurant} t={t} onTrack={track} />}
       </main>

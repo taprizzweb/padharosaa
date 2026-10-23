@@ -25,6 +25,7 @@ const actionBtn = (kind: OrderAction['kind']) =>
 
 export interface Actions {
   advance: (orderId: string, to: OrderAction['to']) => void;
+  handover: (orderId: string, mode: 'deliver' | 'takeaway') => void;
   cancel: (order: BoardOrder) => void;
   resolve: (requestId: string) => void;
   resolveHelp: (helpId: string) => void;
@@ -41,7 +42,7 @@ function AgeBadge({ ageSeconds, sev }: { ageSeconds: number; sev: Severity }) {
   );
 }
 
-function OrderCard({ o, role, nowMs, amber, red, actions }: { o: BoardOrder; role: Role; nowMs: number; amber: number; red: number; actions: Actions }) {
+function OrderCard({ o, role, nowMs, amber, red, actions, roomDining }: { o: BoardOrder; role: Role; nowMs: number; amber: number; red: number; actions: Actions; roomDining: boolean }) {
   const age = (nowMs - Date.parse(o.created_at)) / 1000;
   const sev = waitSeverity(age, amber, red);
   const busy = actions.busy.has(o.id);
@@ -63,6 +64,12 @@ function OrderCard({ o, role, nowMs, amber, red, actions }: { o: BoardOrder; rol
         ))}
       </ul>
       {o.note && <p className="mt-3 rounded-lg bg-stone-100 px-3 py-2 text-base font-semibold">Kitchen note: {o.note}</p>}
+      {o.is_room && (
+        <div className="mt-3 flex flex-wrap gap-2" role="group" aria-label="How does this reach the guest?">
+          {roomDining && <button type="button" disabled={busy} aria-pressed={o.handover === 'deliver'} className={`min-h-12 rounded-xl border-2 px-4 text-base font-bold ${o.handover === 'deliver' ? 'border-sky-900 bg-sky-900 text-white' : 'border-sky-900 bg-white text-sky-950'}`} onClick={() => actions.handover(o.id, 'deliver')}>Room delivery</button>}
+          <button type="button" disabled={busy} aria-pressed={o.handover === 'takeaway'} className={`min-h-12 rounded-xl border-2 px-4 text-base font-bold ${o.handover === 'takeaway' ? 'border-sky-900 bg-sky-900 text-white' : 'border-sky-900 bg-white text-sky-950'}`} onClick={() => actions.handover(o.id, 'takeaway')}>Takeaway</button>
+        </div>
+      )}
       <div className="mt-4 flex gap-2">
         {orderActions(role, o.status).map((a) => (
           <button key={a.to} type="button" disabled={busy} className={actionBtn(a.kind)} onClick={() => (a.to === 'cancelled' ? actions.cancel(o) : actions.advance(o.id, a.to))}>
@@ -194,7 +201,7 @@ export function LiveView({ board, role, nowMs, amber, red, actions }: { board: B
                   {c.title} <span className="rounded-full bg-stone-200 px-2 py-0.5 text-sm">{list.length}</span>
                 </h3>
                 {list.length === 0 ? <p className="rounded-xl border border-dashed border-stone-300 p-4 text-stone-600">{c.empty}</p> : (
-                  <ul className="space-y-3">{list.map((o) => <OrderCard key={o.id} o={o} role={role} nowMs={nowMs} amber={amber} red={red} actions={actions} />)}</ul>
+                  <ul className="space-y-3">{list.map((o) => <OrderCard key={o.id} o={o} role={role} nowMs={nowMs} amber={amber} red={red} actions={actions} roomDining={board.room_dining !== false} />)}</ul>
                 )}
               </div>
             );

@@ -22,6 +22,7 @@ import { POST as profilePOST } from '@/app/api/padharosaa/v1/staff/team/[user]/r
 import { POST as importPOST } from '@/app/api/padharosaa/v1/staff/team/import/route';
 import { GET as alertsGET, POST as alertsPOST } from '@/app/api/padharosaa/v1/staff/alerts/route';
 import { GET as settingsGET } from '@/app/api/padharosaa/v1/staff/settings/route';
+import { GET as diningGET } from '@/app/api/padharosaa/v1/dining/route';
 import { POST as enablePOST } from '@/app/api/padharosaa/v1/platform/hotels/[id]/enable/route';
 
 let db: TestDb;
@@ -95,6 +96,35 @@ describe('food, handover and dining', () => {
     expect((await helpPOST(mk('/h', { body: { categories: ['ghosts'] }, cookie, idem: randomUUID() }))).status).toBe(400);
     expect((await helpPOST(mk('/h', { body: { categories: [] }, cookie, idem: randomUUID() }))).status).toBe(400); // needs a chip or a note
     expect((await helpPOST(mk('/h', { body: { categories: [], detail: 'Please send someone' }, cookie, idem: randomUUID() }))).status).toBe(201);
+  });
+});
+
+describe('dining link and chips', () => {
+  it('builds the menu address with the room and a back link, and lists only categories that have something to order', async () => {
+    const cookie = await guest();
+    const cat = (await db.admin<{ id: string }>(`select id from public.categories where restaurant_id = $1 limit 1`, [w.A.rid]))[0]!.id;
+    await db.admin(`insert into public.categories (restaurant_id, name_en, name_hi) values ($1, 'Empty one', 'x')`, [w.A.rid]);
+    // no menu link and no room-service link yet: nothing to open
+    expect(((await (await diningGET(mk('/d', { cookie }))).json()) as any).available).toBe(false);
+    // the hotel's own restaurant on its room-service link
+    const token = 'a'.repeat(64);
+    await db.admin(`update public.restaurants set room_token = $2 where id = $1`, [w.A.rid, token]);
+    const own = (await (await diningGET(mk('/d', { cookie }))).json()) as any;
+    expect(own.available).toBe(true);
+    const u = new URL(own.base);
+    expect(u.pathname).toBe(`/${w.A.slug}`);
+    expect(u.searchParams.get('k')).toBe(token);
+    expect(u.searchParams.get('room')).toBe('204');
+    expect(u.searchParams.get('back')).toBe(`${APP}/padharosaa/${w.A.slug}`);
+    expect(own.chips.map((c: any) => c.id)).toContain(cat);
+    expect(own.chips.map((c: any) => c.name)).not.toContain('Empty one');
+    // a separate cafe link pasted by the manager wins; a link that is not https is ignored
+    await db.admin(`update public.hotel_settings set menu_url = 'https://menu.taprizz.in/${w.A.slug}?k=${token}' where restaurant_id = $1`, [w.A.rid]);
+    expect(new URL(((await (await diningGET(mk('/d', { cookie }))).json()) as any).base).host).toBe('menu.taprizz.in');
+    await db.admin(`alter table public.hotel_settings drop constraint if exists hotel_settings_menu_url_check`);
+    await db.admin(`update public.hotel_settings set menu_url = 'http://insecure.example/${w.A.slug}' where restaurant_id = $1`, [w.A.rid]);
+    expect(new URL(((await (await diningGET(mk('/d', { cookie }))).json()) as any).base).pathname).toBe(`/${w.A.slug}`); // fell back to the hotel's own menu
+    expect((await diningGET(mk('/d'))).status).toBe(401);
   });
 });
 

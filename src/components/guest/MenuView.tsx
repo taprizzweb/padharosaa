@@ -173,10 +173,12 @@ function DetailsSheet({ item, o, onClose }: { item: MenuItem | null; o: Ordering
 
 const initial = (s: string) => s.trim().charAt(0).toUpperCase();
 
-export function MenuView({ categories, t, canOrder, imageBase, qtyOf, onAdd, onSet, onCustomise, onTrack }: Ordering & { categories: MenuCategory[]; onTrack?: (e: MenuEvent, ids?: TrackIds) => void }) {
+export function MenuView({ categories, t, canOrder, imageBase, qtyOf, onAdd, onSet, onCustomise, onTrack, initialCats = [], initialDiet = [] }: Ordering & { categories: MenuCategory[]; onTrack?: (e: MenuEvent, ids?: TrackIds) => void; initialCats?: string[]; initialDiet?: Filter[] }) {
   const o: Ordering = { t, canOrder, imageBase, qtyOf, onAdd, onSet, onCustomise };
   const [query, setQuery] = useState('');
-  const [filters, setFilters] = useState<Set<Filter>>(new Set());
+  const [filters, setFilters] = useState<Set<Filter>>(new Set(initialDiet));
+  // category chips: pick several; the menu then shows only those categories
+  const [catSel, setCatSel] = useState<Set<string>>(new Set(initialCats.filter((id) => categories.some((c) => c.id === id))));
   const [active, setActive] = useState<string | null>(null);
   const [detail, setDetailState] = useState<MenuItem | null>(null);
   const setDetail = (i: MenuItem | null) => {
@@ -188,6 +190,7 @@ export function MenuView({ categories, t, canOrder, imageBase, qtyOf, onAdd, onS
   const shown = useMemo(() => {
     const q = query.trim().toLowerCase();
     return categories
+      .filter((c) => catSel.size === 0 || catSel.has(c.id))
       .map((c) => ({
         ...c,
         items: c.items.filter((i) => {
@@ -199,13 +202,13 @@ export function MenuView({ categories, t, canOrder, imageBase, qtyOf, onAdd, onS
         }),
       }))
       .filter((c) => c.items.length > 0);
-  }, [categories, query, filters]);
+  }, [categories, query, filters, catSel]);
 
   const favourites = useMemo(
     () => categories.flatMap((c) => c.items).filter((i) => i.is_available && (i.is_bestseller || i.is_chef_pick)).slice(0, 10),
     [categories],
   );
-  const browsing = query.trim() === '' && filters.size === 0;
+  const browsing = query.trim() === '' && filters.size === 0 && catSel.size === 0;
 
   // Highlight the category currently under the sticky bar.
   useEffect(() => {
@@ -227,6 +230,14 @@ export function MenuView({ categories, t, canOrder, imageBase, qtyOf, onAdd, onS
     if (!active) return;
     barRef.current?.querySelector<HTMLElement>(`[data-cat='${active}']`)?.scrollIntoView({ block: 'nearest', inline: 'center' });
   }, [active]);
+
+  const toggleCat = (id: string) =>
+    setCatSel((cur) => {
+      const n = new Set(cur);
+      if (n.has(id)) n.delete(id);
+      else n.add(id);
+      return n;
+    });
 
   const toggle = (f: Filter) =>
     setFilters((cur) => {
@@ -281,6 +292,17 @@ export function MenuView({ categories, t, canOrder, imageBase, qtyOf, onAdd, onS
         </div>
       </div>
 
+      {categories.length > 1 && (
+        <div className="mx-auto max-w-5xl px-4 pb-2">
+          <p id="cat-chips-h" className="mb-1 text-xs font-bold uppercase tracking-wide text-stone-700">{t('menu.catChips')}</p>
+          <div role="group" aria-labelledby="cat-chips-h" className="no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4 pb-1">
+            {categories.map((c) => (
+              <button key={c.id} type="button" aria-pressed={catSel.has(c.id)} onClick={() => toggleCat(c.id)} className={filterBtn(catSel.has(c.id))}>{catSel.has(c.id) ? '✓ ' : ''}{c.name_en}</button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {browsing && favourites.length > 0 && (
         <section aria-labelledby="fav-h" className="mx-auto max-w-5xl pb-2 pt-3">
           <h2 id="fav-h" className="px-4 font-serif text-xl font-bold">{t('menu.favourites')}</h2>
@@ -318,7 +340,7 @@ export function MenuView({ categories, t, canOrder, imageBase, qtyOf, onAdd, onS
         ) : shown.length === 0 ? (
           <div className="py-16 text-center">
             <p className="text-stone-600">{t('menu.noResults')}</p>
-            <button type="button" onClick={() => { setQuery(''); setFilters(new Set()); }} className="mt-4 inline-flex min-h-11 items-center rounded-xl border border-stone-300 bg-white px-4 text-sm font-semibold">
+            <button type="button" onClick={() => { setQuery(''); setFilters(new Set()); setCatSel(new Set()); }} className="mt-4 inline-flex min-h-11 items-center rounded-xl border border-stone-300 bg-white px-4 text-sm font-semibold">
               {t('menu.clearFilters')}
             </button>
           </div>
