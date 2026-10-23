@@ -4,7 +4,13 @@ import { newNonce, securityHeaders } from '@/lib/security/csp';
 
 // Edge-safe: only reads NEXT_PUBLIC_* values (inlined at build time). The full env check runs at boot
 // in instrumentation.ts.
-const PROTECTED = /^\/(staff|dash|admin|account|padharosaa\/(desk|manage))(\/|$)/;
+const PROTECTED = /^\/(staff|dash|admin|account|padharosaa\/(desk|manage|owner|manager|kitchen|reception|housekeeping))(\/|$)/;
+// padharosaa.<domain>: the clean role addresses are rewritten onto the real pages. '/orders' is the menu live screen (kitchen food orders).
+const PAD_ROUTES: Record<string, string> = {
+  '/': '/padharosaa/login', '/login': '/padharosaa/login', '/orders': '/staff',
+  '/owner': '/padharosaa/owner', '/manager': '/padharosaa/manager', '/kitchen': '/padharosaa/kitchen', '/reception': '/padharosaa/reception',
+  '/housekeeping': '/padharosaa/housekeeping', '/desk': '/padharosaa/desk',
+};
 
 export async function middleware(request: NextRequest) {
   const nonce = newNonce();
@@ -27,25 +33,26 @@ export async function middleware(request: NextRequest) {
     res.headers.set('x-request-id', requestId);
     return res;
   };
-  // padharosaa.* is the hotel product: its front door is the Padharosaa sign-in, and the menu live screen is not its home.
-  // Any other host (the menu app) is untouched.
+  // padharosaa.* is the hotel product: its front door is the Padharosaa sign-in, each role has its own address, and the menu live
+  // screen is not its home. Any other host (the menu app) is untouched.
   const host = (request.headers.get('x-forwarded-host') ?? request.headers.get('host') ?? '').toLowerCase();
+  let path = request.nextUrl.pathname;
+  let rewriteTo: string | null = null;
   if (host.startsWith('padharosaa.')) {
-    const p = request.nextUrl.pathname;
-    if (p === '/staff') {
+    if (path === '/staff') {
       const to = request.nextUrl.clone();
       to.pathname = '/padharosaa/desk';
       return decorate(NextResponse.redirect(to));
     }
-    if (p === '/' || p === '/login') {
-      const to = request.nextUrl.clone();
-      to.pathname = '/padharosaa/login';
-      return decorate(NextResponse.rewrite(to, { request: { headers: requestHeaders } }));
+    const target = PAD_ROUTES[path];
+    if (target) {
+      rewriteTo = target;
+      path = target;
     }
   }
   let response = decorate(NextResponse.next({ request: { headers: requestHeaders } }));
 
-  if (PROTECTED.test(request.nextUrl.pathname)) {
+  if (PROTECTED.test(path)) {
     // Refreshes the session cookie when needed and proves the user with Supabase (getUser, never getSession).
     const supabase = createServerClient(process.env.NEXT_PUBLIC_SUPABASE_URL ?? '', process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '', {
       cookieOptions: { sameSite: 'lax', secure: (process.env.NEXT_PUBLIC_APP_ORIGIN ?? 'https://').startsWith('https://') },
@@ -59,7 +66,6 @@ export async function middleware(request: NextRequest) {
       },
     });
     const { data } = await supabase.auth.getUser();
-    const path = request.nextUrl.pathname;
     if (data.user && data.user.app_metadata?.must_change_password === true && !path.startsWith('/account')) {
       // A temporary password only gets the person as far as choosing their own.
       const to = request.nextUrl.clone();
@@ -72,11 +78,18 @@ export async function middleware(request: NextRequest) {
     if (!data.user) {
       const to = request.nextUrl.clone();
       to.pathname = '/login';
-      to.search = `?next=${encodeURIComponent(request.nextUrl.pathname)}`;
+      to.search = `?next=${encodeURIComponent(path)}`;
       const redirect = decorate(NextResponse.redirect(to));
       for (const c of response.cookies.getAll()) redirect.cookies.set(c);
       return redirect;
     }
+  }
+  if (rewriteTo) {
+    const to = request.nextUrl.clone();
+    to.pathname = rewriteTo;
+    const rewritten = decorate(NextResponse.rewrite(to, { request: { headers: requestHeaders } }));
+    for (const c of response.cookies.getAll()) rewritten.cookies.set(c);
+    return rewritten;
   }
   return response;
 }

@@ -19,7 +19,10 @@ const OPEN = ['received', 'accepted', 'preparing', 'ready'];
 
 const mins = (iso: string) => Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000));
 
-export function DeskApp({ role, hotel }: { role: string; hotel: string }) {
+export function DeskApp({ role, hotel, title = 'Padharosaa desk' }: { role: string; hotel: string; title?: string }) {
+  // on padharosaa.* the menu live screen is reached through /orders (the plain /staff address belongs to the desk there)
+  const [ordersHref, setOrdersHref] = useState('/staff');
+  useEffect(() => { if (/^padharosaa\./i.test(location.host)) setOrdersHref('/orders'); }, []);
   const [reqs, setReqs] = useState<Req[] | null>(null);
   const [alerts, setAlerts] = useState<Alerts | null>(null);
   const [err, setErr] = useState<string | null>(null);
@@ -64,11 +67,11 @@ export function DeskApp({ role, hotel }: { role: string; hotel: string }) {
   return (
     <div className="mx-auto min-h-dvh max-w-3xl bg-stone-50 px-4 pb-24 pt-4 text-stone-900">
       <header className="flex flex-wrap items-center justify-between gap-2">
-        <div><h1 className="text-xl font-extrabold">Padharosaa desk</h1><p className="text-sm text-stone-700">{hotel}</p></div>
+        <div><h1 className="text-xl font-extrabold">{title}</h1><p className="text-sm text-stone-700">{hotel}</p></div>
         <div className="flex gap-2">
           <button type="button" className="min-h-11 rounded-full border-2 border-stone-800 px-4 text-sm font-bold" onClick={async () => setSoundOn(await sound.current.enable())} aria-pressed={soundOn}>{soundOn ? 'Alarm sound is ON' : 'Turn alarm sound on'}</button>
-          <Link href="/staff" prefetch={false} className="inline-flex min-h-11 items-center rounded-full border-2 border-stone-800 px-4 text-sm font-bold">Food orders</Link>
-          {(role === 'owner' || role === 'manager') && <Link href="/padharosaa/manage" className="inline-flex min-h-11 items-center rounded-full bg-stone-900 px-4 text-sm font-bold text-white">Manage</Link>}
+          <Link href={ordersHref} prefetch={false} className="inline-flex min-h-11 items-center rounded-full border-2 border-stone-800 px-4 text-sm font-bold">Food orders</Link>
+          {(role === 'owner' || role === 'manager') && <Link href={`/padharosaa/${role}`} className="inline-flex min-h-11 items-center rounded-full bg-stone-900 px-4 text-sm font-bold text-white">Manage</Link>}
         </div>
       </header>
       {alerts && (

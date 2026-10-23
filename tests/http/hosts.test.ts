@@ -19,6 +19,22 @@ describe('one app, two front doors', () => {
     const desk = await fetch(BASE + '/padharosaa/desk', { headers: pad, redirect: 'manual' });
     expect(new URL(desk.headers.get('location')!).pathname).toBe('/login');
   });
+  it('every role address asks a signed-out visitor to sign in on the Padharosaa page, then comes back', async () => {
+    for (const a of ['owner', 'manager', 'kitchen', 'reception', 'housekeeping', 'desk', 'orders']) {
+      const res = await fetch(`${BASE}/${a}`, { headers: pad, redirect: 'manual' });
+      expect(res.status, a).toBe(307);
+      const to = new URL(res.headers.get('location')!);
+      expect(to.pathname, a).toBe('/login');
+      expect(to.searchParams.get('next'), a).toBe(a === 'orders' ? '/staff' : `/padharosaa/${a}`);
+    }
+  });
+  it('the role addresses are not a Padharosaa page on the menu host (they are just menu slugs there)', async () => {
+    for (const a of ['owner', 'kitchen', 'reception']) {
+      const res = await fetch(`${BASE}/${a}`, { headers: { 'x-forwarded-host': 'menu.taprizz.in' }, redirect: 'manual' });
+      expect(res.status, a).not.toBe(307); // no sign-in redirect: the menu app does not know these addresses
+      expect(await res.text(), a).not.toContain('Hotel staff sign in');
+    }
+  });
   it('the menu host is untouched: /login is the menu staff sign-in', async () => {
     const html = await (await fetch(BASE + '/login', { headers: { 'x-forwarded-host': 'menu.taprizz.in' } })).text();
     expect(html).toContain('Staff sign in');

@@ -3,6 +3,7 @@ import { serverEnv } from '@/env';
 import { ApiError } from '@/lib/errors';
 import { guard, penalize, rpc } from '@/lib/guest/rpc';
 import { loginBody, safeNext } from '@/lib/schemas/staff';
+import { areaHref, homeFor, isPadHost } from '@/lib/padharosaa/areas';
 import { hashIp } from '@/lib/security/ip';
 import { staffRpc } from '@/lib/staff/rpc';
 import { userClient } from '@/lib/supabase/server';
@@ -35,10 +36,17 @@ export async function POST(req: Request) {
       await db.auth.signOut();
       return fail(401, 'invalid_credentials');
     }
-    // A Padharosaa hotel's staff land on the hotel desk by default; everyone else keeps the menu live screen.
-    const hotel = me && !body.next ? await db.from('hotel_settings').select('enabled').maybeSingle() : null;
-    const onPadHost = /^padharosaa\./i.test(req.headers.get('x-forwarded-host') ?? req.headers.get('host') ?? '');
-    const home = isAdmin ? '/admin' : hotel?.data?.enabled || onPadHost ? '/padharosaa/desk' : '/staff';
+    // A Padharosaa hotel's staff land on their own page (owner, manager, kitchen, reception or housekeeping); everyone else keeps the menu live screen.
+    const onPadHost = isPadHost(req.headers.get('x-forwarded-host') ?? req.headers.get('host'));
+    let home = isAdmin ? '/admin' : '/staff';
+    if (me && !body.next) {
+      const hotel = await db.from('hotel_settings').select('enabled').maybeSingle();
+      if (hotel.data?.enabled || onPadHost) {
+        const teams = await staffRpc<{ teams?: string[] | null }>(db, 'padh_my_alerts').then((a) => a.teams ?? []).catch(() => [] as string[]);
+        const area = homeFor((me as { role?: string }).role ?? '', teams) ?? 'desk';
+        home = areaHref(area, onPadHost);
+      }
+    }
     return jsonOk({ ok: true, next: body.next ? safeNext(body.next) : home }, ctx.requestId);
   });
 }

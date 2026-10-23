@@ -31,7 +31,7 @@ export const logoutBody = z.object({ scope: z.enum(['local', 'global']).default(
 
 /** Only same-site staff areas are valid post-login destinations (prevents open redirects). */
 export function safeNext(next: string | undefined): string {
-  return next && /^\/(staff|dash|admin|account\/mfa|padharosaa\/(?:desk|manage))(\/[A-Za-z0-9_\-/]*)?$/.test(next) ? next : '/staff';
+  return next && /^\/(staff|dash|admin|account\/mfa|padharosaa\/(?:desk|manage|owner|manager|kitchen|reception|housekeeping)|(?:owner|manager|kitchen|reception|housekeeping|desk))(\/[A-Za-z0-9_\-/]*)?$/.test(next) ? next : '/staff';
 }
 
 export const mfaVerifyBody = z.object({ factor_id: z.string().uuid(), code: z.string().regex(/^\d{6}$/) }).strict();
