@@ -124,7 +124,7 @@ export function GuestLinkPanel({ slug, load, create, flash, bare }: {
       {st && st.can_create && !making && <button type="button" className={st.link ? softCls : btnCls} onClick={() => setMaking(true)}>{st.link ? 'Create a new link…' : 'Create guest link'}</button>}
       {st && !st.can_create && st.link && <p className="text-xs text-stone-600">Only the owner can create a new link.</p>}
       {st && st.can_create && making && (
-        <form className="space-y-3 rounded-xl border-2 border-red-200 bg-red-50 p-3" onSubmit={(e) => { e.preventDefault(); if (sure && pw) void make(); }}>
+        <form className="space-y-3 rounded-xl border-2 border-red-200 bg-red-50 p-3" onSubmit={(e) => { e.preventDefault(); if ((!st.link || sure) && pw && !busy) void make(); }}>
           <p className="text-sm font-bold text-red-950">{st.link ? 'A new link makes every printed QR code stop working. You will have to print and replace them in every room.' : 'This creates the guest link.'}</p>
           <label className="block text-sm font-semibold">Your password to confirm
             <input type="password" autoComplete="current-password" className={inputCls} value={pw} onChange={(e) => setPw(e.target.value)} />
