@@ -88,10 +88,11 @@ const fakeToken = () => `h.${Buffer.from(JSON.stringify({ aal: authState.aal }))
  */
 export const fakeUserClient = {
   auth: {
-    getUser: async () =>
-      authState.userId
-        ? { data: { user: { id: authState.userId, app_metadata: authState.meta.get(authState.userId)?.app_metadata ?? {} } }, error: null }
-        : { data: { user: null }, error: { status: 401, message: 'no session' } },
+    getUser: async () => {
+      if (!authState.userId) return { data: { user: null }, error: { status: 401, message: 'no session' } };
+      const email = (await state.pool!.query<{ email: string }>(`select email from auth.users where id = $1`, [authState.userId])).rows[0]?.email;
+      return { data: { user: { id: authState.userId, email, app_metadata: authState.meta.get(authState.userId)?.app_metadata ?? {} } }, error: null };
+    },
     updateUser: async ({ password }: { password?: string }) => {
       if (!authState.userId) return { data: { user: null }, error: { status: 401, message: 'no session' } };
       if (password && /^(password|123456)/i.test(password)) return { data: { user: null }, error: { status: 422, message: 'Password is known to be weak and easy to guess' } };

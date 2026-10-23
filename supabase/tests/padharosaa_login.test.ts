@@ -282,24 +282,52 @@ describe('staff session controls and QR rotation', () => {
     expect((await db.admin<any>(`select 1 from public.audit_log where action = 'padh_session_blocked' and entity_id = $1`, [r.session_id])).length).toBe(1);
   });
 
-  it('rotating the QR key needs the typed word, kills the old key at once, and only owner/manager may do it', async () => {
-    expect((await staffErr(w.A.manager, 'padh_rotate_qr_key', ['rotate']))?.code).toBe('GM015');
-    expect((await staffErr(w.A.waiter, 'padh_rotate_qr_key', ['ROTATE']))?.code).toBe('GM011');
-    expect((await staffErr(w.A.kitchen, 'padh_rotate_qr_key', ['ROTATE']))?.code).toBe('GM011');
-    const out = await staff<{ qr_key: string }>(w.A.manager, 'padh_rotate_qr_key', ['ROTATE']);
-    expect(out.qr_key).toMatch(/^[0-9a-f]{64}$/);
-    expect(out.qr_key).not.toBe(keyA);
+  const keyRow = (key: string) => [sha(key), Buffer.from(`enc:${key}`)]; // enc is opaque to the database; the app makes it with AES-GCM
+  it('the owner (only) replaces the QR key; the old key dies at once; the old typed-word function is closed to everyone', async () => {
+    const fresh = 'c'.repeat(64);
+    for (const uid of [w.A.manager, w.A.waiter, w.A.kitchen, w.stranger]) expect((await staffErr(uid, 'padh_qr_set', keyRow(fresh)))?.code, uid).toBe('GM011');
+    for (const bad of [[Buffer.from('short'), Buffer.from('x'.repeat(40))], [sha(fresh), Buffer.from('tiny')], [null, null]]) expect((await staffErr(w.A.owner, 'padh_qr_set', bad))?.code).toBe('GM015');
+    for (const uid of [w.A.owner, w.A.manager]) expect((await staffErr(uid, 'padh_rotate_qr_key', ['ROTATE']))?.code, uid).toBe('42501');
+    expect(await staff(w.A.owner, 'padh_qr_set', keyRow(fresh))).toEqual({ ok: true });
     expect((await svcErr('padh_public_hotel', [w.A.slug, keyA]))?.code).toBe('GM002');
-    expect((await svc<any>('padh_public_hotel', [w.A.slug, out.qr_key])).name).toBe('Cafe Aroma');
-    // hotel B untouched
-    expect((await svc<any>('padh_public_hotel', [w.B.slug, keyB])).name).toBe('Spice Garden');
-    keyA = out.qr_key;
+    expect((await svc<any>('padh_public_hotel', [w.A.slug, fresh])).name).toBe('Cafe Aroma');
+    expect((await svc<any>('padh_public_hotel', [w.B.slug, keyB])).name).toBe('Spice Garden'); // hotel B untouched
+    expect((await db.admin<any>(`select 1 from public.audit_log where action = 'padh_qr_set' and restaurant_id = $1`, [w.A.rid])).length).toBe(1);
+    keyA = fresh;
+  });
+
+  it('owner and manager can read the encrypted copy at any time; others cannot; the column itself is not readable', async () => {
+    for (const uid of [w.A.owner, w.A.manager]) {
+      const g = await staff<any>(uid, 'padh_qr_get', []);
+      expect(g.enc).toBe(Buffer.from(`enc:${keyA}`).toString('hex'));
+      expect(g.role).toBe(uid === w.A.owner ? 'owner' : 'manager');
+    }
+    for (const uid of [w.A.waiter, w.A.kitchen, w.stranger, w.B.manager]) {
+      const e = await staffErr(uid, 'padh_qr_get', []);
+      expect(e?.code === 'GM011' || (uid === w.B.manager && !e), uid).toBe(true); // B's manager only ever sees B's own row
+    }
+    expect((await staff<any>(w.B.manager, 'padh_qr_get', [])).enc).toBeNull();
+    expect((await db.asErr('authenticated', w.A.owner, `select qr_key_enc from public.hotel_settings`))?.code).toBe('42501');
+    expect((await db.asErr('anon', null, `select public.padh_qr_get()`))?.code).toBe('42501');
+  });
+
+  it('the platform admin can read and replace any hotel key; nobody else can', async () => {
+    const adminKey = 'd'.repeat(64);
+    expect((await svcErr('padh_admin_qr_get', [w.A.owner, w.A.rid]))?.code).toBeTruthy();
+    expect((await svcErr('padh_admin_qr_set', [w.stranger, w.A.rid, ...keyRow(adminKey)]))?.code).toBeTruthy();
+    expect(await svc(`padh_admin_qr_set`, [w.admin, w.B.rid, ...keyRow(adminKey)])).toEqual({ ok: true });
+    expect((await svc<any>('padh_admin_qr_get', [w.admin, w.B.rid])).enc).toBe(Buffer.from(`enc:${adminKey}`).toString('hex'));
+    expect((await svc<any>('padh_public_hotel', [w.B.slug, adminKey])).name).toBe('Spice Garden');
+    expect((await svcErr('padh_public_hotel', [w.B.slug, keyB]))?.code).toBe('GM002');
+    keyB = adminKey;
+    expect((await svcErr('padh_admin_qr_get', [w.admin, randomUUID()]))?.code).toBe('GM012');
+    expect((await db.asErr('authenticated', w.A.owner, `select public.padh_admin_qr_get($1,$2)`, [w.admin, w.A.rid]))?.code).toBe('42501');
   });
 
   it('privilege split: staff cannot call guest functions; the service role cannot call staff functions; anon nothing', async () => {
     expect((await db.asErr('authenticated', w.A.owner, `select public.padh_guest_logout($1)`, [randomUUID()]))?.code).toBe('42501');
     expect((await db.asErr('authenticated', w.A.owner, `select public.padh_public_hotel('x', 'y')`))?.code).toBe('42501');
-    expect((await db.asErr('service_role', null, `select public.padh_rotate_qr_key('ROTATE')`))?.code).toBe('42501');
+    expect((await db.asErr('service_role', null, `select public.padh_qr_set($1, $2)`, [sha('x'), Buffer.from('y'.repeat(40))]))?.code).toBe('42501');
     expect((await db.asErr('anon', null, `select public.padh_public_hotel('x', 'y')`))?.code).toBe('42501');
     expect((await db.asErr('authenticated', w.A.owner, `select * from public.consent_log`))?.code).toBe('42501');
   });

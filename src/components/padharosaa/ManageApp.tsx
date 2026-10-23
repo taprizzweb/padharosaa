@@ -5,9 +5,10 @@ import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { ImageCropper } from '@/components/dash/ImageCropper';
 import { apiGet, apiPost } from '@/components/staff/hooks';
+import { ApiFailure } from '@/lib/guest/client';
 import { BuffetManager } from './BuffetManager';
 import { GuideManager } from './GuideManager';
-import { GuestLinkCard, RoomsCard } from './RoomsLink';
+import { GuestLinkPanel, RoomsCard, type LinkState } from './RoomsLink';
 import { parseStaffCsv } from '@/lib/padharosaa/csv';
 import { buildTheme, contrast, normaliseHex } from '@/lib/padharosaa/theme';
 
@@ -29,19 +30,19 @@ function Card({ title, hint, children }: { title: string; hint?: string; childre
 }
 const Field = ({ label, children }: { label: string; children: ReactNode }) => <label className="block text-sm font-semibold">{label}{children}</label>;
 
-export function ManageApp({ role, restaurant, supabase, appOrigin }: { role: string; restaurant: { id: string; name: string; slug: string }; supabase: { url: string; anonKey: string }; appOrigin: string }) {
+export function ManageApp({ role, restaurant, supabase }: { role: string; restaurant: { id: string; name: string; slug: string }; supabase: { url: string; anonKey: string } }) {
   const sb = useMemo(() => createBrowserClient(supabase.url, supabase.anonKey), [supabase.url, supabase.anonKey]);
   const [s, setS] = useState<Settings | null>(null);
   const [insta, setInsta] = useState('');
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const flash = (ok: boolean, text: string) => { setMsg({ ok, text }); window.scrollTo({ top: 0, behavior: 'smooth' }); };
 
-  const [loadErr, setLoadErr] = useState(false);
+  const [loadErr, setLoadErr] = useState<false | 'forbidden' | 'failed'>(false);
   const load = useCallback(async () => {
     try {
       const d = await apiGet<Settings & { instagram: string | null }>('/api/padharosaa/v1/staff/settings');
       setS(d); setInsta((d.instagram ?? '').replace(/^https:\/\/www\.instagram\.com\//, '@')); setLoadErr(false);
-    } catch { setLoadErr(true); }
+    } catch (e) { setLoadErr(e instanceof ApiFailure && e.status === 403 ? 'forbidden' : 'failed'); }
   }, []);
   useEffect(() => { void load(); }, [load]);
 
@@ -49,7 +50,7 @@ export function ManageApp({ role, restaurant, supabase, appOrigin }: { role: str
     try { await apiPost(`/api/padharosaa/v1/staff/${path}`, body); flash(true, done); await load(); } catch { flash(false, 'That could not be saved. Please check the values and try again.'); }
   };
 
-  if (!s) return <main className="p-8 text-center">{loadErr ? <><p role="alert" className="font-semibold">The settings could not be loaded.</p><button type="button" className={btnCls + ' mt-3'} onClick={() => void load()}>Try again</button></> : 'Loading…'}</main>;
+  if (!s) return <main className="p-8 text-center">{loadErr === 'forbidden' ? <p role="alert" className="mx-auto max-w-md font-semibold">This restaurant is not a Padharosaa hotel yet. Please ask Taprizz to switch Padharosaa on for it, then reload this page.</p> : loadErr ? <><p role="alert" className="font-semibold">The settings could not be loaded.</p><button type="button" className={btnCls + ' mt-3'} onClick={() => void load()}>Try again</button></> : 'Loading…'}</main>;
   return (
     <div className="mx-auto min-h-dvh max-w-2xl bg-stone-50 px-4 pb-24 pt-4 text-stone-900">
       <header className="flex items-center justify-between gap-2"><div><h1 className="text-xl font-extrabold">Manage Padharosaa</h1><p className="text-sm text-stone-700">{restaurant.name}</p></div><Link href="/padharosaa/desk" className="inline-flex min-h-11 items-center rounded-full border-2 border-stone-800 px-4 text-sm font-bold">Back to desk</Link></header>
@@ -57,7 +58,7 @@ export function ManageApp({ role, restaurant, supabase, appOrigin }: { role: str
       {s.server_ready === false && <p role="alert" className="mt-3 rounded-xl bg-red-50 p-3 text-sm font-semibold text-red-900">Guest sign-in is switched off: the setting PADHAROSAA_DATA_KEY is missing on the server. Add it in your hosting settings (Vercel → Environment Variables) and redeploy. Until then guests cannot enter.</p>}
       <Checklist s={s} insta={insta} />
       <RoomsCard flash={flash} />
-      <GuestLinkCard origin={appOrigin} slug={restaurant.slug} flash={flash} />
+      <GuestLinkPanel slug={restaurant.slug} flash={flash} load={() => apiGet<LinkState>('/api/padharosaa/v1/staff/qr')} create={(password) => apiPost<{ link: string }>('/api/padharosaa/v1/staff/qr/rotate', { password })} />
       <HomeCard s={s} save={save} />
       <StayCard s={s} save={save} />
       <LookCard s={s} insta={insta} restaurantId={restaurant.id} sb={sb} save={save} />

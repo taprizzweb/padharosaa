@@ -17,5 +17,5 @@ export default async function ManagePage() {
   if (!m) redirect('/staff');
   if (m.role !== 'owner' && m.role !== 'manager') redirect('/padharosaa/desk');
   const env = publicEnv();
-  return <ManageApp role={m.role} restaurant={m.restaurant} supabase={{ url: env.NEXT_PUBLIC_SUPABASE_URL, anonKey: env.NEXT_PUBLIC_SUPABASE_ANON_KEY }} appOrigin={env.NEXT_PUBLIC_PADHAROSAA_ORIGIN ?? env.NEXT_PUBLIC_APP_ORIGIN} />;
+  return <ManageApp role={m.role} restaurant={m.restaurant} supabase={{ url: env.NEXT_PUBLIC_SUPABASE_URL, anonKey: env.NEXT_PUBLIC_SUPABASE_ANON_KEY }} />;
 }

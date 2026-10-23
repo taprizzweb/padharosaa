@@ -26,7 +26,7 @@ export async function renderArea(area: Area) {
   }
   if (area === 'owner' || area === 'manager') {
     const env = publicEnv();
-    return <ManageApp role={m.role} restaurant={m.restaurant} supabase={{ url: env.NEXT_PUBLIC_SUPABASE_URL, anonKey: env.NEXT_PUBLIC_SUPABASE_ANON_KEY }} appOrigin={env.NEXT_PUBLIC_PADHAROSAA_ORIGIN ?? env.NEXT_PUBLIC_APP_ORIGIN} />;
+    return <ManageApp role={m.role} restaurant={m.restaurant} supabase={{ url: env.NEXT_PUBLIC_SUPABASE_URL, anonKey: env.NEXT_PUBLIC_SUPABASE_ANON_KEY }} />;
   }
   return <DeskApp role={m.role} hotel={m.restaurant.name} title={AREA_TITLE[area]} />;
 }

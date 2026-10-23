@@ -82,7 +82,8 @@ export const passBody = z
 export const resolveBody = z
   .object({ version: z.number().int().min(1), outcome: z.enum(['fixed', 'replacement_sent', 'room_changed', 'compensation_offered']) })
   .strict();
-export const rotateBody = z.object({ confirm: z.string().max(20) }).strict();
+/** the person's own password, asked again before a new guest link is made */
+export const rotateBody = z.object({ password: z.string().min(1).max(200) }).strict();
 export const enableBody = z.object({ timezone: z.string().min(3).max(60).default('Asia/Kolkata') }).strict();
 export const idParam = uuid;
 

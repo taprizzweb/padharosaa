@@ -38,6 +38,7 @@ export function DeskApp({ role, hotel, title = 'Padharosaa desk' }: { role: stri
       setReqs(b.requests); setAlerts(a); setErr(null);
     } catch (e) {
       if (e instanceof ApiFailure && e.status === 401) window.location.assign('/login?next=/padharosaa/desk');
+      else if (e instanceof ApiFailure && e.status === 403) setErr('This restaurant is not a Padharosaa hotel yet. Please ask Taprizz to switch Padharosaa on for it, then reload this page.');
       else setErr('Could not reach the server. Retrying…');
     }
   }, []);

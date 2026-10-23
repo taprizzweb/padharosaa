@@ -64,39 +64,51 @@ export function RoomsCard({ flash }: { flash: Flash }) {
   );
 }
 
-/** Step 2: one tap makes the guest link and its QR code. The key is only ever shown here, right after it is made. */
-export function GuestLinkCard({ origin, slug, flash }: { origin: string; slug: string; flash: Flash }) {
-  const [link, setLink] = useState<string | null>(null);
+export interface LinkState { link: string | null; can_create: boolean; rotated_at: string }
+
+/** The guest link and its QR code, shown at any time. A NEW link (which kills every printed QR) needs the person's own password again. */
+export function GuestLinkPanel({ slug, load, create, flash, bare }: {
+  slug: string; load: () => Promise<LinkState>; create: (password: string) => Promise<{ link: string }>; flash: Flash; bare?: boolean;
+}) {
+  const [st, setSt] = useState<LinkState | null>(null);
+  const [failed, setFailed] = useState(false);
   const [qr, setQr] = useState<string | null>(null);
+  const [making, setMaking] = useState(false);
+  const [pw, setPw] = useState('');
+  const [sure, setSure] = useState(false);
   const [busy, setBusy] = useState(false);
 
+  const show = useCallback(async (s: LinkState) => {
+    setSt(s);
+    if (!s.link) return setQr(null);
+    const QR = (await import('qrcode')).default;
+    setQr(await QR.toDataURL(s.link, { margin: 2, width: 640, errorCorrectionLevel: 'M' }));
+  }, []);
+  const refresh = useCallback(async () => { try { await show(await load()); setFailed(false); } catch { setFailed(true); } }, [load, show]);
+  useEffect(() => { void refresh(); }, [refresh]);
+
   const make = async () => {
-    if (!window.confirm('Create a new guest link? The old link and any printed QR codes will stop working.')) return;
     setBusy(true);
     try {
-      const r = await apiPost<{ qr_key: string }>('/api/padharosaa/v1/staff/qr/rotate', { confirm: 'ROTATE' });
-      const url = `${origin.replace(/\/$/, '')}/padharosaa/${slug}?k=${r.qr_key}`;
-      setLink(url);
-      const QR = (await import('qrcode')).default;
-      setQr(await QR.toDataURL(url, { margin: 2, width: 640, errorCorrectionLevel: 'M' }));
-    } catch { flash(false, 'The guest link could not be created. Please try again.'); }
+      const r = await create(pw);
+      setPw(''); setSure(false); setMaking(false);
+      await show({ link: r.link, can_create: true, rotated_at: new Date().toISOString() });
+      flash(true, 'New guest link created. Old QR codes no longer work. Print the new one.');
+    } catch { flash(false, 'That password was not right, or the link could not be created. Please try again.'); }
     setBusy(false);
   };
-  const copy = async () => {
-    try { await navigator.clipboard.writeText(link ?? ''); flash(true, 'Link copied.'); } catch { flash(false, 'Copy did not work. Press and hold the link to copy it.'); }
-  };
+  const copy = async () => { try { await navigator.clipboard.writeText(st?.link ?? ''); flash(true, 'Link copied.'); } catch { flash(false, 'Copy did not work. Press and hold the link to copy it.'); } };
 
-  return (
-    <Card title="Guest link and QR code" hint="Guests open this link (or scan the QR in their room), enter their name, mobile and room number, and they are in. The link is shown only right after you create it, so copy or print it then.">
-      <button type="button" className={btnCls} disabled={busy} onClick={() => void make()}>{busy ? 'Creating…' : link ? 'Create a new link' : 'Create guest link'}</button>
-      {link && (
+  const body = (
+    <>
+      {failed && <p role="alert" className="text-sm font-semibold text-red-900">The guest link could not be loaded. <button type="button" className="underline" onClick={() => void refresh()}>Try again</button></p>}
+      {st && st.link && (
         <div className="space-y-3">
-          <p role="status" className="rounded-xl bg-emerald-50 p-3 text-sm font-semibold text-emerald-950">Your guest link is ready. Copy or print it now. It cannot be shown again, but you can always create a new one.</p>
-          <input readOnly value={link} aria-label="Guest link" className={inputCls + ' text-xs'} onFocus={(e) => e.currentTarget.select()} />
+          <input readOnly value={st.link} aria-label="Guest link" className={inputCls + ' text-xs'} onFocus={(e) => e.currentTarget.select()} />
           <div className="flex flex-wrap gap-2">
             <button type="button" className={btnCls} onClick={() => void copy()}>Copy link</button>
-            <a className={softCls} href={`https://wa.me/?text=${encodeURIComponent(link)}`} target="_blank" rel="noopener noreferrer">Share on WhatsApp</a>
-            <a className={softCls} href={link} target="_blank" rel="noopener noreferrer">Open as guest</a>
+            <a className={softCls} href={`https://wa.me/?text=${encodeURIComponent(st.link)}`} target="_blank" rel="noopener noreferrer">Share on WhatsApp</a>
+            <a className={softCls} href={st.link} target="_blank" rel="noopener noreferrer">Open as guest</a>
           </div>
           {qr && (
             <div className="rounded-xl border-2 border-stone-200 p-3 text-center">
@@ -105,8 +117,27 @@ export function GuestLinkCard({ origin, slug, flash }: { origin: string; slug: s
               <a className={softCls + ' mt-2'} href={qr} download={`padharosaa-${slug}-qr.png`}>Download QR image</a>
             </div>
           )}
+          <p className="text-xs text-stone-600">Link created {new Date(st.rotated_at).toLocaleDateString()}. Print this QR for the rooms. It stays the same until a new link is created.</p>
         </div>
       )}
-    </Card>
+      {st && !st.link && <p className="rounded-xl bg-amber-50 p-3 text-sm font-semibold text-amber-950">No saved link yet. {st.can_create ? 'Create it once with your password, then it is always visible here.' : 'Ask the owner to create it.'}</p>}
+      {st && st.can_create && !making && <button type="button" className={st.link ? softCls : btnCls} onClick={() => setMaking(true)}>{st.link ? 'Create a new link…' : 'Create guest link'}</button>}
+      {st && !st.can_create && st.link && <p className="text-xs text-stone-600">Only the owner can create a new link.</p>}
+      {st && st.can_create && making && (
+        <form className="space-y-3 rounded-xl border-2 border-red-200 bg-red-50 p-3" onSubmit={(e) => { e.preventDefault(); if (sure && pw) void make(); }}>
+          <p className="text-sm font-bold text-red-950">{st.link ? 'A new link makes every printed QR code stop working. You will have to print and replace them in every room.' : 'This creates the guest link.'}</p>
+          <label className="block text-sm font-semibold">Your password to confirm
+            <input type="password" autoComplete="current-password" className={inputCls} value={pw} onChange={(e) => setPw(e.target.value)} />
+          </label>
+          {st.link && <label className="flex items-start gap-3 text-sm font-semibold"><input type="checkbox" className="mt-1 h-5 w-5" checked={sure} onChange={(e) => setSure(e.target.checked)} />I understand: old QR codes will stop working.</label>}
+          <div className="flex gap-2">
+            <button type="submit" className={btnCls} disabled={busy || !pw || (!!st.link && !sure)}>{busy ? 'Creating…' : 'Create new link'}</button>
+            <button type="button" className={softCls} onClick={() => { setMaking(false); setPw(''); setSure(false); }}>Cancel</button>
+          </div>
+        </form>
+      )}
+      {!st && !failed && <p role="status">…</p>}
+    </>
   );
+  return bare ? <div className="space-y-3">{body}</div> : <Card title="Guest link and QR code" hint="Guests open this link (or scan the QR in their room), enter their name, mobile and room number, and they are in. You can see it here at any time.">{body}</Card>;
 }

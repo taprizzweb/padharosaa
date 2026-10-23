@@ -7,7 +7,7 @@ What is built, what must be switched on, and what is still open. Read top to bot
 2. Apply `0026` ... `0039` in order (Supabase SQL editor, `supabase db push`, or the MCP `apply_migration`). Each file is idempotent.
 3. Run `npm run check:rls` against the result: every new table must show RLS on, with no direct write grants.
 4. Optional demo data: `supabase/seed/padharosaa_demo.sql` (marks rows `is_mock`; `npm run check:no-mock` fails CI if mock data could reach production).
-5. Enable a hotel as the platform admin: `POST /api/padharosaa/v1/platform/hotels/<restaurant id>/enable`. The QR key is returned once; print it into the room QR codes as `https://<app>/padharosaa/<slug>?k=<key>`. Rotate with `staff/qr/rotate` (typed word ROTATE).
+5. Enable a hotel as the platform admin: the **Padharosaa** button on the restaurant in `/admin` (or `POST /api/padharosaa/v1/platform/hotels/<restaurant id>/enable`). The guest link `https://<app>/padharosaa/<slug>?k=<key>` is kept encrypted (with `PADHAROSAA_DATA_KEY`) and can be shown again at any time: by the owner and manager in `/owner` or `/manager`, and by the platform admin in `/admin`. Making a NEW link (every printed QR stops working) is owner-only and asks for the owner's own password (the admin can do it with the admin's own password). If `PADHAROSAA_DATA_KEY` is ever replaced, create the link again (the old encrypted copy cannot be read with a new key).
 
 ## 2. Environment variables (Vercel, Production)
 | Variable | Needed for | How |

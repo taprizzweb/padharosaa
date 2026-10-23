@@ -9,6 +9,7 @@ vi.mock('@/lib/supabase/admin', async () => {
   const h = await import('./helpers');
   return { adminClient: () => h.fakeAdminClient };
 });
+vi.mock('@/lib/padharosaa/reauth', () => ({ passwordIsRight: async (_email: string, password: string) => password === 'correct-horse-battery-staple' }));
 vi.mock('@/lib/supabase/server', async () => {
   const h = await import('./helpers');
   return { userClient: async () => h.fakeUserClient };
@@ -29,6 +30,8 @@ import { serverEnv } from '@/env';
 import { GET as settingsGET } from '@/app/api/padharosaa/v1/staff/settings/route';
 import { GET as roomsGET, POST as roomsPOST } from '@/app/api/padharosaa/v1/staff/rooms/route';
 import { POST as rotatePOST } from '@/app/api/padharosaa/v1/staff/qr/rotate/route';
+import { GET as qrGET } from '@/app/api/padharosaa/v1/staff/qr/route';
+import { GET as adminQrGET, POST as adminQrPOST } from '@/app/api/padharosaa/v1/platform/hotels/[id]/qr/route';
 import { POST as enablePOST } from '@/app/api/padharosaa/v1/platform/hotels/[id]/enable/route';
 
 let db: TestDb;
@@ -333,17 +336,64 @@ describe('staff actions over the API', () => {
     expect((await room(roomId, 'launch')).status).toBe(404);
     expect((await sess(sid, 'end')).status).toBe(200);
     expect((await meGET(mk('/api/padharosaa/v1/sessions/me', { cookie: c }))).status).toBe(401);
-    // the QR key: waiter may not, manager must type ROTATE
-    const rotate = (confirm: string) => rotatePOST(mk('/api/padharosaa/v1/staff/qr/rotate', { body: { confirm } }));
-    expect((await rotate('ROTATE')).status).toBe(403);
+  });
+
+  it('the guest link: owner and manager always see it; only the owner makes a new one, and only with their own password', async () => {
+    const PW = 'correct-horse-battery-staple';
+    const rotate = (password: string) => rotatePOST(mk('/api/padharosaa/v1/staff/qr/rotate', { body: { password } }));
+    const seen = async (uid: string) => { as(uid); return qrGET(mk('/api/padharosaa/v1/staff/qr')); };
+    // enabling the hotel through the platform route already saved an encrypted copy, so the link is there from day one
+    let g = await json(await seen(w.A.owner));
+    expect(g.link).toContain(`?k=${keyA}`);
+    expect(g.can_create).toBe(true);
+    as(w.A.waiter);
+    expect((await rotate(PW)).status).toBe(403);
+    expect((await seen(w.A.kitchen)).status).toBe(403);
     as(w.A.manager);
-    expect((await rotate('rotate')).status).toBe(400);
-    const r = await rotate('ROTATE');
+    expect((await rotate(PW)).status).toBe(403); // a manager cannot, even with a right password
+    as(w.A.owner);
+    expect((await rotate('wrong')).status).toBe(401);
+    expect((await rotatePOST(mk('/api/padharosaa/v1/staff/qr/rotate', { body: { confirm: 'ROTATE' } }))).status).toBe(400); // the old typed word is gone
+    const r = await rotate(PW);
     expect(r.status).toBe(200);
-    const newKey = (await json(r)).qr_key as string;
+    const link = (await json(r)).link as string;
+    const newKey = new URL(link).searchParams.get('k')!;
+    expect(link).toContain(`/padharosaa/${w.A.slug}?k=`);
+    expect(newKey).toMatch(/^[0-9a-f]{64}$/);
     expect((await publicGET(mk(`/api/padharosaa/v1/hotels/${w.A.slug}/public?k=${keyA}`), p({ slug: w.A.slug }))).status).toBe(403);
     expect((await publicGET(mk(`/api/padharosaa/v1/hotels/${w.A.slug}/public?k=${newKey}`), p({ slug: w.A.slug }))).status).toBe(200);
+    // visible again, any time, to the owner and to the manager (read only)
+    g = await json(await seen(w.A.owner));
+    expect([g.link, g.can_create]).toEqual([link, true]);
+    g = await json(await seen(w.A.manager));
+    expect([g.link, g.can_create]).toEqual([link, false]);
+    // the database holds only the hash and an encrypted copy, never the key itself
+    const stored = (await db.admin<any>(`select encode(qr_key_enc, 'hex') as enc from public.hotel_settings where restaurant_id = $1`, [w.A.rid]))[0].enc as string;
+    expect(stored).not.toContain(newKey);
+    expect(decryptText(Buffer.from(stored, 'hex'))).toBe(newKey);
+    // wrong passwords are limited
+    as(w.A.owner);
+    let last = 0;
+    for (let i = 0; i < 7; i++) last = (await rotate('nope')).status;
+    expect(last).toBe(429);
     keyA = newKey;
+  });
+
+  it('platform admin sees any hotel link at any time and can make a new one with their own password; owners cannot use that route', async () => {
+    const PW = 'correct-horse-battery-staple';
+    const get = () => adminQrGET(mk(`/api/padharosaa/v1/platform/hotels/${w.B.rid}/qr`), p({ id: w.B.rid }));
+    const rot = (password: string) => adminQrPOST(mk(`/api/padharosaa/v1/platform/hotels/${w.B.rid}/qr`, { body: { password } }), p({ id: w.B.rid }));
+    as(w.A.owner);
+    expect((await get()).status).toBe(403);
+    expect((await rot(PW)).status).toBe(403);
+    as(w.admin);
+    expect((await json(await get())).link).toContain(`/padharosaa/${w.B.slug}?k=`);
+    expect((await rot('wrong')).status).toBe(401);
+    const made = (await json(await rot(PW))).link as string;
+    expect(made).toContain(`/padharosaa/${w.B.slug}?k=`);
+    expect((await json(await get())).link).toBe(made);
+    const key = new URL(made).searchParams.get('k')!;
+    expect((await publicGET(mk(`/api/padharosaa/v1/hotels/${w.B.slug}/public?k=${key}`), p({ slug: w.B.slug }))).status).toBe(200);
   });
 
   it('responses never contain the service-role key, cookie secret, or raw IPs', async () => {

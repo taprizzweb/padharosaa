@@ -88,10 +88,11 @@ describe('guest attacks: identity and session', () => {
     await db.admin(`update public.hotel_settings set verification_level = 'light' where restaurant_id = $1`, [w.A.rid]);
   });
   it('06 rotating the QR key kills the old printed QR', async () => {
-    const out = await staff<any>(w.A.owner, 'padh_rotate_qr_key', ['ROTATE']);
+    const fresh = 'e'.repeat(64);
+    await staff(w.A.owner, 'padh_qr_set', [sha(fresh), Buffer.from(`enc:${fresh}`)]);
     expect((await loginErr(w.A, keyA))?.code).toBeTruthy();
-    expect((await login(w.A, out.qr_key)).session_id ?? true).toBeTruthy();
-    keyA = out.qr_key;
+    expect((await login(w.A, fresh)).session_id ?? true).toBeTruthy();
+    keyA = fresh;
   });
   it('07 login input abuse: bad name, country code, language and short token are rejected', async () => {
     const base = [w.A.slug, keyA, 'Mallory Hax', '+91', Buffer.from('enc'), sha('1'), 'en', '204', null, sha('t'), null, false, null, 'ip'];
@@ -207,7 +208,7 @@ describe('guest attacks: API surface and secrets', () => {
     const r = await create(sA, 'help', `Staff only ${randomUUID()}`);
     expect((await svcErr('padh_accept', [r.request_id, r.version]))?.code).toBe('42501');
     expect((await svcErr('padh_guide_save', [{ category: 'tip', name: 'x' }]))?.code).toBe('42501');
-    expect((await svcErr('padh_rotate_qr_key', ['ROTATE']))?.code).toBe('42501');
+    expect((await svcErr('padh_qr_set', [sha('z'), Buffer.from('z'.repeat(40))]))?.code).toBe('42501');
   });
   it('24 staff cannot read phone numbers, Wi-Fi password, token or stay-code columns directly', async () => {
     for (const q of [
@@ -302,11 +303,13 @@ describe('manager and staff attacks: request control', () => {
   it('35 a waiter or kitchen user cannot toggle room dining or rotate the QR key', async () => {
     for (const uid of [w.A.waiter, w.A.kitchen, w.stranger]) {
       expect((await staffErr(uid, 'padh_set_dining', [false]))?.code, uid).toBe('GM011');
-      expect((await staffErr(uid, 'padh_rotate_qr_key', ['ROTATE']))?.code, uid).toBeTruthy();
+      expect((await staffErr(uid, 'padh_qr_set', [sha('q'), Buffer.from('q'.repeat(40))]))?.code, uid).toBe('GM011');
     }
   });
-  it('36 rotate_qr_key needs the explicit confirm word', async () => {
-    for (const c of ['', 'rotate', 'yes', null]) expect((await staffErr(w.A.owner, 'padh_rotate_qr_key', [c]))?.code, String(c)).toBeTruthy();
+  it('36 a manager cannot replace the QR key (owner only), the old typed-word function is closed, and bad key data is refused', async () => {
+    expect((await staffErr(w.A.manager, 'padh_qr_set', [sha('m'), Buffer.from('m'.repeat(40))]))?.code).toBe('GM011');
+    for (const uid of [w.A.owner, w.A.manager]) expect((await staffErr(uid, 'padh_rotate_qr_key', ['ROTATE']))?.code, uid).toBe('42501');
+    for (const bad of [[null, null], [Buffer.from('x'), Buffer.from('y'.repeat(40))]]) expect((await staffErr(w.A.owner, 'padh_qr_set', bad))?.code).toBe('GM015');
   });
 });
 

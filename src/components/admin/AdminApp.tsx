@@ -6,6 +6,8 @@ import { ApiFailure } from '@/lib/guest/client';
 import { addMonths, describeExpiry, endOfDayIst, expiryOf, istDate, paiseToRupees, rupeesToPaise, startOfDayIst } from '@/lib/billing';
 import { formatPaise } from '@/lib/money';
 import { adminGet, adminPost, type Plan } from './AdminApi';
+import { apiGet, apiPost } from '@/components/staff/hooks';
+import { GuestLinkPanel, type LinkState } from '@/components/padharosaa/RoomsLink';
 
 interface Row {
   id: string; slug: string; name: string; status: 'active' | 'suspended'; plan: string; paid_until: string | null; created_at: string; last_order_at: string | null; order_count: number;
@@ -41,6 +43,8 @@ export function AdminApp() {
   const [adding, setAdding] = useState(false);
   const [af, setAf] = useState({ name: '', email: '', role: 'manager' });
   const [del, setDel] = useState<Row | null>(null);
+  const [pad, setPad] = useState<{ row: Row; enabled: boolean | null } | null>(null);
+  const [padMsg, setPadMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [typed, setTyped] = useState('');
   const [secret, setSecret] = useState<{ email: string; slug: string; password: string; title?: string } | null>(null);
   const [f, setF] = useState({ slug: '', name: '', owner_email: '', owner_name: '', plan: 'pilot', paid: '' });
@@ -119,6 +123,7 @@ export function AdminApp() {
               <button type="button" className={smallBtn} onClick={() => { setErr(null); setDup(r); setDf({ name: `${r.name} copy`, slug: '', owner_name: '', owner_email: '' }); }} aria-label={`Duplicate ${r.name}`}>Duplicate</button>
               <button type="button" className={smallBtn} onClick={async () => { setAudit({ row: r, entries: null }); try { const x = await adminGet<{ entries: AuditEntry[] }>(`audit?id=${r.id}`); setAudit({ row: r, entries: x.entries }); } catch (e) { setAudit(null); setErr(errText(e)); } }} aria-label={`Activity log for ${r.name}`}>Activity log</button>
               <button type="button" className={smallBtn} onClick={async () => { setErr(null); setMailFor(null); setLogins({ row: r, staff: null }); try { await loadLogins(r); } catch (e) { setLogins(null); setErr(errText(e)); } }} aria-label={`Logins of ${r.name}`}>Logins</button>
+              <button type="button" className={smallBtn} onClick={async () => { setPadMsg(null); setPad({ row: r, enabled: null }); try { await apiGet(`/api/padharosaa/v1/platform/hotels/${r.id}/qr`); setPad({ row: r, enabled: true }); } catch { setPad({ row: r, enabled: false }); } }} aria-label={`Padharosaa hotel of ${r.name}`}>Padharosaa</button>
               <a className={smallBtn} href={`/api/admin/export?id=${r.id}`} download aria-label={`Export data of ${r.name}`}>Export data</a>
               <button type="button" className={smallBtn} onClick={() => { setErr(null); setDel(r); setTyped(''); }} aria-label={`Delete ${r.name}`}>Delete…</button>
             </div>
@@ -317,6 +322,22 @@ export function AdminApp() {
               </li>
             ))}
           </ul>
+        )}
+      </Sheet>
+
+      <Sheet open={!!pad} onClose={() => setPad(null)} title={`Padharosaa: ${pad?.row.name ?? ''}`} closeLabel="Close">
+        {pad && (
+          <div className="space-y-4">
+            {padMsg && <p role={padMsg.ok ? 'status' : 'alert'} className={`rounded-xl p-3 text-sm font-semibold ${padMsg.ok ? 'bg-emerald-50 text-emerald-950' : 'bg-red-50 text-red-900'}`}>{padMsg.text}</p>}
+            {pad.enabled === null && <p role="status">…</p>}
+            {pad.enabled === false && (
+              <div className="space-y-3">
+                <p className="text-stone-800">This restaurant is not a Padharosaa hotel yet. Enabling it gives it the guest concierge, the hotel pages and a guest link. Nothing in its menu changes.</p>
+                <button type="button" className={btnPrimary} onClick={async () => { try { await apiPost(`/api/padharosaa/v1/platform/hotels/${pad.row.id}/enable`, { timezone: 'Asia/Kolkata' }); setPad({ row: pad.row, enabled: true }); setPadMsg({ ok: true, text: 'Padharosaa is on for this hotel. The guest link is below.' }); } catch { setPadMsg({ ok: false, text: 'Padharosaa could not be enabled. Please try again.' }); } }}>Enable Padharosaa</button>
+              </div>
+            )}
+            {pad.enabled && <GuestLinkPanel bare slug={pad.row.slug} flash={(ok, text) => setPadMsg({ ok, text })} load={() => apiGet<LinkState>(`/api/padharosaa/v1/platform/hotels/${pad.row.id}/qr`)} create={(password) => apiPost<{ link: string }>(`/api/padharosaa/v1/platform/hotels/${pad.row.id}/qr`, { password })} />}
+          </div>
         )}
       </Sheet>
 
