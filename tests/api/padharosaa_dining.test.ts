@@ -87,12 +87,14 @@ describe('food, handover and dining', () => {
     const cookie = await guest();
     as(w.A.manager);
     expect((await profilePOST(mk('/t', { body: { department: 'front_desk', whatsapp: '+91 98111-22233', is_head: true } }), p({ user: w.A.waiter }))).status).toBe(200);
-    const res = await helpPOST(mk('/h', { body: { category: 'ac_electrical', urgent: true }, cookie, idem: randomUUID() }));
+    const res = await helpPOST(mk('/h', { body: { categories: ['ac_electrical', 'wifi'], detail: 'Router light is red', urgent: true }, cookie, idem: randomUUID() }));
     expect(res.status).toBe(201);
     const id = ((await res.json()) as any).request_id;
     const n = await db.admin<any>(`select to_ref, template from public.notifications where payload->>'request_id' = $1`, [id]);
     expect(n).toEqual([{ to_ref: w.A.waiter, template: 'help_alert' }]);
-    expect((await helpPOST(mk('/h', { body: { category: 'ghosts' }, cookie, idem: randomUUID() }))).status).toBe(400);
+    expect((await helpPOST(mk('/h', { body: { categories: ['ghosts'] }, cookie, idem: randomUUID() }))).status).toBe(400);
+    expect((await helpPOST(mk('/h', { body: { categories: [] }, cookie, idem: randomUUID() }))).status).toBe(400); // needs a chip or a note
+    expect((await helpPOST(mk('/h', { body: { categories: [], detail: 'Please send someone' }, cookie, idem: randomUUID() }))).status).toBe(201);
   });
 });
 

@@ -115,6 +115,9 @@ export const staffRowSchema = z
   .object({ name: text(1, 60), email: z.string().email().max(120).transform((v) => v.toLowerCase()), department: z.enum(TEAMS), whatsapp: waNumber.nullish(), is_head: z.boolean().default(false) })
   .strict();
 export const staffImportBody = z.object({ rows: z.array(staffRowSchema).min(1).max(200) }).strict();
-export const HELP_CATEGORIES = ['ac_electrical', 'water_plumbing', 'cleanliness', 'noise', 'other'] as const;
-export const helpBody = z.object({ category: z.enum(HELP_CATEGORIES), detail: optionalText(500), urgent: z.boolean().default(false) }).strict();
+export const HELP_CATEGORIES = ['towel_bedsheet', 'water', 'wifi', 'ac_electrical', 'tv', 'cleanliness', 'noise', 'other'] as const;
+export const helpBody = z
+  .object({ categories: z.array(z.enum(HELP_CATEGORIES)).max(8).default([]), detail: optionalText(500), urgent: z.boolean().default(false) })
+  .strict()
+  .refine((b) => b.categories.length > 0 || (b.detail?.length ?? 0) >= 3, 'choose a problem or write a few words');
 export const foodBody = z.object({ label: text(1, 120), detail: optionalText(500) }).strict();

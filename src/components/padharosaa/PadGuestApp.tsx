@@ -17,7 +17,7 @@ interface ReqView {
   request: { id: string; label: string; status: string; dismissed_reason: string | null; created_at: string; accepted_at: string | null; completed_at: string | null; version: number; resolution: string | null; followup_asked: boolean };
   updates: { at: string; key: string; params: Record<string, string> | null }[];
 }
-type Screen = { s: 'home' } | { s: 'services' } | { s: 'stay' } | { s: 'track'; id: string };
+type Screen = { s: 'home' } | { s: 'services' } | { s: 'stay' } | { s: 'help' } | { s: 'track'; id: string };
 
 async function api<T>(path: string, init?: RequestInit & { idem?: boolean }): Promise<{ ok: true; data: T } | { ok: false; status: number; key: string }> {
   try {
@@ -69,6 +69,7 @@ export function PadGuestApp({ slug, qrKey, imageBase }: { slug: string; qrKey: s
           <>
             {screen.s === 'home' && <HomeScreen me={me} home={home} c={c} go={setScreen} imageBase={imageBase} lang={lang} setLang={setLang} />}
             {screen.s === 'services' && <Services c={c} back={() => setScreen({ s: 'home' })} done={(id) => { void loadHome(); setScreen({ s: 'track', id }); }} />}
+            {screen.s === 'help' && <HelpDialog c={c} close={() => setScreen({ s: 'home' })} done={(id) => { void loadHome(); setScreen({ s: 'track', id }); }} />}
             {screen.s === 'stay' && <Stay c={c} back={() => setScreen({ s: 'home' })} />}
             {screen.s === 'track' && <Track id={screen.id} c={c} back={() => { void loadHome(); setScreen({ s: 'home' }); }} />}
             <Footer home={home} c={c} />
@@ -183,7 +184,7 @@ function HomeScreen({ me, home, c, go, imageBase, lang, setLang }: { me: Me; hom
         <Tile icon="📶" title={c.stay} onClick={() => go({ s: 'stay' })} />
         <Tile wide icon="🥞" title={c.buffet} sub={buffetSub} onClick={() => go({ s: 'stay' })} />
       </div>
-      <div className="px-5 pt-3"><Btn kind="soft" onClick={() => go({ s: 'services' })}>⚠️ {c.help} — {c.helpSub}</Btn></div>
+      <div className="px-5 pt-3"><Btn kind="soft" onClick={() => go({ s: 'help' })}>⚠️ {c.help} — {c.helpSub}</Btn></div>
       <Reviews home={home} c={c} />
     </main>
   );
@@ -217,20 +218,16 @@ function Footer({ home, c }: { home: Home; c: Copy }) {
 }
 
 function Services({ c, back, done }: { c: Copy; back: () => void; done: (id: string) => void }) {
-  const [kind, setKind] = useState<'housekeeping' | 'wake' | 'cab' | 'late_checkout' | 'help'>('housekeeping');
+  const [kind, setKind] = useState<'housekeeping' | 'wake' | 'cab' | 'late_checkout'>('housekeeping');
   const [label, setLabel] = useState<string>(c.hk[0]!);
   const [detail, setDetail] = useState('');
-  const [urgent, setUrgent] = useState(false);
-  const [cat, setCat] = useState<keyof Copy['helpCats']>('ac_electrical');
-  const [busy, setBusy] = useState(false);
+    const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(false);
-  const kinds = ['housekeeping', 'wake', 'cab', 'late_checkout', 'help'] as const;
+  const kinds = ['housekeeping', 'wake', 'cab', 'late_checkout'] as const;
   const send = async () => {
     setBusy(true); setErr(false);
     const text = kind === 'housekeeping' ? `${c.types.housekeeping}: ${label}` : c.types[kind as 'wake'];
-    const r = kind === 'help'
-      ? await api<{ id?: string; request_id?: string }>('requests/help', { method: 'POST', idem: true, body: JSON.stringify({ category: cat, ...(detail.trim() ? { detail: detail.trim() } : {}), urgent }) })
-      : await api<{ id?: string; request_id?: string }>('requests', { method: 'POST', idem: true, body: JSON.stringify({ type: kind, label: text, ...(detail.trim() ? { detail: detail.trim() } : {}), urgent: false }) });
+    const r = await api<{ id?: string; request_id?: string }>('requests', { method: 'POST', idem: true, body: JSON.stringify({ type: kind, label: text, ...(detail.trim() ? { detail: detail.trim() } : {}), urgent: false }) });
     setBusy(false);
     const id = r.ok ? (r.data.id ?? r.data.request_id) : null;
     if (id) done(id); else setErr(true);
@@ -251,12 +248,6 @@ function Services({ c, back, done }: { c: Copy; back: () => void; done: (id: str
           </fieldset>
         )}
         <label className="block text-sm font-semibold">{c.detail}<textarea maxLength={500} rows={3} value={detail} onChange={(e) => setDetail(e.target.value)} className="mt-1 w-full rounded-xl border bg-white p-3 text-base text-stone-900" /></label>
-        {kind === 'help' && (
-          <fieldset><legend className="mb-1 text-sm font-semibold">{c.helpLabel}</legend>
-            {(Object.keys(c.helpCats) as (keyof Copy['helpCats'])[]).map((k) => <label key={k} className="flex min-h-11 items-center gap-3"><input type="radio" name="cat" checked={cat === k} onChange={() => setCat(k)} className="h-5 w-5" />{c.helpCats[k]}</label>)}
-          </fieldset>
-        )}
-        {kind === 'help' && <label className="flex min-h-11 items-center gap-3 text-sm font-semibold"><input type="checkbox" checked={urgent} onChange={(e) => setUrgent(e.target.checked)} className="h-5 w-5" />{c.urgent}</label>}
         {err && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm font-medium text-red-900">{c.failed}</p>}
         <Btn onClick={() => void send()} disabled={busy}>{busy ? c.sending : c.send}</Btn>
       </div>
@@ -305,5 +296,53 @@ function Track({ id, c, back }: { id: string; c: Copy; back: () => void }) {
       {q?.status === 'received' && <div className="mx-5 mt-4"><Btn kind="soft" onClick={() => void cancel()}>{c.cancel}</Btn></div>}
       <div className="mx-5 mt-4"><Btn onClick={back}>{c.home}</Btn></div>
     </main>
+  );
+}
+
+const HELP_ORDER = ['towel_bedsheet', 'water', 'wifi', 'ac_electrical', 'tv', 'cleanliness', 'noise', 'other'] as const;
+
+/** "Call for problems": a dialog over the home screen. Pick as many chips as apply, add a note if you like, send to reception. */
+function HelpDialog({ c, close, done }: { c: Copy; close: () => void; done: (id: string) => void }) {
+  const [picked, setPicked] = useState<Set<string>>(new Set());
+  const [note, setNote] = useState('');
+  const [urgent, setUrgent] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<'need' | 'failed' | null>(null);
+  const ref = useRef<HTMLDialogElement>(null);
+  useEffect(() => { const d = ref.current; if (d && !d.open) d.showModal(); }, []);
+  const toggle = (k: string) => setPicked((cur) => { const n = new Set(cur); if (n.has(k)) n.delete(k); else n.add(k); return n; });
+  const send = async () => {
+    if (picked.size === 0 && note.trim().length < 3) { setErr('need'); return; }
+    setBusy(true); setErr(null);
+    const r = await api<{ request_id?: string; id?: string }>('requests/help', { method: 'POST', idem: true, body: JSON.stringify({ categories: [...picked], ...(note.trim() ? { detail: note.trim() } : {}), urgent }) });
+    setBusy(false);
+    const id = r.ok ? (r.data.request_id ?? r.data.id) : null;
+    if (id) done(id); else setErr('failed');
+  };
+  return (
+    <dialog ref={ref} onClose={close} aria-labelledby="help-h" className="m-auto w-[min(28rem,calc(100vw-1.5rem))] max-h-[92dvh] overflow-y-auto rounded-3xl p-0 shadow-2xl backdrop:bg-black/50" style={{ background: 'var(--paper)', color: 'var(--ink)' }}>
+      <div className="px-5 pb-4 pt-5" style={{ background: 'linear-gradient(var(--hero-0), var(--hero-1))', color: 'var(--on-hero)' }}>
+        <div className="flex items-start justify-between gap-3"><h2 id="help-h" className="text-2xl font-extrabold tracking-tight">{c.helpTitle}</h2>
+          <button type="button" onClick={() => ref.current?.close()} aria-label={c.close} className="-mr-2 -mt-1 min-h-11 min-w-11 rounded-full text-2xl leading-none">×</button></div>
+        <p className="mt-1" style={{ color: 'var(--on-hero-soft)' }}>{c.helpDlgSub}</p>
+      </div>
+      <div className="space-y-4 px-5 pb-5 pt-4">
+        <fieldset>
+          <legend className="text-sm font-bold">{c.helpLabel} <span className="font-medium" style={{ opacity: 0.75 }}>{c.helpTap}</span></legend>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {HELP_ORDER.map((k) => {
+              const on = picked.has(k);
+              return <button key={k} type="button" aria-pressed={on} onClick={() => toggle(k)} className="min-h-12 rounded-full border-2 px-4 text-base font-semibold"
+                style={on ? { background: 'var(--button)', color: 'var(--on-button)', borderColor: 'var(--ink)' } : { background: '#fff', color: '#10131a', borderColor: 'var(--accent-text)' }}>{on ? '✓ ' : ''}{c.helpCats[k]}</button>;
+            })}
+          </div>
+        </fieldset>
+        <label className="block"><span className="block text-sm font-bold">{c.helpElse}</span><span className="block text-sm" style={{ opacity: 0.8 }}>{c.helpElseHint}</span>
+          <textarea rows={3} maxLength={500} value={note} onChange={(e) => setNote(e.target.value)} className="mt-1 w-full rounded-xl border-2 bg-white p-3 text-base text-stone-900" style={{ borderColor: 'var(--tint)' }} /></label>
+        <label className="flex min-h-11 items-center gap-3 text-sm font-semibold"><input type="checkbox" checked={urgent} onChange={(e) => setUrgent(e.target.checked)} className="h-5 w-5" />{c.urgent}</label>
+        {err && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm font-medium text-red-900">{err === 'need' ? c.helpNeed : c.failed}</p>}
+        <Btn onClick={() => void send()} disabled={busy}>{busy ? c.sending : c.helpSend}</Btn>
+      </div>
+    </dialog>
   );
 }

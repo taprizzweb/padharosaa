@@ -79,7 +79,7 @@ describe('staff directory, mutes and problem alerts', () => {
   it('a problem queues WhatsApp alerts for the chosen team head and the reception head; muting stops only your own', async () => {
     const maint = w.A.kitchen; // any staff row can stand in as the maintenance head for this test
     await db.admin(`insert into public.staff_profiles (user_id, restaurant_id, department, whatsapp, is_head) values ($1,$2,'maintenance','+919811122233', true) on conflict (user_id) do update set department='maintenance', whatsapp='+919811122233', is_head=true`, [maint, w.A.rid]);
-    const out = await svc<any>('padh_guest_create_help', [sA, 'ac_electrical', 'AC is dripping', true, idem()]);
+    const out = await svc<any>('padh_guest_create_help', [sA, ['ac_electrical'], 'AC is dripping', true, idem()]);
     const q = (await db.admin<any>(`select team, notify_team, urgent, label from public.requests where id = $1`, [out.request_id]))[0];
     expect(q).toMatchObject({ team: 'front_desk', notify_team: 'maintenance', urgent: true, label: 'AC or electrical' });
     const n = await db.admin<any>(`select to_ref, template, channel, payload from public.notifications where payload->>'request_id' = $1 order by to_ref`, [out.request_id]);
@@ -88,11 +88,28 @@ describe('staff directory, mutes and problem alerts', () => {
     expect(JSON.stringify(n)).not.toContain('+91'); // numbers are looked up at send time, never copied into the outbox
 
     await staff(w.A.waiter, 'padh_set_my_alert', ['front_desk', true]);
-    const out2 = await svc<any>('padh_guest_create_help', [sA, 'noise', 'Loud music', false, idem()]);
+    const out2 = await svc<any>('padh_guest_create_help', [sA, ['noise'], 'Loud music', false, idem()]);
     const n2 = await db.admin<any>(`select to_ref from public.notifications where payload->>'request_id' = $1`, [out2.request_id]);
     expect(n2).toEqual([]); // the only reception head muted front desk, and nobody heads another team here
     expect((await staff<any>(w.A.waiter, 'padh_my_alerts', [])).muted).toEqual(['front_desk']);
     await staff(w.A.waiter, 'padh_set_my_alert', ['front_desk', false]);
+  });
+
+  it('several chips at once: label joins them, every chosen team head and the reception head are alerted; chips or a note are required', async () => {
+    const hk = w.A.manager; // stands in as the housekeeping head
+    await db.admin(`insert into public.staff_profiles (user_id, restaurant_id, department, whatsapp, is_head) values ($1,$2,'housekeeping','+919811122244', true) on conflict (user_id) do update set department='housekeeping', whatsapp='+919811122244', is_head=true`, [hk, w.A.rid]);
+    await db.admin(`delete from public.staff_alert_prefs`);
+    const out = await svc<any>('padh_guest_create_help', [sA, ['towel_bedsheet', 'wifi', 'wifi'], 'Router light is red', false, idem()]);
+    const q = (await db.admin<any>(`select label, notify_teams, team from public.requests where id = $1`, [out.request_id]))[0];
+    expect(q.label).toBe('Towel or bedsheet, WiFi not working');
+    expect([...q.notify_teams].sort()).toEqual(['housekeeping', 'maintenance']);
+    const n = await db.admin<any>(`select to_ref from public.notifications where payload->>'request_id' = $1`, [out.request_id]);
+    expect(n.map((x: any) => x.to_ref).sort()).toEqual([hk, w.A.kitchen, w.A.waiter].sort()); // housekeeping head, maintenance head (kitchen row), reception head
+    const note = await svc<any>('padh_guest_create_help', [sA, [], 'Please send someone', false, idem()]);
+    expect((await db.admin<any>(`select label from public.requests where id = $1`, [note.request_id]))[0].label).toBe('Something else');
+    expect((await svcErr('padh_guest_create_help', [sA, [], null, false, idem()]))?.code).toBe('GM015');
+    expect((await svcErr('padh_guest_create_help', [sA, [], 'hi', false, idem()]))?.code).toBe('GM015');
+    expect((await svcErr('padh_guest_create_help', [sA, ['towel_bedsheet','wifi','tv','noise','other','water','cleanliness','ac_electrical','x'], null, false, idem()]))?.code).toBe('GM015');
   });
 
   it('alert mutes are personal, validated and role-aware; categories are validated', async () => {
@@ -101,8 +118,8 @@ describe('staff directory, mutes and problem alerts', () => {
     await staff(w.A.manager, 'padh_set_my_alert', ['kitchen', true]);
     expect((await staff<any>(w.A.manager, 'padh_my_alerts', [])).muted).toEqual(['kitchen']);
     expect((await staff<any>(w.A.waiter, 'padh_my_alerts', [])).muted).toEqual([]); // someone else's mute is not mine
-    expect((await svcErr('padh_guest_create_help', [sA, 'ghosts', null, false, idem()]))?.code).toBe('GM015');
-    expect((await svcErr('padh_guest_create_help', [sB, 'noise', null, false, 'short']))?.code).toBe('GM015');
+    expect((await svcErr('padh_guest_create_help', [sA, ['ghosts'], null, false, idem()]))?.code).toBe('GM015');
+    expect((await svcErr('padh_guest_create_help', [sB, ['noise'], null, false, 'short']))?.code).toBe('GM015');
   });
 });
 
@@ -138,5 +155,28 @@ describe('notification worker doors', () => {
     await db.admin(`update public.staff set active = true where user_id = $1`, [w.A.waiter]);
     for (const uid of [w.A.manager, w.stranger]) expect((await staffErr(uid, 'padh_claim_notifications', [5]))?.code, uid).toBeTruthy();
     expect((await svcErr('padh_claim_notifications', [0]))?.code).toBe('GM015');
+  });
+});
+
+describe('department scope (housekeeping and maintenance see only their own team)', () => {
+  it('a housekeeping person sees and acts on housekeeping requests only; reception sees all; the scope follows the profile', async () => {
+    const hk = await svc<any>('padh_guest_create_request', [sA, 'housekeeping', 'Extra towels', null, false, idem()]);
+    const cab = await svc<any>('padh_guest_create_request', [sA, 'cab', 'Cab to station', null, false, idem()]);
+    await staff(w.A.manager, 'padh_staff_profile_set', [w.A.waiter, 'housekeeping', null, false]);
+    const board = await staff<any>(w.A.waiter, 'padh_staff_board', []);
+    const labels = board.requests.map((r: any) => r.label);
+    expect(labels).toContain('Extra towels');
+    expect(labels).not.toContain('Cab to station');
+    expect((await staffErr(w.A.waiter, 'padh_accept', [cab.request_id, cab.version]))?.code).toBe('GM011');
+    expect((await staff<any>(w.A.waiter, 'padh_accept', [hk.request_id, hk.version])).status).toBe('accepted');
+    const direct = await db.as<any>('authenticated', w.A.waiter, `select label from public.requests where label = any ($1)`, [['Extra towels', 'Cab to station']]);
+    expect(direct.map((r: any) => r.label)).toEqual(['Extra towels']); // row-level security agrees with the board
+    expect((await staff<any>(w.A.waiter, 'padh_my_alerts', [])).teams).toEqual(['housekeeping']);
+    expect((await staffErr(w.A.waiter, 'padh_set_my_alert', ['kitchen', true]))?.code).toBe('GM011');
+    // managers and reception still see everything
+    expect((await staff<any>(w.A.manager, 'padh_staff_board', [])).requests.map((r: any) => r.label)).toContain('Cab to station');
+    await staff(w.A.manager, 'padh_staff_profile_set', [w.A.waiter, 'front_desk', null, false]);
+    expect((await staff<any>(w.A.waiter, 'padh_staff_board', [])).requests.map((r: any) => r.label)).toContain('Cab to station');
+    expect((await staff<any>(w.A.waiter, 'padh_my_alerts', [])).teams).toHaveLength(6);
   });
 });

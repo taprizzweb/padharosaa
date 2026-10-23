@@ -14,7 +14,8 @@ const en = {
   fromTeam: 'Message from the team', ok: 'Is everything okay now?', yes: 'Yes, all good', no: 'Not yet', none: 'No requests yet.',
   types: { housekeeping: 'Housekeeping', wake: 'Wake-up call', cab: 'Cab', late_checkout: 'Late check-out', reservation: 'Table reservation', help: 'Help / problem' },
   hk: ['Extra towels', 'Clean my room', 'Extra pillows', 'Toiletries'], hkLabel: 'What do you need?',
-  helpLabel: 'What is the problem?', helpCats: { ac_electrical: 'AC or electrical', water_plumbing: 'Water or plumbing', cleanliness: 'Cleanliness', noise: 'Noise', other: 'Something else' },
+  helpLabel: 'What is the problem?', helpTap: 'Tap all that apply', helpTitle: 'Call for problems', helpDlgSub: 'Tell us what is wrong and we will send someone to your room.', helpElse: 'Anything else? (optional)', helpElseHint: 'If your problem is not above, write it here.', helpNeed: 'Please tap a problem or write a few words.', helpSend: 'Send to reception', close: 'Close',
+  helpCats: { towel_bedsheet: 'Towel or bedsheet', water: 'Water not coming', wifi: 'WiFi not working', ac_electrical: 'AC or electrical', tv: 'TV not working', cleanliness: 'Cleanliness', noise: 'Noise', other: 'Something else' },
   upd: { 'msg.sent': 'Your request was sent to the team.', 'msg.accepted': 'Accepted by {team} at {at}.', 'msg.completed': 'Done: {label}.', 'msg.dismissed': 'We could not take this up. {reason}', 'msg.passed': 'Passed to {team}.', 'msg.sorry_problem': 'Sorry about this. Reception has been told.', 'msg.resolved': 'We have fixed it. Is everything okay now?', 'msg.handover_deliver': 'Your order will be delivered to your room.', 'msg.handover_takeaway': 'Your order is for takeaway. Please collect it from the restaurant.' } as Record<string, string>,
 };
 const hi: typeof en = {
@@ -32,7 +33,8 @@ const hi: typeof en = {
   fromTeam: 'टीम की ओर से संदेश', ok: 'क्या अब सब ठीक है?', yes: 'हाँ, सब ठीक', no: 'अभी नहीं', none: 'अभी कोई अनुरोध नहीं।',
   types: { housekeeping: 'हाउसकीपिंग', wake: 'वेक-अप कॉल', cab: 'कैब', late_checkout: 'लेट चेक-आउट', reservation: 'टेबल बुकिंग', help: 'मदद / समस्या' },
   hk: ['अतिरिक्त तौलिए', 'कमरा साफ़ करें', 'अतिरिक्त तकिए', 'टॉयलेटरीज़'], hkLabel: 'आपको क्या चाहिए?',
-  helpLabel: 'क्या समस्या है?', helpCats: { ac_electrical: 'AC या बिजली', water_plumbing: 'पानी या प्लंबिंग', cleanliness: 'सफ़ाई', noise: 'शोर', other: 'कुछ और' },
+  helpLabel: 'क्या समस्या है?', helpTap: 'जो लागू हों सब चुनें', helpTitle: 'समस्या के लिए कॉल', helpDlgSub: 'बताइए क्या गड़बड़ है, हम आपके कमरे में किसी को भेजेंगे।', helpElse: 'और कुछ? (वैकल्पिक)', helpElseHint: 'अगर आपकी समस्या ऊपर नहीं है तो यहाँ लिखें।', helpNeed: 'कृपया कोई समस्या चुनें या कुछ शब्द लिखें।', helpSend: 'रिसेप्शन को भेजें', close: 'बंद करें',
+  helpCats: { towel_bedsheet: 'तौलिया या चादर', water: 'पानी नहीं आ रहा', wifi: 'WiFi नहीं चल रहा', ac_electrical: 'AC या बिजली', tv: 'TV नहीं चल रहा', cleanliness: 'सफ़ाई', noise: 'शोर', other: 'कुछ और' },
   upd: { 'msg.sent': 'आपका अनुरोध टीम को भेज दिया गया।', 'msg.accepted': '{team} ने {at} बजे स्वीकार किया।', 'msg.completed': 'पूरा हुआ: {label}।', 'msg.dismissed': 'हम यह नहीं कर पाए। {reason}', 'msg.passed': '{team} को भेजा गया।', 'msg.sorry_problem': 'असुविधा के लिए खेद है। रिसेप्शन को बता दिया गया है।', 'msg.resolved': 'हमने इसे ठीक कर दिया है। क्या अब सब ठीक है?', 'msg.handover_deliver': 'आपका ऑर्डर आपके कमरे में पहुँचाया जाएगा।', 'msg.handover_takeaway': 'आपका ऑर्डर टेकअवे है। कृपया रेस्टोरेंट से ले लें।' } as Record<string, string>,
 };
 export const COPY = { en, hi };

@@ -12,7 +12,7 @@ export async function POST(req: Request) {
     const key = idempotencyKey.safeParse(req.headers.get('idempotency-key'));
     if (!key.success) throw new ApiError(400, 'invalid_input');
     await limit(`padg:${ctx.me.session_id}`, 120, 60);
-    const out = await rpc<Record<string, unknown>>('padh_guest_create_help', { p_session: ctx.me.session_id, p_category: b.category, p_detail: b.detail ?? null, p_urgent: b.urgent, p_idem: key.data });
+    const out = await rpc<Record<string, unknown>>('padh_guest_create_help', { p_session: ctx.me.session_id, p_categories: b.categories, p_detail: b.detail ?? null, p_urgent: b.urgent, p_idem: key.data });
     return jsonOk(out, ctx.requestId, { status: out.replayed || out.merged ? 200 : 201 });
   });
 }
