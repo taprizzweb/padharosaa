@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation';
 import { DeskApp } from '@/components/padharosaa/DeskApp';
 import { ManageApp } from '@/components/padharosaa/ManageApp';
 import { publicEnv } from '@/env';
-import { AREA_TITLE, areaHref, canOpen, homeFor, isPadHost, type Area } from '@/lib/padharosaa/areas';
+import { AREA_TITLE, areaHref, canOpen, groupOf, homeFor, isPadHost, type Area } from '@/lib/padharosaa/areas';
 import { userClient } from '@/lib/supabase/server';
 
 // One server-side gate for every named page: signed in, active staff, and the right page for the person's role.
@@ -28,5 +28,5 @@ export async function renderArea(area: Area) {
     const env = publicEnv();
     return <ManageApp role={m.role} restaurant={m.restaurant} supabase={{ url: env.NEXT_PUBLIC_SUPABASE_URL, anonKey: env.NEXT_PUBLIC_SUPABASE_ANON_KEY }} />;
   }
-  return <DeskApp role={m.role} hotel={m.restaurant.name} title={AREA_TITLE[area]} />;
+  return <DeskApp role={m.role} hotel={m.restaurant.name} title={AREA_TITLE[area]} current={area} start={groupOf(area)} />;
 }

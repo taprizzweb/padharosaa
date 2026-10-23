@@ -4,6 +4,14 @@
 export const AREAS = ['owner', 'manager', 'kitchen', 'reception', 'housekeeping', 'desk'] as const;
 export type Area = (typeof AREAS)[number];
 
+/** Which teams each screen is about. The owner and manager see every team's requests everywhere; these decide what a screen starts on. */
+export type Group = 'all' | 'reception' | 'housekeeping' | 'kitchen' | 'manager';
+export const GROUP_TEAMS: Record<Group, readonly string[] | null> = {
+  all: null, reception: ['front_desk', 'concierge'], housekeeping: ['housekeeping', 'maintenance'], kitchen: ['kitchen'], manager: ['manager'],
+};
+export const GROUP_LABEL: Record<Group, string> = { all: 'All', reception: 'Reception', housekeeping: 'Housekeeping', kitchen: 'Kitchen', manager: 'Manager' };
+export const groupOf = (a: Area): Group => (a === 'reception' || a === 'housekeeping' || a === 'kitchen' ? a : 'all');
+
 export const isArea = (v: string): v is Area => (AREAS as readonly string[]).includes(v);
 
 export const AREA_TITLE: Record<Area, string> = {

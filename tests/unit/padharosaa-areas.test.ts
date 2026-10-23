@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { AREAS, areaHref, canOpen, homeFor, isPadHost } from '@/lib/padharosaa/areas';
+import { AREAS, GROUP_TEAMS, areaHref, canOpen, groupOf, homeFor, isPadHost } from '@/lib/padharosaa/areas';
 
 describe('padharosaa role addresses', () => {
   it('everyone has exactly one home', () => {
@@ -22,6 +22,16 @@ describe('padharosaa role addresses', () => {
     expect(canOpen('owner', 'waiter', ['front_desk'])).toBe(false);
     expect(canOpen('desk', 'waiter', ['front_desk'])).toBe(true);
     expect(canOpen('desk', 'stranger', [])).toBe(false);
+  });
+  it('each team screen starts on its own group of teams; the board and consoles start on all', () => {
+    expect(groupOf('housekeeping')).toBe('housekeeping');
+    expect(GROUP_TEAMS.housekeeping).toEqual(['housekeeping', 'maintenance']);
+    expect(GROUP_TEAMS.reception).toEqual(['front_desk', 'concierge']);
+    expect(groupOf('kitchen')).toBe('kitchen');
+    for (const a of ['desk', 'owner', 'manager'] as const) expect(GROUP_TEAMS[groupOf(a)]).toBeNull();
+    // every team belongs to exactly one screen, so a manager moving between screens never loses a request
+    const teams = ['concierge', 'front_desk', 'housekeeping', 'kitchen', 'maintenance', 'manager'];
+    for (const t of teams) expect(['reception', 'housekeeping', 'kitchen', 'manager'].filter((g) => GROUP_TEAMS[g as 'reception']!.includes(t)).length, t).toBe(1);
   });
   it('clean addresses only on padharosaa.*', () => {
     expect(areaHref('owner', true)).toBe('/owner');

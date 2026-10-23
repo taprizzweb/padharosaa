@@ -5,6 +5,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { apiGet, apiPost } from '@/components/staff/hooks';
 import { AlertSound } from '@/components/staff/sound';
 import { ApiFailure } from '@/lib/guest/client';
+import { GROUP_LABEL, GROUP_TEAMS, type Group } from '@/lib/padharosaa/areas';
+import { AreaNav, type NavCurrent } from './AreaNav';
 
 type Team = 'concierge' | 'front_desk' | 'housekeeping' | 'kitchen' | 'maintenance' | 'manager';
 interface Req {
@@ -19,7 +21,9 @@ const OPEN = ['received', 'accepted', 'preparing', 'ready'];
 
 const mins = (iso: string) => Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000));
 
-export function DeskApp({ role, hotel, title = 'Padharosaa desk' }: { role: string; hotel: string; title?: string }) {
+export function DeskApp({ role, hotel, title = 'Padharosaa desk', current = 'desk', start = 'all' }: { role: string; hotel: string; title?: string; current?: NavCurrent; start?: Group }) {
+  const privileged = role === 'owner' || role === 'manager';
+  const [group, setGroup] = useState<Group>(start);
   // on padharosaa.* the menu live screen is reached through /orders (the plain /staff address belongs to the desk there)
   const [ordersHref, setOrdersHref] = useState('/staff');
   useEffect(() => { if (/^padharosaa\./i.test(location.host)) setOrdersHref('/orders'); }, []);
@@ -45,8 +49,9 @@ export function DeskApp({ role, hotel, title = 'Padharosaa desk' }: { role: stri
   useEffect(() => { void load(); const i = setInterval(() => { if (!document.hidden) void load(); tick((n) => n + 1); }, 4000); return () => clearInterval(i); }, [load]);
 
   const muted = useMemo(() => new Set(alerts?.muted ?? []), [alerts]);
-  const open = useMemo(() => (reqs ?? []).filter((r) => OPEN.includes(r.status)), [reqs]);
-  const pending = open.filter((r) => r.status === 'received' && !muted.has(r.team));
+  const allOpen = useMemo(() => (reqs ?? []).filter((r) => OPEN.includes(r.status)), [reqs]);
+  const open = useMemo(() => { const t = privileged ? GROUP_TEAMS[group] : null; return t ? allOpen.filter((r) => t.includes(r.team)) : allOpen; }, [allOpen, group, privileged]);
+  const pending = allOpen.filter((r) => r.status === 'received' && !muted.has(r.team));
 
   // alarm: once for each new request, and again every 20 seconds while something unmuted is still waiting
   useEffect(() => {
@@ -71,10 +76,19 @@ export function DeskApp({ role, hotel, title = 'Padharosaa desk' }: { role: stri
         <div><h1 className="text-xl font-extrabold">{title}</h1><p className="text-sm text-stone-700">{hotel}</p></div>
         <div className="flex gap-2">
           <button type="button" className="min-h-11 rounded-full border-2 border-stone-800 px-4 text-sm font-bold" onClick={async () => setSoundOn(await sound.current.enable())} aria-pressed={soundOn}>{soundOn ? 'Alarm sound is ON' : 'Turn alarm sound on'}</button>
-          <Link href={ordersHref} prefetch={false} className="inline-flex min-h-11 items-center rounded-full border-2 border-stone-800 px-4 text-sm font-bold">Food orders</Link>
-          {(role === 'owner' || role === 'manager') && <Link href={`/padharosaa/${role}`} className="inline-flex min-h-11 items-center rounded-full bg-stone-900 px-4 text-sm font-bold text-white">Manage</Link>}
+          {!privileged && <Link href={ordersHref} prefetch={false} className="inline-flex min-h-11 items-center rounded-full border-2 border-stone-800 px-4 text-sm font-bold">Food orders</Link>}
         </div>
       </header>
+      <AreaNav role={role} current={current} />
+      {privileged && (
+        <div role="group" aria-label="Show requests of" className="mt-3 flex flex-wrap gap-2">
+          {(Object.keys(GROUP_LABEL) as Group[]).map((g) => {
+            const t = GROUP_TEAMS[g];
+            const n = t ? allOpen.filter((r) => t.includes(r.team)).length : allOpen.length;
+            return <button key={g} type="button" aria-pressed={group === g} onClick={() => setGroup(g)} className={`min-h-11 rounded-full border-2 px-4 text-sm font-bold ${group === g ? 'border-stone-900 bg-stone-900 text-white' : 'border-stone-400 text-stone-900'}`}>{GROUP_LABEL[g]} ({n})</button>;
+          })}
+        </div>
+      )}
       {alerts && (
         <section aria-label="My alerts" className="mt-3 rounded-2xl bg-white p-3 shadow-sm">
           <h2 className="text-sm font-bold">My alerts (only for me)</h2>
