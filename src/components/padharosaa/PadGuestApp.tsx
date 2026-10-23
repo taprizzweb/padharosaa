@@ -1,9 +1,11 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { POWERED_BY, instagramUrl } from '@/lib/brand';
 import { buildTheme, themeVars } from '@/lib/padharosaa/theme';
 import { COPY, fill, type Copy, type Lang } from './copy';
+import { BuffetScreen, GuideScreen, PlanScreen } from './GuideScreens';
+import { Btn, Header, api, safeUrl, telHref, time } from './shared';
 
 interface Look { name: string; brand_color: string | null; logo_path: string | null; hero_path: string | null }
 interface Home {
@@ -17,24 +19,8 @@ interface ReqView {
   request: { id: string; label: string; status: string; dismissed_reason: string | null; created_at: string; accepted_at: string | null; completed_at: string | null; version: number; resolution: string | null; followup_asked: boolean };
   updates: { at: string; key: string; params: Record<string, string> | null }[];
 }
-type Screen = { s: 'home' } | { s: 'services' } | { s: 'stay' } | { s: 'help' } | { s: 'dining' } | { s: 'track'; id: string };
+type Screen = { s: 'home' } | { s: 'services' } | { s: 'stay' } | { s: 'help' } | { s: 'dining' } | { s: 'guide' } | { s: 'plan' } | { s: 'buffet' } | { s: 'track'; id: string };
 
-async function api<T>(path: string, init?: RequestInit & { idem?: boolean }): Promise<{ ok: true; data: T } | { ok: false; status: number; key: string }> {
-  try {
-    const headers: Record<string, string> = { 'content-type': 'application/json' };
-    if (init?.idem) headers['idempotency-key'] = crypto.randomUUID().replace(/-/g, '');
-    const res = await fetch(`/api/padharosaa/v1/${path}`, { ...init, headers, credentials: 'same-origin' });
-    const body = await res.json().catch(() => ({}));
-    if (!res.ok) return { ok: false, status: res.status, key: body?.error?.key ?? 'failed' };
-    return { ok: true, data: body as T };
-  } catch {
-    return { ok: false, status: 0, key: 'failed' };
-  }
-}
-
-const time = (iso: string | null) => (iso ? new Date(iso).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : '');
-const telHref = (p: string) => `tel:${p.replace(/[^+\d]/g, '')}`;
-const safeUrl = (u: string | null) => (u && /^https:\/\//i.test(u) ? u : null);
 
 export function PadGuestApp({ slug, qrKey, imageBase }: { slug: string; qrKey: string | null; imageBase: string }) {
   const [me, setMe] = useState<Me | null | undefined>(undefined);
@@ -69,33 +55,18 @@ export function PadGuestApp({ slug, qrKey, imageBase }: { slug: string; qrKey: s
           <>
             {screen.s === 'home' && <HomeScreen me={me} home={home} c={c} go={setScreen} imageBase={imageBase} lang={lang} setLang={setLang} />}
             {screen.s === 'services' && <Services c={c} back={() => setScreen({ s: 'home' })} done={(id) => { void loadHome(); setScreen({ s: 'track', id }); }} />}
+            {screen.s === 'guide' && <GuideScreen c={c} back={() => setScreen({ s: 'home' })} goPlan={() => setScreen({ s: 'plan' })} />}
+            {screen.s === 'plan' && <PlanScreen c={c} back={() => setScreen({ s: 'home' })} goGuide={() => setScreen({ s: 'guide' })} />}
+            {screen.s === 'buffet' && <BuffetScreen c={c} back={() => setScreen({ s: 'home' })} />}
             {screen.s === 'dining' && <DiningScreen c={c} back={() => setScreen({ s: 'home' })} />}
             {screen.s === 'help' && <HelpDialog c={c} close={() => setScreen({ s: 'home' })} done={(id) => { void loadHome(); setScreen({ s: 'track', id }); }} />}
             {screen.s === 'stay' && <Stay c={c} back={() => setScreen({ s: 'home' })} />}
-            {screen.s === 'track' && <Track id={screen.id} c={c} back={() => { void loadHome(); setScreen({ s: 'home' }); }} />}
+            {screen.s === 'track' && <Track id={screen.id} c={c} links={home.links} back={() => { void loadHome(); setScreen({ s: 'home' }); }} />}
             <Footer home={home} c={c} />
           </>
         )}
       </div>
     </div>
-  );
-}
-
-function Btn({ children, onClick, disabled, kind = 'solid', type = 'button' }: { children: ReactNode; onClick?: () => void; disabled?: boolean; kind?: 'solid' | 'soft'; type?: 'button' | 'submit' }) {
-  const solid = kind === 'solid';
-  return (
-    <button type={type} onClick={onClick} disabled={disabled} style={solid ? { background: 'var(--button)', color: 'var(--on-button)', boxShadow: 'inset 0 0 0 2px var(--btn-edge)' } : { background: 'var(--tint)', color: 'var(--on-tint)' }}
-      className="min-h-12 w-full rounded-2xl px-4 py-3 text-base font-semibold shadow-sm transition active:scale-[0.98] disabled:opacity-60">{children}</button>
-  );
-}
-
-function Header({ title, sub, back, c }: { title: string; sub?: string; back: () => void; c: Copy }) {
-  return (
-    <header className="px-5 pb-3 pt-6">
-      <button type="button" onClick={back} className="mb-3 min-h-11 text-sm font-semibold" style={{ color: 'var(--accent-text)' }}>← {c.back}</button>
-      {sub && <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--accent-text)' }}>{sub}</p>}
-      <h1 className="text-2xl font-extrabold tracking-tight">{title}</h1>
-    </header>
   );
 }
 
@@ -182,7 +153,8 @@ function HomeScreen({ me, home, c, go, imageBase, lang, setLang }: { me: Me; hom
         <Tile wide icon="🍽️" title={c.dining} sub={c.diningSub} onClick={() => go({ s: 'dining' })} />
         <Tile icon="🛎️" title={c.services} onClick={() => go({ s: 'services' })} />
         <Tile icon="📶" title={c.stay} onClick={() => go({ s: 'stay' })} />
-        <Tile wide icon="🥞" title={c.buffet} sub={buffetSub} onClick={() => go({ s: 'stay' })} />
+        <Tile wide icon="🥞" title={c.buffet} sub={buffetSub} onClick={() => go({ s: 'buffet' })} />
+        <Tile wide icon="🧭" title={c.guideTitle} sub={c.guideSub} onClick={() => go({ s: 'guide' })} />
       </div>
       <div className="px-5 pt-3"><Btn kind="soft" onClick={() => go({ s: 'help' })}>⚠️ {c.help} — {c.helpSub}</Btn></div>
       <Reviews home={home} c={c} />
@@ -266,7 +238,7 @@ function Stay({ c, back }: { c: Copy; back: () => void }) {
   );
 }
 
-function Track({ id, c, back }: { id: string; c: Copy; back: () => void }) {
+function Track({ id, c, back, links }: { id: string; c: Copy; back: () => void; links: Home['links'] }) {
   const [v, setV] = useState<ReqView | null>(null);
   const load = useCallback(async () => { const r = await api<ReqView>(`requests/${id}`); if (r.ok) setV(r.data); }, [id]);
   useEffect(() => { void load(); const t = setInterval(() => { if (!document.hidden) void load(); }, 5000); return () => clearInterval(t); }, [load]);
@@ -293,6 +265,7 @@ function Track({ id, c, back }: { id: string; c: Copy; back: () => void }) {
         <section className="mx-5 mt-3 rounded-2xl bg-white p-4 text-stone-900 shadow-sm"><p className="mb-3 font-bold">{c.ok}</p>
           <div className="grid grid-cols-2 gap-2"><Btn onClick={() => void confirm(true)}>{c.yes}</Btn><Btn kind="soft" onClick={() => void confirm(false)}>{c.no}</Btn></div></section>
       )}
+      {finished && !q?.resolution && <Rate id={id} c={c} links={links} />}
       {q?.status === 'received' && <div className="mx-5 mt-4"><Btn kind="soft" onClick={() => void cancel()}>{c.cancel}</Btn></div>}
       <div className="mx-5 mt-4"><Btn onClick={back}>{c.home}</Btn></div>
     </main>
@@ -387,5 +360,41 @@ function DiningScreen({ c, back }: { c: Copy; back: () => void }) {
         )}
       </div>
     </main>
+  );
+}
+
+/** "How was it?" after a request is done. A good answer offers Google and TripAdvisor equally (no pressure); a poor one goes to the manager. */
+function Rate({ id, c, links }: { id: string; c: Copy; links: Home['links'] }) {
+  const [done, setDone] = useState<null | { rating: string; invite: boolean }>(null);
+  const [busy, setBusy] = useState(false);
+  const rate = async (rating: 'great' | 'okay' | 'not_good') => {
+    setBusy(true);
+    const r = await api<{ review_invite?: boolean }>(`requests/${id}/feedback`, { method: 'POST', body: JSON.stringify({ rating }) });
+    setBusy(false);
+    if (r.ok) setDone({ rating, invite: r.data.review_invite === true });
+  };
+  const g = safeUrl(links.google_review_url), t = safeUrl(links.tripadvisor_url);
+  const chip = 'flex min-h-12 flex-1 items-center justify-center rounded-xl border-2 px-3 text-sm font-bold';
+  return (
+    <section className="mx-5 mt-3 rounded-2xl bg-white p-4 text-stone-900 shadow-sm" aria-live="polite">
+      {!done ? (
+        <>
+          <p className="mb-3 font-bold">{c.rateTitle}</p>
+          <div className="grid grid-cols-3 gap-2">
+            {([['great', c.great, '😊'], ['okay', c.okay, '😐'], ['not_good', c.notGood, '😞']] as const).map(([k, label, e]) => (
+              <button key={k} type="button" disabled={busy} onClick={() => void rate(k)} className="flex min-h-14 flex-col items-center justify-center rounded-xl border-2 border-stone-300 text-sm font-semibold"><span aria-hidden>{e}</span>{label}</button>
+            ))}
+          </div>
+        </>
+      ) : done.invite ? (
+        <>
+          <p className="font-bold">{c.rateReview}</p>
+          <div className="mt-3 flex gap-2">
+            {g && <a className={chip} style={{ borderColor: 'var(--accent-text)' }} href={g} target="_blank" rel="noopener noreferrer">{c.google}</a>}
+            {t && <a className={chip} style={{ borderColor: 'var(--accent-text)' }} href={t} target="_blank" rel="noopener noreferrer">{c.trip}</a>}
+          </div>
+        </>
+      ) : <p className="font-semibold">{done.rating === 'not_good' ? c.rateSorry : c.rateThanks}</p>}
+    </section>
   );
 }

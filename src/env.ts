@@ -33,6 +33,15 @@ const serverSchema = publicSchema.extend({
   WHATSAPP_PHONE_ID: z.string().regex(/^[0-9]{5,30}$/).optional().or(z.literal('').transform(() => undefined)),
   WHATSAPP_HELP_TEMPLATE: z.string().regex(/^[a-z0-9_]{1,60}$/).default('padharosaa_help_alert'),
   WHATSAPP_TEMPLATE_LANG: z.string().regex(/^[a-z]{2}(_[A-Z]{2})?$/).default('en'),
+  /**
+   * Optional AI wording for the Jaipur guide (drafts only; the manager always reviews). Any OpenAI-compatible service works, including free tiers:
+   *   Gemini  AI_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai  AI_MODEL=gemini-2.0-flash
+   *   Groq    AI_BASE_URL=https://api.groq.com/openai/v1                           AI_MODEL=llama-3.3-70b-versatile
+   * Without these the guide still works: the manager writes the text.
+   */
+  AI_BASE_URL: z.string().url().optional().or(z.literal('').transform(() => undefined)),
+  AI_API_KEY: z.string().min(8).optional().or(z.literal('').transform(() => undefined)),
+  AI_MODEL: z.string().regex(/^[A-Za-z0-9._:\/-]{1,80}$/).optional().or(z.literal('').transform(() => undefined)),
   /** Shared secret for /api/padharosaa/v1/cron/notify (Vercel Cron sends it as a bearer token). Generate with: openssl rand -base64 32 */
   CRON_SECRET: z.string().min(24).optional().or(z.literal('').transform(() => undefined)),
   SENTRY_DSN: z.string().url().optional().or(z.literal('').transform(() => undefined)),

@@ -8,3 +8,6 @@ process.env.IP_HASH_SALT = 'api-test-ip-salt-api-test';
 process.env.LOG_LEVEL = 'error';
 process.env.PADHAROSAA_DATA_KEY = Buffer.alloc(32, 7).toString('base64');
 process.env.CRON_SECRET = 'cron-secret-cron-secret-cron-secret';
+process.env.AI_BASE_URL = 'https://ai.example.test/v1';
+process.env.AI_API_KEY = 'ai-test-key-ai-test-key';
+process.env.AI_MODEL = 'test-model';

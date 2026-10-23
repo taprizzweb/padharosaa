@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { ImageCropper } from '@/components/dash/ImageCropper';
 import { apiGet, apiPost } from '@/components/staff/hooks';
+import { BuffetManager } from './BuffetManager';
+import { GuideManager } from './GuideManager';
 import { parseStaffCsv } from '@/lib/padharosaa/csv';
 import { buildTheme, contrast, normaliseHex } from '@/lib/padharosaa/theme';
 
@@ -57,6 +59,8 @@ export function ManageApp({ role, restaurant, supabase, appOrigin }: { role: str
       <Card title="Room dining" hint="Switch off if your hotel does not serve food to rooms. Then 'Room delivery' is never offered, and the kitchen can only choose Takeaway.">
         <label className="flex min-h-11 items-center gap-3 font-semibold"><input type="checkbox" className="h-5 w-5" checked={s.room_dining} onChange={(e) => void save('dining', { room_dining: e.target.checked })} />Our hotel serves food to rooms</label>
       </Card>
+      <BuffetManager flash={flash} />
+      <GuideManager flash={flash} />
       <TeamCard canImport={role === 'owner'} flash={flash} />
       <Card title="Guest QR code" hint="Each room's QR opens this link. Ask Taprizz support to enable the hotel and print the QR sheet."><code className="block break-all rounded-lg bg-stone-100 p-2 text-sm">{`${appOrigin}/padharosaa/${restaurant.slug}?k=…`}</code></Card>
     </div>

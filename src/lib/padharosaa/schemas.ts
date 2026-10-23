@@ -121,3 +121,60 @@ export const helpBody = z
   .strict()
   .refine((b) => b.categories.length > 0 || (b.detail?.length ?? 0) >= 3, 'choose a problem or write a few words');
 export const foodBody = z.object({ label: text(1, 120), detail: optionalText(500) }).strict();
+
+// ---- guide, plan, buffet, feedback ----
+const lat = z.number().min(-90).max(90);
+const lng = z.number().min(-180).max(180);
+export const locationBody = z.object({ lat, lng }).strict();
+export const guideSaveBody = z
+  .object({
+    id: uuid.optional(),
+    category: z.enum(['place', 'food', 'craft', 'tip']),
+    name: text(1, 100),
+    description_en: optionalText(600),
+    description_hi: optionalText(600),
+    maps_query: optionalText(200),
+    link_url: z.string().url().max(500).refine((u) => u.startsWith('https://'), 'must be https').nullish(),
+    address: optionalText(200),
+    best_time: optionalText(100),
+    lat: lat.nullish(),
+    lng: lng.nullish(),
+    active: z.boolean().optional(),
+    needs_review: z.boolean().optional(),
+    source: z.enum(['manual', 'osm', 'ai_draft']).optional(),
+    publish: z.boolean().optional(),
+  })
+  .strict()
+  .refine((b) => (b.lat === undefined || b.lat === null) === (b.lng === undefined || b.lng === null), 'lat and lng go together');
+export const idBody = z.object({ id: uuid }).strict();
+export const discoverBody = z.object({ radius_m: z.number().int().min(500).max(10000).default(3000) }).strict();
+export const importBody = z
+  .object({ items: z.array(z.object({ category: z.enum(['place', 'food', 'craft']), name: text(1, 100), lat, lng, address: optionalText(200).nullish() }).strict()).min(1).max(30) })
+  .strict();
+export const describeBody = z.object({ ids: z.array(uuid).min(1).max(10) }).strict();
+export const itineraryBody = z
+  .object({
+    id: uuid.optional(),
+    name: text(1, 100),
+    tagline: optionalText(160),
+    tip: optionalText(400),
+    active: z.boolean().optional(),
+    stops: z.array(z.object({ id: uuid.optional(), when_label: text(1, 40), name: text(1, 100), note: optionalText(300), maps_query: optionalText(200), lat: lat.nullish(), lng: lng.nullish() }).strict()).max(30).default([]),
+  })
+  .strict();
+export const buffetBody = z
+  .object({
+    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+    mode: z.enum(['in_house', 'outdoor', 'none']),
+    name: optionalText(80).nullish(),
+    start: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/).nullish(),
+    end: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/).nullish(),
+    venue: optionalText(80).nullish(),
+    highlights: optionalText(300).nullish(),
+    mood: optionalText(80).nullish(),
+  })
+  .strict();
+export const planAddBody = z.object({ name: text(1, 100), when_label: optionalText(40).nullish(), maps_query: optionalText(200).nullish(), lat: lat.nullish(), lng: lng.nullish() }).strict().refine((b) => (b.lat === undefined || b.lat === null) === (b.lng === undefined || b.lng === null), 'lat and lng go together');
+export const planRemoveBody = z.object({ item: uuid }).strict();
+export const planUseBody = z.object({ itinerary: uuid }).strict();
+export const feedbackBody = z.object({ rating: z.enum(['great', 'okay', 'not_good']) }).strict();
