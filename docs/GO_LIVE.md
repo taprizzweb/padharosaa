@@ -27,7 +27,8 @@ Everything below is done from the browser. Nothing needs a developer once the ap
 | 4 | **Colour, logo and links** | Brand colour, logo (up to 20 MB), hotel photo, Google, TripAdvisor and Instagram links. |
 | 5 | **Guest home texts** | Today's offer and an information line. |
 | 6 | **Team** | *Add one person* for reception, housekeeping, kitchen and managers. Give each person the one-time password. If someone forgets it, tap *Reset password* (a new one-time password appears once); a wrong email is fixed with *Change email*. |
-| 7 | **Jaipur guide / Buffet** | Add places and set today's buffet (both are optional). |
+| 7 | **Menu** | Tap *Menu (add or delete dishes)* at the top. Add dishes one by one, or *Import CSV*. To clear an old menu: *Select all dishes* then *Delete selected*, or *Delete* on a category to remove it with all its dishes. |
+| 8 | **Jaipur guide / Buffet** | Add places and set today's buffet (both are optional). |
 
 The "Finish setup" box at the top of the page lists whatever is still empty.
 

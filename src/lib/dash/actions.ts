@@ -43,6 +43,8 @@ export const DASH_ACTIONS: Record<string, DashAction> = {
   },
   'item-choices-save': { method: 'POST', rpc: 'mgr_save_item_choices', schema: S.itemChoicesSave, args: (b) => ({ p_item_id: b.item_id, p_variants: b.variants, p_groups: b.groups }), result: () => ({ ok: true }) },
   'item-delete': { method: 'POST', rpc: 'mgr_delete_item', schema: S.idOnly, args: (b) => ({ p_id: b.id }), result: () => ({ ok: true }) },
+  'items-delete': { method: 'POST', rpc: 'mgr_delete_items', schema: S.itemsDelete, args: (b) => ({ p_ids: b.item_ids }), result: (n: number) => ({ deleted: n }) },
+  'category-delete-all': { method: 'POST', rpc: 'mgr_delete_category_all', schema: S.idOnly, args: (b) => ({ p_id: b.id }), result: (n: number) => ({ deleted: n }) },
   'item-duplicate': { method: 'POST', rpc: 'mgr_duplicate_item', schema: S.idOnly, args: (b) => ({ p_id: b.id }), result: (id: string) => ({ id }) },
   'items-availability': { method: 'POST', rpc: 'staff_set_item_availability', schema: availabilityBody, args: (b) => ({ p_item_ids: b.item_ids, p_available: b.available }), result: (n: number) => ({ changed: n }) },
   'items-reorder': { method: 'POST', rpc: 'mgr_reorder_items', schema: S.itemsReorder, args: (b) => ({ p_category: b.category_id, p_ids: b.ids }), result: () => ({ ok: true }) },

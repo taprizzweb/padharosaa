@@ -78,6 +78,7 @@ export function MenuManager({ restaurantId, supabase, imageBase }: { restaurantI
         <button type="button" className={btnPrimary} disabled={cats.length === 0} onClick={() => setItemDlg({ item: null, categoryId: cats[0]!.id })}><IconPlus /> Add dish</button>
         <button type="button" className={btnSecondary} onClick={() => setCatDlg({ cat: null })}>Add category</button>
         <button type="button" className={btnSecondary} onClick={() => setCsvDlg(true)}>Import CSV</button>
+        <button type="button" className={btnSecondary} disabled={cats.every((c) => c.items.length === 0)} onClick={() => setSelected(new Set(cats.flatMap((c) => c.items.map((i) => i.id))))}>Select all dishes</button>
         <button type="button" className={btnSecondary} disabled={cats.length === 0} onClick={() => download('menu.csv', menuToCsv({ categories: cats }))}>Export CSV</button>
       </div>
       <div className="mt-3 space-y-2" aria-live="polite">
@@ -95,9 +96,10 @@ export function MenuManager({ restaurantId, supabase, imageBase }: { restaurantI
               <h2 className="mr-auto text-lg font-bold">{cat.name}{!cat.active && <span className="ml-2 rounded-full bg-stone-200 px-2 py-0.5 text-xs font-semibold">Hidden</span>}</h2>
               <button type="button" className={smallBtn} aria-label={`Move category ${cat.name} up`} disabled={ci === 0 || busy} onClick={() => reorderCats(ci, ci - 1)}>↑</button>
               <button type="button" className={smallBtn} aria-label={`Move category ${cat.name} down`} disabled={ci === cats.length - 1 || busy} onClick={() => reorderCats(ci, ci + 1)}>↓</button>
+              {cat.items.length > 0 && <button type="button" className={smallBtn} onClick={() => setSelected((s) => { const n = new Set(s); const all = cat.items.every((i) => n.has(i.id)); for (const i of cat.items) { if (all) n.delete(i.id); else n.add(i.id); } return n; })}>{cat.items.every((i) => selected.has(i.id)) ? 'Unselect all' : 'Select all'}</button>}
               <button type="button" className={smallBtn} onClick={() => setItemDlg({ item: null, categoryId: cat.id })}>Add dish</button>
               <button type="button" className={smallBtn} onClick={() => setCatDlg({ cat })}>Rename</button>
-              <button type="button" className={smallBtn} onClick={() => setConfirm({ title: `Delete category “${cat.name}”?`, body: cat.items.length ? `This category still has ${cat.items.length} dish(es). Move or delete them first.` : 'This cannot be undone.', action: () => dashPost('category-delete', { id: cat.id }).then(() => undefined) })}>Delete</button>
+              <button type="button" className={smallBtn} onClick={() => setConfirm({ title: cat.items.length ? `Delete category “${cat.name}” and its ${cat.items.length} dish(es)?` : `Delete category “${cat.name}”?`, body: cat.items.length ? 'Every dish in this category is deleted too. Past orders keep their record of these dishes. This cannot be undone.' : 'This cannot be undone.', action: () => dashPost(cat.items.length ? 'category-delete-all' : 'category-delete', { id: cat.id }).then(() => undefined) })}>Delete</button>
             </div>
             {cat.items.length === 0 && <p className="px-4 py-4 text-sm text-stone-700">No dishes in this category yet.</p>}
             <ul>
@@ -157,6 +159,7 @@ export function MenuManager({ restaurantId, supabase, imageBase }: { restaurantI
             <button type="button" className={btnSecondary} disabled={busy} onClick={() => void run(async () => { for (const part of chunk(selectedIds, 300)) await dashPost('items-availability', { item_ids: part, available: true }); setSelected(new Set()); }, 'Marked available.')}>Mark available</button>
             <button type="button" className={btnSecondary} disabled={busy} onClick={() => void run(async () => { for (const part of chunk(selectedIds, 300)) await dashPost('items-availability', { item_ids: part, available: false }); setSelected(new Set()); }, 'Marked sold out.')}>Mark sold out</button>
             <button type="button" className={btnSecondary} onClick={() => setPriceDlg(true)}>Change prices</button>
+            <button type="button" className={`${btnSecondary} !border-red-800 !text-red-900`} disabled={busy} onClick={() => setConfirm({ title: `Delete ${selected.size} dish(es)?`, body: 'The selected dishes are deleted for good. Past orders keep their record of them. This cannot be undone.', action: async () => { for (const part of chunk(selectedIds, 500)) await dashPost('items-delete', { item_ids: part }); setSelected(new Set()); } })}>Delete selected</button>
             <button type="button" className={btnSecondary} onClick={() => setSelected(new Set())}>Clear</button>
           </div>
         </div>

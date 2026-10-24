@@ -153,6 +153,22 @@ describe('items', () => {
     const [line] = await db.admin<any>(`select item_id, name_en_snapshot from public.order_items where order_id = $1`, [o.order_id]);
     expect(line).toEqual({ item_id: null, name_en_snapshot: 'Dup Source' });
   });
+  it('delete many dishes at once, or a category with all its dishes; own hotel only; waiters refused; each leaves a log line', async () => {
+    const cat = await call<string>(w.A.owner, 'mgr_save_category', [null, `Bulk ${randomUUID().slice(0, 5)}`, true]);
+    const ids = [await saveItem(w.A.owner, { category: cat, name: 'Old 1' }), await saveItem(w.A.owner, { category: cat, name: 'Old 2' }), await saveItem(w.A.owner, { category: cat, name: 'Old 3' })];
+    expect((await err(w.A.waiter, 'mgr_delete_items', [ids]))?.code).toBe('GM011');
+    expect((await err(w.B.owner, 'mgr_delete_items', [ids]))?.code).toBe('GM012'); // another hotel's dishes
+    expect((await err(w.A.manager, 'mgr_delete_items', [[]]))?.code).toBe('GM015');
+    expect(await call(w.A.manager, 'mgr_delete_items', [[ids[0], ids[1]]])).toBe(2);
+    expect((await item(ids[0]!))).toBeUndefined();
+    expect((await item(ids[2]!)).name_en).toBe('Old 3');
+    expect((await err(w.A.manager, 'mgr_delete_category', [cat]))?.code).toBe('GM018'); // the plain delete still refuses a category that has dishes
+    expect((await err(w.B.owner, 'mgr_delete_category_all', [cat]))?.code).toBe('GM012');
+    expect(await call(w.A.manager, 'mgr_delete_category_all', [cat])).toBe(1);
+    expect((await db.admin<any>(`select count(*)::int n from public.categories where id = $1`, [cat]))[0].n).toBe(0);
+    expect((await item(ids[2]!))).toBeUndefined();
+    expect((await db.admin<any>(`select count(*)::int n from public.audit_log where restaurant_id = $1 and action in ('menu_items_deleted','menu_category_deleted_with_items')`, [w.A.rid]))[0].n).toBeGreaterThanOrEqual(2);
+  });
   it('reorders dishes within a category', async () => {
     const cat = await call<string>(w.A.owner, 'mgr_save_category', [null, `Reo ${randomUUID().slice(0, 5)}`, true]);
     const ids = [await saveItem(w.A.owner, { category: cat, name: 'R1' }), await saveItem(w.A.owner, { category: cat, name: 'R2' }), await saveItem(w.A.owner, { category: cat, name: 'R3' })];

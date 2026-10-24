@@ -51,6 +51,7 @@ export const itemChoicesSave = z
   })
   .strict();
 export const itemsReorder = z.object({ category_id: uuid, ids: z.array(uuid).min(1).max(300) }).strict();
+export const itemsDelete = z.object({ item_ids: z.array(uuid).min(1).max(500) }).strict();
 export const bulkPrice = z
   .object({ item_ids: z.array(uuid).min(1).max(300), mode: z.enum(['percent', 'add', 'set']), value: z.number().finite().min(-100_000_000).max(100_000_000) })
   .strict();

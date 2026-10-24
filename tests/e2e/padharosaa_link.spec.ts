@@ -174,3 +174,30 @@ test('reception can set the buffet from the desk', async ({ page }) => {
   await expect(page.getByText('Buffet saved.')).toBeVisible();
   expect((await q<{ n: number }>(`select count(*)::int n from public.buffets where restaurant_id = ${RID} and name = 'Rajasthani thali night'`))[0]!.n).toBe(1);
 });
+
+test('the owner opens Menu from the console and clears old dishes: select all, delete selected, then delete a category with its dishes', async ({ page }) => {
+  const c1 = (await q<{ id: string }>(`insert into public.categories (restaurant_id, name_en) values (${RID}, 'Zz Old starters') returning id`))[0]!.id;
+  const c2 = (await q<{ id: string }>(`insert into public.categories (restaurant_id, name_en) values (${RID}, 'Zz Old drinks') returning id`))[0]!.id;
+  for (const [c, n] of [[c1, 'Zz Dish 1'], [c1, 'Zz Dish 2'], [c2, 'Zz Dish 3']] as const) {
+    await q(`insert into public.items (restaurant_id, category_id, name_en, price_paise) values (${RID}, $1, $2, 10000)`, [c, n]);
+  }
+  try {
+    await signIn(page, 'owner@spice-garden.demo', /\/padharosaa\/owner$/, '/padharosaa/owner');
+    await page.getByRole('navigation', { name: 'Screens' }).getByRole('link', { name: 'Menu (add or delete dishes)' }).click();
+    await expect(page).toHaveURL(/\/dash\/menu$/);
+    const section = page.getByRole('region', { name: 'Zz Old starters' });
+    await section.getByRole('button', { name: 'Select all' }).click();
+    await page.getByRole('button', { name: 'Delete selected' }).click();
+    await page.getByRole('button', { name: 'Yes, delete' }).click();
+    await expect(page.getByText('Zz Dish 1')).toHaveCount(0);
+    expect((await q<{ n: number }>(`select count(*)::int n from public.items where restaurant_id = ${RID} and name_en like 'Zz Dish%'`))[0]!.n).toBe(1);
+    await page.getByRole('region', { name: 'Zz Old drinks' }).getByRole('button', { name: 'Delete', exact: true }).click();
+    await expect(page.getByText(/and its 1 dish/)).toBeVisible();
+    await page.getByRole('button', { name: 'Yes, delete' }).click();
+    await expect(page.getByText('Zz Old drinks')).toHaveCount(0);
+    expect((await q<{ n: number }>(`select count(*)::int n from public.items where restaurant_id = ${RID} and name_en like 'Zz Dish%'`))[0]!.n).toBe(0);
+  } finally {
+    await q(`delete from public.items where restaurant_id = ${RID} and name_en like 'Zz Dish%'`);
+    await q(`delete from public.categories where restaurant_id = ${RID} and name_en like 'Zz Old%'`);
+  }
+});
