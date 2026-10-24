@@ -1,11 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import { normInsta, normPhone, normUrl } from '@/lib/padharosaa/normalize';
+import { normInsta, normPhone, normUrl, normWhatsapp } from '@/lib/padharosaa/normalize';
 import { brandingBody, stayBody } from '@/lib/padharosaa/schemas';
 
 describe('normalisers', () => {
   it('phones', () => {
     for (const [i, o] of [['9828114008', '919828114008'], ['+91 98281 14008', '919828114008'], ['098281-14008', '919828114008'], ['(91) 98281 14008', '919828114008'], ['919828114008', '919828114008']]) expect(normPhone(i), i).toBe(o);
     expect(normPhone('call me')).toBe('call me'); // still refused by the strict check
+  });
+  it('whatsapp', () => {
+    for (const [i, o] of [['9828114008', '+919828114008'], ['98281 14008', '+919828114008'], ['+91 98281-14008', '+919828114008'], ['919828114008', '+919828114008'], ['098281 14008', '+919828114008'], ['+44 7911 123456', '+447911123456']]) expect(normWhatsapp(i), i).toBe(o);
+    expect(normWhatsapp('')).toBeNull();
+    expect(normWhatsapp('hello')).toBe('hello');
   });
   it('links', () => {
     expect(normUrl('www.tripadvisor.in/Hotel_Review-g1')).toBe('https://www.tripadvisor.in/Hotel_Review-g1');

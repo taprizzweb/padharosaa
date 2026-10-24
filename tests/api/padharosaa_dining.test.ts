@@ -157,6 +157,21 @@ describe('staff directory, import and alerts', () => {
     expect((await alertsPOST(mk('/a', { body: { team: 'spa', muted: true } }))).status).toBe(400);
   });
 
+  it('adding one person: a plain 10-digit WhatsApp is saved as +91; a bad number is said to be invalid and leaves no login behind', async () => {
+    as(w.A.owner);
+    const one = (row: Record<string, unknown>) => importPOST(mk('/i', { body: { rows: [row] } }));
+    const ok = await one({ name: 'Kiran', email: 'kiran@haveli.test', department: 'kitchen', whatsapp: '9828114008', is_head: false });
+    expect(ok.status).toBe(201);
+    expect(((await ok.json()) as any).results[0].ok).toBe(true);
+    expect((await db.admin<any>(`select p.whatsapp from public.staff_profiles p join auth.users u on u.id = p.user_id where u.email = 'kiran@haveli.test'`))[0].whatsapp).toBe('+919828114008');
+    const bad = await one({ name: 'Bad', email: 'bad@haveli.test', department: 'kitchen', whatsapp: '12', is_head: false });
+    expect(bad.status).toBe(400); // refused before any login is made
+    expect((await db.admin<any>(`select 1 from auth.users where email = 'bad@haveli.test'`)).length).toBe(0);
+    // leave the hotel as it was for the next test
+    await db.admin(`delete from public.staff where user_id = (select id from auth.users where email = 'kiran@haveli.test')`);
+    await db.admin(`delete from auth.users where email = 'kiran@haveli.test'`);
+  });
+
   it('owner imports people: logins with one-time temporary passwords, department and WhatsApp saved; duplicates reported; others refused', async () => {
     const body = { rows: [
       { name: 'Prakash', email: 'Prakash@haveli.test', department: 'maintenance', whatsapp: '+91 98111 00001', is_head: true },

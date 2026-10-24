@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic';
 
 const ROLE_FOR_DEPARTMENT = { kitchen: 'kitchen', manager: 'manager' } as const;
 
-interface Result { email: string; ok: boolean; error?: 'exists' | 'failed'; temporary_password?: string }
+interface Result { email: string; ok: boolean; error?: 'exists' | 'invalid' | 'failed'; temporary_password?: string }
 
 // Owner only: add up to 200 people at once (a CSV the browser has already parsed). Each person gets their own login with a random
 // temporary password that must be changed at first sign-in. The passwords come back ONCE in this response (for handing out) and are
@@ -32,9 +32,9 @@ export async function POST(req: Request) {
         await rpc('owner_add_staff', { p_owner: ctx.userId, p_user: data.user.id, p_role: role, p_name: row.name });
         await staffRpc(ctx.db, 'padh_staff_profile_set', { p_user: data.user.id, p_department: row.department, p_whatsapp: row.whatsapp ?? null, p_is_head: row.is_head });
         results.push({ email: row.email, ok: true, temporary_password: password });
-      } catch {
+      } catch (e) {
         await admin.auth.admin.deleteUser(data.user.id).catch(() => undefined); // never leave a login with no hotel behind
-        results.push({ email: row.email, ok: false, error: 'failed' });
+        results.push({ email: row.email, ok: false, error: e instanceof ApiError && e.key === 'invalid_input' ? 'invalid' : 'failed' });
       }
     }
     return jsonOk({ results }, ctx.requestId, { status: 201 });

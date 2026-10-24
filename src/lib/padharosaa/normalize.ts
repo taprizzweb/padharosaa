@@ -32,3 +32,15 @@ export function normInsta(v: unknown): unknown {
   if (m) t = m[1]!;
   return t.replace(/^@/, '');
 }
+
+/** WhatsApp numbers are stored as "+<country code><number>": "9828114008", "98281 14008", "+91 98281-14008", "919828114008" -> "+919828114008"; empty -> null. */
+export function normWhatsapp(v: unknown): unknown {
+  if (typeof v !== 'string') return v;
+  const t = v.trim();
+  if (!t) return null;
+  const d = t.replace(/[\s()+.-]/g, '');
+  if (!/^\d+$/.test(d)) return v;
+  if (d.length === 10 && /^[6-9]/.test(d)) return `+91${d}`;
+  if (d.length === 11 && d.startsWith('0')) return `+91${d.slice(1)}`;
+  return `+${d}`;
+}

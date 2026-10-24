@@ -21,7 +21,7 @@ interface Settings {
   reception_phone: string | null; manager_phone: string | null; room_dining: boolean; server_ready?: boolean;
 }
 interface Person { user_id: string; email: string; name: string; role: string; active: boolean; department: Team | null; whatsapp: string | null; is_head: boolean }
-interface ImportResult { email: string; ok: boolean; error?: string; temporary_password?: string }
+interface ImportResult { email: string; ok: boolean; error?: 'exists' | 'invalid' | 'failed' | string; temporary_password?: string }
 
 const inputCls = 'mt-1 min-h-11 w-full rounded-xl border-2 border-stone-300 bg-white px-3 text-base text-stone-900';
 const btnCls = 'min-h-11 rounded-xl bg-stone-900 px-5 text-sm font-bold text-white disabled:opacity-50';
@@ -193,7 +193,7 @@ function TeamCard({ canImport, flash }: { canImport: boolean; flash: (ok: boolea
     try {
       const r = (await apiPost<{ results: ImportResult[] }>('/api/padharosaa/v1/staff/team/import', { rows })).results;
       setResults(r);
-      if (r[0]?.ok) { setOne({ name: '', email: '', department: one.department, whatsapp: '', head: false }); flash(true, `${rows[0]!.name} can now sign in. Their one-time password is below.`); } else flash(false, r[0]?.error === 'exists' ? 'That email already has a login.' : 'That person could not be added.');
+      if (r[0]?.ok) { setOne({ name: '', email: '', department: one.department, whatsapp: '', head: false }); flash(true, `${rows[0]!.name} can now sign in. Their one-time password is below.`); } else flash(false, r[0]?.error === 'exists' ? 'That email already has a login.' : r[0]?.error === 'invalid' ? 'That person could not be added. Please check the WhatsApp number (like 9828114008) and the team.' : 'That person could not be added. Please try again in a moment.');
       await load();
     } catch { flash(false, 'The person could not be added. Please check the details.'); }
     setBusy(false);
