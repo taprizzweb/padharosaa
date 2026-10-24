@@ -1,6 +1,8 @@
 import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
+import { AreaNav } from '@/components/padharosaa/AreaNav';
 import { DeskApp } from '@/components/padharosaa/DeskApp';
+import { StaffApp, type StaffMe } from '@/components/staff/StaffApp';
 import { ManageApp } from '@/components/padharosaa/ManageApp';
 import { publicEnv } from '@/env';
 import { AREA_TITLE, areaHref, canOpen, groupOf, homeFor, isPadHost, type Area } from '@/lib/padharosaa/areas';
@@ -27,6 +29,16 @@ export async function renderArea(area: Area) {
   if (area === 'owner' || area === 'manager') {
     const env = publicEnv();
     return <ManageApp role={m.role} restaurant={m.restaurant} supabase={{ url: env.NEXT_PUBLIC_SUPABASE_URL, anonKey: env.NEXT_PUBLIC_SUPABASE_ANON_KEY }} />;
+  }
+  if (area === 'kitchen') {
+    // The kitchen has ONE screen: every food order (from the hotel menu, room delivery or takeaway) and the sold-out switches for the menu.
+    const env = publicEnv();
+    return (
+      <>
+        {(m.role === 'owner' || m.role === 'manager') && <div className="mx-auto max-w-5xl px-4 pt-3"><AreaNav role={m.role} current="kitchen" /></div>}
+        <StaffApp me={me as StaffMe} hotel supabase={{ url: env.NEXT_PUBLIC_SUPABASE_URL, anonKey: env.NEXT_PUBLIC_SUPABASE_ANON_KEY }} />
+      </>
+    );
   }
   return <DeskApp role={m.role} hotel={m.restaurant.name} title={AREA_TITLE[area]} current={area} start={groupOf(area)} />;
 }

@@ -83,14 +83,18 @@ test('the manager can see the link but cannot make a new one', async ({ page }) 
   await expect(page.getByText('Only the owner can create a new link')).toBeVisible();
   // and the manager can move to every other screen
   const nav = page.getByRole('navigation', { name: 'Screens' });
-  for (const name of ['Live board (all)', 'Reception', 'Housekeeping', 'Kitchen', 'Food orders']) await expect(nav.getByRole('link', { name })).toBeVisible();
+  for (const name of ['Live board (all)', 'Reception', 'Housekeeping', 'Kitchen (orders + menu)']) await expect(nav.getByRole('link', { name })).toBeVisible();
   await nav.getByRole('link', { name: 'Housekeeping' }).click();
   await expect(page).toHaveURL(/\/padharosaa\/housekeeping$/);
   await expect(page.getByRole('button', { name: /^Housekeeping \(\d+\)$/ })).toHaveAttribute('aria-pressed', 'true');
   await page.getByRole('button', { name: /^All \(\d+\)$/ }).click();
   await expect(page.getByRole('button', { name: /^All \(\d+\)$/ })).toHaveAttribute('aria-pressed', 'true');
-  await page.goto('/padharosaa/kitchen');
-  await expect(page.getByRole('button', { name: /^Kitchen \(\d+\)$/ })).toHaveAttribute('aria-pressed', 'true');
+  // the kitchen has one screen: the live food orders and the sold-out switches for the menu, with the manager's navigation on top
+  await nav.getByRole('link', { name: 'Kitchen (orders + menu)' }).click();
+  await expect(page).toHaveURL(/\/padharosaa\/kitchen$/);
+  await expect(page.getByRole('tab', { name: 'Live' })).toBeVisible();
+  await expect(page.getByRole('tab', { name: 'Sold out' })).toBeVisible();
+  await expect(page.getByRole('navigation', { name: 'Screens' })).toBeVisible();
 });
 
 test('a first-time owner link: no tick is asked for, and one tap creates it', async ({ page }) => {

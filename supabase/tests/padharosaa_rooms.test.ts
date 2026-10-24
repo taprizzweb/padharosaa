@@ -23,6 +23,20 @@ describe('rooms from the manager page', () => {
     expect(list.map((r) => r.number)).toEqual(['101', '102', '201 A']);
     expect(list.every((r) => r.active && r.guests === 0)).toBe(true);
   });
+  it("the hotel's room-service link exists from the start and its room list follows the rooms", async () => {
+    const r = async () => (await db.admin<any>(`select room_token, room_numbers from public.restaurants where id = $1`, [w.A.rid]))[0];
+    const before = await r();
+    expect(before.room_token).toMatch(/^[0-9a-f]{64}$/); // made when Padharosaa was switched on
+    expect(before.room_numbers).toEqual(['101', '102', '201 A']);
+    await staff(w.A.manager, 'padh_rooms_add', [['103']]);
+    expect((await r()).room_numbers).toEqual(['101', '102', '103', '201 A']);
+    expect((await r()).room_token).toBe(before.room_token); // the link never changes by itself
+    const id = (await staff<any[]>(w.A.manager, 'padh_rooms_list', [])).find((x) => x.number === '103').id;
+    await staff(w.A.manager, 'padh_rooms_set_active', [id, false]);
+    expect((await r()).room_numbers).toEqual(['101', '102', '201 A']);
+    await staff(w.A.manager, 'padh_rooms_add', [['103']]);
+    await staff(w.A.manager, 'padh_rooms_set_active', [id, false]);
+  });
   it('each hotel sees only its own rooms', async () => {
     await staff(w.B.owner, 'padh_rooms_add', [['B1']]);
     expect((await staff<any[]>(w.A.manager, 'padh_rooms_list', [])).map((r) => r.number)).not.toContain('B1');

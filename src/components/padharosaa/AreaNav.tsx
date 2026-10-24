@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 
-export type NavCurrent = 'owner' | 'manager' | 'desk' | 'reception' | 'housekeeping' | 'kitchen' | 'orders';
+export type NavCurrent = 'owner' | 'manager' | 'desk' | 'reception' | 'housekeeping' | 'kitchen';
 
 /** Owner and manager see every screen of the hotel: one tap to move between the console, the live board and each team's screen. */
 export function AreaNav({ role, current }: { role: string; current: NavCurrent }) {
@@ -16,8 +16,7 @@ export function AreaNav({ role, current }: { role: string; current: NavCurrent }
     ['desk', 'Live board (all)', to('desk')],
     ['reception', 'Reception', to('reception')],
     ['housekeeping', 'Housekeeping', to('housekeeping')],
-    ['kitchen', 'Kitchen', to('kitchen')],
-    ['orders', 'Food orders', pad ? '/orders' : '/staff'],
+    ['kitchen', 'Kitchen (orders + menu)', to('kitchen')],
   ];
   return (
     <nav aria-label="Screens" className="-mx-4 mt-3 flex gap-2 overflow-x-auto px-4 pb-1">
