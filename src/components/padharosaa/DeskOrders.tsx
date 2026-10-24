@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { orderActions, type BoardOrder, type Role } from '@/lib/staff/logic';
+import { formatPaise } from '@/lib/money';
+import { orderActions, type BoardOrder, type BoardRequest, type BoardSession, type Role } from '@/lib/staff/logic';
 
 const READY_IN = [5, 10, 15, 20, 30, 45];
 const CANCEL_REASONS = ['Guest changed their mind', 'Sold out', 'Duplicate order', 'Wrong room'];
@@ -79,6 +80,33 @@ export function OrderCardDesk({ o, role, roomDining, a }: { o: BoardOrder; role:
           {CANCEL_REASONS.map((r) => <button key={r} type="button" disabled={busy} className="min-h-11 rounded-full bg-stone-100 px-3 text-sm font-semibold" onClick={() => void run(() => a.cancel(o, r))}>{r}</button>)}
         </div>
       )}
+    </li>
+  );
+}
+
+export interface TableCallActions {
+  done: (r: BoardRequest) => Promise<void>;
+  paid: (s: BoardSession, mode: 'cash' | 'upi' | 'card') => Promise<void>;
+}
+
+/** A guest asked a waiter to come, or asked for the bill (the menu app's calls). They arrive on the same desk list as everything else. */
+export function TableCallDesk({ r, session, a }: { r: BoardRequest; session: BoardSession | undefined; a: TableCallActions }) {
+  const bill = r.type === 'bill';
+  const mode = r.pay_mode ?? session?.pay_mode ?? null;
+  const btn = 'min-h-11 rounded-xl px-4 text-sm font-bold';
+  return (
+    <li data-testid="table-call" className={`rounded-2xl border-l-8 bg-white p-4 shadow-sm ${bill ? 'border-violet-700' : 'border-amber-600'}`}>
+      <div className="flex items-start justify-between gap-2">
+        <p className="text-lg font-extrabold">{r.table_label}</p>
+        <span className="rounded-full bg-stone-100 px-3 py-1 text-sm font-bold">{mins(r.created_at)} min</span>
+      </div>
+      <p className="mt-1 text-base font-semibold">{bill ? 'Asked for the bill' : 'Asked for a waiter'}{bill && mode ? ` · pays by ${mode === 'upi' ? 'UPI' : mode}` : ''}</p>
+      {bill && session && <p className="text-sm text-stone-700">Total {formatPaise(session.total_paise)} · {session.orders_count} order(s){session.unserved_count ? ` · ${session.unserved_count} not served yet` : ''}</p>}
+      {r.reason && <p className="text-sm text-stone-700">For: {r.reason}</p>}
+      <div className="mt-3 flex flex-wrap gap-2">
+        {bill && session && session.unserved_count === 0 && (['cash', 'upi', 'card'] as const).map((m) => <button key={m} type="button" className={`${btn} ${mode === m ? 'bg-emerald-800 text-white' : 'border-2 border-emerald-800 text-emerald-950'}`} onClick={() => void a.paid(session, m)}>Paid by {m === 'upi' ? 'UPI' : m}</button>)}
+        <button type="button" className={`${btn} border-2 border-stone-700`} onClick={() => void a.done(r)}>{bill ? 'Bill given' : 'Done'}</button>
+      </div>
     </li>
   );
 }
