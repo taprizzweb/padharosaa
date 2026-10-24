@@ -109,7 +109,7 @@ test.describe('menu manager', () => {
     await expect(page.getByText(dish, { exact: true })).toHaveCount(0);
     expect((await q(`select 1 from public.items where name_en = $1`, [dish])).length).toBe(0);
     await page.getByRole('region', { name: cat }).getByRole('button', { name: 'Delete' }).first().click(); // category: asks first
-    await expect(dialog(page)).toContainText(`Delete category “${cat}”?`);
+    await expect(dialog(page)).toContainText(`Delete category “${cat}” and its 1 dish(es)?`); // the copy is still in it, and the category now goes with its dishes
   });
 
   test('reorder with the move buttons, bulk sold-out and bulk price change', async ({ page }) => {

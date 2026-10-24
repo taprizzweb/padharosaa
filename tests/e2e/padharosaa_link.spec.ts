@@ -148,17 +148,19 @@ test('the owner adds many guide places from a CSV; sending the same list again a
 });
 
 test('a bill request and a waiter call arrive on the reception desk with the rest, and "Bill given" clears it', async ({ page }) => {
-  const t = (await newTable()).id;
+  const tb = await newTable();
+  const t = tb.id;
   const s = (await q<{ id: string }>(`insert into public.table_sessions (restaurant_id, table_id, pay_mode) values (${RID}, $1, 'upi') returning id`, [t]))[0]!.id;
   await q(`insert into public.service_requests (restaurant_id, table_id, session_id, type, pay_mode) values (${RID}, $1, $2, 'bill', 'upi')`, [t, s]);
   await q(`insert into public.service_requests (restaurant_id, table_id, session_id, type, reason) values (${RID}, $1, $2, 'waiter', 'water')`, [t, s]);
   try {
     await signIn(page, 'waiter@spice-garden.demo', /\/padharosaa\/desk$/, '/padharosaa/desk');
-    await expect(page.getByText('Asked for the bill · pays by UPI')).toBeVisible();
-    await expect(page.getByText('Asked for a waiter')).toBeVisible();
-    await page.getByRole('button', { name: 'Bill given' }).click();
-    await expect(page.getByText('Asked for the bill · pays by UPI')).toHaveCount(0);
-    await expect(page.getByText('Asked for a waiter')).toBeVisible();
+    const mine = page.getByTestId('table-call').filter({ hasText: tb.label }); // other tests may leave their own calls on the same desk
+    await expect(mine.getByText('Asked for the bill · pays by UPI')).toBeVisible();
+    await expect(mine.getByText('Asked for a waiter')).toBeVisible();
+    await mine.getByRole('button', { name: 'Bill given' }).click();
+    await expect(mine.getByText('Asked for the bill · pays by UPI')).toHaveCount(0);
+    await expect(mine.getByText('Asked for a waiter')).toBeVisible();
   } finally {
     await q(`delete from public.table_sessions where id = $1`, [s]);
     await q(`delete from public.dining_tables where id = $1`, [t]);
