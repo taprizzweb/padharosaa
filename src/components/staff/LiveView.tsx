@@ -64,6 +64,11 @@ function OrderCard({ o, role, nowMs, amber, red, actions, roomDining }: { o: Boa
         ))}
       </ul>
       {o.note && <p className="mt-3 rounded-lg bg-stone-100 px-3 py-2 text-base font-semibold">Kitchen note: {o.note}</p>}
+      {o.is_room && o.handover && (
+        <p className="mt-3 rounded-lg bg-sky-50 px-3 py-2 text-base font-bold text-sky-950" data-testid="handover-note">
+          {o.handover === 'deliver' ? 'Guest wants ROOM DELIVERY: accept it, or switch to Takeaway if you cannot deliver.' : `Guest will COLLECT it at the desk${o.handover_minutes ? ` in about ${o.handover_minutes} min` : ''}. Call their name when ready.`}
+        </p>
+      )}
       {o.is_room && (
         <div className="mt-3 flex flex-wrap gap-2" role="group" aria-label="How does this reach the guest?">
           {roomDining && <button type="button" disabled={busy} aria-pressed={o.handover === 'deliver'} className={`min-h-12 rounded-xl border-2 px-4 text-base font-bold ${o.handover === 'deliver' ? 'border-sky-900 bg-sky-900 text-white' : 'border-sky-900 bg-white text-sky-950'}`} onClick={() => actions.handover(o.id, 'deliver')}>Room delivery</button>}

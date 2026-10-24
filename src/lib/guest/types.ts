@@ -64,8 +64,9 @@ export interface StatusOrder {
   total_paise: number;
   created_at: string;
   cancel_reason: string | null;
-  /** room orders: how the order reaches the guest, chosen by the kitchen */
+  /** hotel room orders: how the order reaches the guest (chosen by the guest, changeable by the kitchen) and the pickup time for Takeaway */
   handover?: 'deliver' | 'takeaway' | null;
+  handover_minutes?: number | null;
   items: StatusOrderItem[];
 }
 export interface StatusRequest {
@@ -84,6 +85,8 @@ export interface StatusData {
   total_paise?: number;
   orders?: StatusOrder[];
   requests?: StatusRequest[];
+  /** false when the hotel does not deliver to rooms */
+  room_dining?: boolean;
 }
 
 export interface CartLine {

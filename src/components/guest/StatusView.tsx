@@ -27,7 +27,7 @@ function Stepper({ status, t }: { status: Exclude<OrderStatus, 'cancelled'>; t: 
   );
 }
 
-function OrderCard({ o, t }: { o: StatusOrder; t: Translator }) {
+function OrderCard({ o, t, roomDining }: { o: StatusOrder; t: Translator; roomDining?: boolean }) {
   const cancelled = o.status === 'cancelled';
   return (
     <li className={`rounded-2xl border bg-white p-4 ${cancelled ? 'border-red-200' : 'border-stone-200'}`}>
@@ -52,7 +52,12 @@ function OrderCard({ o, t }: { o: StatusOrder; t: Translator }) {
         </p>
       ) : (
         <>
-          {o.handover && <p className="mt-3 rounded-lg bg-sky-50 px-3 py-2 text-sm font-semibold text-sky-950">{t(`status.handover.${o.handover}` as 'status.handover.deliver')}</p>}
+          {o.handover && (
+            <p className="mt-3 rounded-lg bg-sky-50 px-3 py-2 text-sm font-semibold text-sky-950">
+              {o.handover === 'takeaway' && roomDining === false && <span className="mb-1 block">{t('status.handover.noRoom')}</span>}
+              {o.handover === 'takeaway' && o.handover_minutes ? t('status.handover.takeawayTime', { n: o.handover_minutes }) : t(`status.handover.${o.handover}` as 'status.handover.deliver')}
+            </p>
+          )}
           <Stepper status={o.status as Exclude<OrderStatus, 'cancelled'>} t={t} />
           {o.status === 'placed' && <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-center text-sm font-semibold text-amber-900">{t('status.notAccepted')}</p>}
         </>
@@ -76,7 +81,7 @@ export function StatusView({ data, t, onAddMore }: { data: StatusData | null; t:
           <p className="py-10 text-center text-stone-600">{t('status.noOrders')}</p>
         ) : (
           <>
-            <ul className="mt-3 space-y-3">{[...orders].reverse().map((o) => <OrderCard key={o.order_no} o={o} t={t} />)}</ul>
+            <ul className="mt-3 space-y-3">{[...orders].reverse().map((o) => <OrderCard key={o.order_no} o={o} t={t}  roomDining={data?.room_dining} />)}</ul>
             <div className="mt-4 flex items-baseline justify-between rounded-2xl bg-stone-900 px-4 py-3 text-white">
               <span className="font-semibold">{t('status.tableTotal')}</span>
               <span className="text-xl font-extrabold">{formatPaise(data.total_paise ?? 0)}</span>

@@ -16,6 +16,7 @@ export interface BoardOrder {
   ready_at: string | null;
   /** room orders only: how it reaches the guest */
   handover?: 'deliver' | 'takeaway' | null;
+  handover_minutes?: number | null;
   is_room?: boolean;
   items: { name: string; qty: number; note: string | null }[];
 }

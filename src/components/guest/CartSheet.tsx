@@ -8,10 +8,12 @@ import type { Cart } from './hooks';
 import { Alert, IconMinus, IconPlus, Notice, Sheet, btnPrimary } from './ui';
 
 export function CartSheet({
-  open, onClose, t, cart, items, placing, error, adjusted, onPlace,
+  open, onClose, t, cart, items, placing, error, adjusted, onPlace, handoverUi = null,
 }: {
   open: boolean; onClose: () => void; t: Translator; cart: Cart; items: Map<string, MenuItem>;
   placing: boolean; error: string | null; adjusted: boolean; onPlace: () => void;
+  /** hotel guests only: Room delivery or Takeaway (with a pickup time) */
+  handoverUi?: { roomDining: boolean; mode: 'deliver' | 'takeaway'; setMode: (m: 'deliver' | 'takeaway') => void; minutes: number; setMinutes: (n: number) => void } | null;
 }) {
   const [openNotes, setOpenNotes] = useState<Set<string>>(new Set());
   return (
@@ -68,6 +70,36 @@ export function CartSheet({
               );
             })}
           </ul>
+
+          {handoverUi && (
+            <fieldset className="space-y-2">
+              <legend className="text-sm font-bold text-stone-900">{t('cart.handover.title')}</legend>
+              {!handoverUi.roomDining && <p role="note" className="rounded-xl bg-sky-50 px-3 py-2 text-sm font-semibold text-sky-950">{t('cart.handover.noRoom')}</p>}
+              <div className="grid grid-cols-2 gap-2">
+                {handoverUi.roomDining && (
+                  <button type="button" aria-pressed={handoverUi.mode === 'deliver'} onClick={() => handoverUi.setMode('deliver')}
+                    className={`min-h-16 rounded-xl border-2 px-3 py-2 text-left font-bold ${handoverUi.mode === 'deliver' ? 'border-stone-900 bg-stone-900 text-white' : 'border-stone-400 bg-white text-stone-900'}`}>
+                    {t('cart.handover.deliver')}<span className="block text-xs font-medium">{t('cart.handover.deliverSub')}</span>
+                  </button>
+                )}
+                <button type="button" aria-pressed={!handoverUi.roomDining || handoverUi.mode === 'takeaway'} onClick={() => handoverUi.setMode('takeaway')}
+                  className={`min-h-16 rounded-xl border-2 px-3 py-2 text-left font-bold ${!handoverUi.roomDining || handoverUi.mode === 'takeaway' ? 'border-stone-900 bg-stone-900 text-white' : 'border-stone-400 bg-white text-stone-900'} ${handoverUi.roomDining ? '' : 'col-span-2'}`}>
+                  {t('cart.handover.takeaway')}<span className="block text-xs font-medium">{t('cart.handover.takeawaySub')}</span>
+                </button>
+              </div>
+              {(!handoverUi.roomDining || handoverUi.mode === 'takeaway') && (
+                <div role="group" aria-label={t('cart.handover.time')}>
+                  <p className="text-sm font-medium text-stone-800">{t('cart.handover.time')}</p>
+                  <div className="mt-1 flex flex-wrap gap-2">
+                    {[15, 30, 45, 60].map((n) => (
+                      <button key={n} type="button" aria-pressed={handoverUi.minutes === n} onClick={() => handoverUi.setMinutes(n)}
+                        className={`min-h-11 rounded-full border-2 px-4 text-sm font-bold ${handoverUi.minutes === n ? 'border-stone-900 bg-stone-900 text-white' : 'border-stone-400 bg-white text-stone-900'}`}>{t('cart.handover.minutes', { n })}</button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </fieldset>
+          )}
 
           <label className="block text-sm font-medium text-stone-800">
             {t('cart.kitchenNote')}

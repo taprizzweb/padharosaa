@@ -32,6 +32,7 @@ export async function GET(req: Request) {
     if (!base && d.own_room_token) { base = new URL(`${origin}/${d.own_slug}?k=${d.own_room_token}`); slug = d.own_slug; }
     if (!base || !slug) return jsonOk({ available: false, room_dining: d.room_dining }, ctx.requestId);
     base.searchParams.set('room', d.room);
+    base.searchParams.set('rd', d.room_dining ? '1' : '0');
     base.searchParams.set('back', `${origin}/padharosaa/${d.hotel_slug}`);
     let chips: { id: string; name: string }[] = [];
     try {

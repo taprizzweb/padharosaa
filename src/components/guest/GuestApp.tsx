@@ -32,7 +32,12 @@ export function GuestApp({
   const back = /^\/(?![/\\])/.test(backRaw) || /^https:\/\/[^\s]+$/i.test(backRaw) ? backRaw.slice(0, 300) : null;
   const catsParam = (qs.get('cats') ?? '').split(',').filter((x) => /^[0-9a-f-]{36}$/.test(x)).slice(0, 30);
   const dietParam = (qs.get('diet') ?? '').split(',').filter((x): x is 'veg' | 'jain' => x === 'veg' || x === 'jain');
-  const carry = [back ? `&back=${encodeURIComponent(back)}` : '', catsParam.length ? `&cats=${catsParam.join(',')}` : '', dietParam.length ? `&diet=${dietParam.join(',')}` : ''].join('');
+  // Set only by the Padharosaa hotel app: rd=1 means the hotel delivers to rooms, rd=0 means it does not. Shows the Room delivery / Takeaway choice.
+  const rdRaw = qs.get('rd');
+  const rd = rdRaw === '1' || rdRaw === '0' ? rdRaw : null;
+  const [handover, setHandover] = useState<'deliver' | 'takeaway'>(rdRaw === '0' ? 'takeaway' : 'deliver');
+  const [pickup, setPickup] = useState(30);
+  const carry = [rd ? `&rd=${rd}` : '', back ? `&back=${encodeURIComponent(back)}` : '', catsParam.length ? `&cats=${catsParam.join(',')}` : '', dietParam.length ? `&diet=${dietParam.join(',')}` : ''].join('');
   const categories = useMemo(() => menu.categories ?? [], [menu.categories]);
   const items = useMemo(() => new Map<string, MenuItem>(categories.flatMap((c) => c.items).map((i) => [i.id, i])), [categories]);
   const cart = useCart(slug, items);
@@ -118,6 +123,7 @@ export function GuestApp({
         ...(l.note?.trim() ? { note: l.note.trim() } : {}),
       })),
       note: cart.note.trim() || undefined,
+      ...(rd ? { handover: rd === '0' ? ('takeaway' as const) : handover, ...((rd === '0' || handover === 'takeaway') ? { pickup_minutes: pickup } : {}) } : {}),
     };
     try {
       const idem = idempotencyKeyFor(slug, JSON.stringify(payload));
@@ -245,7 +251,7 @@ export function GuestApp({
           setChoosing(null);
         }}
       />
-      <CartSheet open={sheet === 'cart'} onClose={() => setSheet(null)} t={t} cart={cart} items={items} placing={placing} error={orderError} adjusted={cart.adjusted} onPlace={place} />
+      <CartSheet open={sheet === 'cart'} onClose={() => setSheet(null)} t={t} cart={cart} items={items} placing={placing} error={orderError} adjusted={cart.adjusted} onPlace={place} handoverUi={rd ? { roomDining: rd === '1', mode: handover, setMode: setHandover, minutes: pickup, setMinutes: setPickup } : null} />
       <WaiterSheet open={sheet === 'waiter'} onClose={() => setSheet(null)} t={t} openRequest={waiterReq} busy={helpBusy} error={helpError} onPick={(r: WaiterReason) => token && void help(() => callWaiter(slug, token, r))} />
       <BillSheet open={sheet === 'bill'} onClose={() => setSheet(null)} t={t} openRequest={billReq} busy={helpBusy} error={helpError} onPick={(m: PayMode) => {
         if (!token) return;

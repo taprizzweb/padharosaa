@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { createTestDb, type TestDb } from './helpers/db';
 import { buildWorld, orderErr, placeOrder, rpc, rpcErr, type World } from './helpers/fixtures';
 
@@ -214,5 +214,57 @@ describe('room order handover (room delivery or takeaway)', () => {
     expect((await rpcErr(db, w.A.kitchen, `public.staff_set_order_handover($1, 'deliver')`, [o.order_id]))?.code).toBe('GM015');
     expect((await rpc(db, w.A.kitchen, `public.staff_set_order_handover($1, 'takeaway')`, [o.order_id]))[0]!.r).toMatchObject({ handover: 'takeaway' });
     expect(((await rpc(db, w.A.kitchen, `public.staff_get_board()`))[0]!.r as any).room_dining).toBe(false);
+  });
+});
+
+describe('the guest picks Room delivery or Takeaway when ordering', () => {
+  const setH = (slug: string, token: string, no: number | string, mode: string, minutes: number | null = null) => svc<any>('guest_set_order_handover', [slug, token, no, mode, minutes]);
+  // earlier tests leave orders waiting; the app allows only a few waiting orders per table, so start each test clean
+  beforeEach(async () => { await db.admin(`update public.orders set status = 'served' where restaurant_id = $1 and status = 'placed'`, [w.A.rid]); });
+  const setHErr = (slug: string, token: string, no: number | string, mode: string, minutes: number | null = null) => svcErr('guest_set_order_handover', [slug, token, no, mode, minutes]);
+
+  it('a hotel guest chooses Takeaway with a pickup time or Room delivery; the kitchen board and the guest status show it', async () => {
+    await db.admin(`update public.hotel_settings set room_dining = true where restaurant_id = $1`, [w.A.rid]);
+    const { token } = await getRooms(w.A.owner);
+    const open = await svc<{ token: string }>('guest_open_room', [w.A.slug, token, '204', null]);
+    const o = await placeOrder(db, w.A, { token: open.token }, line(w.A.chai));
+    expect(await setH(w.A.slug, open.token, o.order_no, 'takeaway', 30)).toEqual({ handover: 'takeaway', handover_minutes: 30 });
+    const card = (((await rpc(db, w.A.kitchen, `public.staff_get_board()`))[0]!.r as any).orders as any[]).find((x) => x.id === o.order_id);
+    expect(card).toMatchObject({ handover: 'takeaway', handover_minutes: 30 });
+    const st = await svc<any>('guest_get_status', [o.session_id, 30]);
+    expect(st.room_dining).toBe(true);
+    expect(st.orders.find((x: any) => x.order_no === o.order_no)).toMatchObject({ handover: 'takeaway', handover_minutes: 30 });
+    // the guest may change their mind while the order is still waiting; room delivery clears the pickup time
+    expect(await setH(w.A.slug, open.token, o.order_no, 'deliver')).toEqual({ handover: 'deliver', handover_minutes: null });
+    // the kitchen switching to takeaway keeps working, and switching back to delivery clears the time again
+    expect((await rpc(db, w.A.kitchen, `public.staff_set_order_handover($1, 'takeaway')`, [o.order_id]))[0]!.r).toMatchObject({ handover: 'takeaway' });
+    expect((await rpc(db, w.A.kitchen, `public.staff_set_order_handover($1, 'deliver')`, [o.order_id]))[0]!.r).toMatchObject({ handover: 'deliver' });
+  });
+
+  it('a hotel without room dining refuses Room delivery and tells the status so; takeaway still works', async () => {
+    await db.admin(`update public.hotel_settings set room_dining = false where restaurant_id = $1`, [w.A.rid]);
+    const { token } = await getRooms(w.A.owner);
+    const open = await svc<{ token: string }>('guest_open_room', [w.A.slug, token, '204', null]);
+    const o = await placeOrder(db, w.A, { token: open.token }, line(w.A.chai));
+    expect((await setHErr(w.A.slug, open.token, o.order_no, 'deliver'))?.code).toBe('GM015');
+    expect(await setH(w.A.slug, open.token, o.order_no, 'takeaway', 45)).toEqual({ handover: 'takeaway', handover_minutes: 45 });
+    expect((await svc<any>('guest_get_status', [o.session_id, 30])).room_dining).toBe(false);
+  });
+
+  it('only on the guest\'s own table, only while waiting, only in a hotel room, only with sane values', async () => {
+    await db.admin(`update public.hotel_settings set room_dining = true where restaurant_id = $1`, [w.A.rid]);
+    const { token } = await getRooms(w.A.owner);
+    const open = await svc<{ token: string }>('guest_open_room', [w.A.slug, token, '204', null]);
+    const other = await svc<{ token: string }>('guest_open_room', [w.A.slug, token, '101', null]);
+    const o = await placeOrder(db, w.A, { token: open.token }, line(w.A.chai));
+    expect((await setHErr(w.A.slug, other.token, o.order_no, 'takeaway'))?.code).toBe('GM012'); // someone else's room
+    expect((await setHErr(w.B.slug, open.token, o.order_no, 'takeaway'))?.code).toBe('GM012'); // another restaurant
+    expect((await setHErr(w.A.slug, 'x'.repeat(40), o.order_no, 'takeaway'))?.code).toBe('GM012');
+    for (const bad of [['bike', null], ['takeaway', 4], ['takeaway', 181], [null, null]] as const) expect((await setHErr(w.A.slug, open.token, o.order_no, bad[0] as string, bad[1]))?.code, JSON.stringify(bad)).toBe('GM015');
+    const t1 = await placeOrder(db, w.A, { token: w.A.t1.token }, line(w.A.chai));
+    expect((await setHErr(w.A.slug, w.A.t1.token, t1.order_no, 'takeaway'))?.code).toBe('GM010'); // a table order, not a room
+    await rpc(db, w.A.kitchen, `public.staff_set_order_status($1, 'preparing', null)`, [o.order_id]);
+    expect((await setHErr(w.A.slug, open.token, o.order_no, 'takeaway'))?.code).toBe('GM010'); // already being prepared
+    for (const role of ['anon', 'authenticated'] as const) expect((await db.asErr(role, role === 'authenticated' ? w.A.kitchen : null, `select public.guest_set_order_handover($1,$2,$3,'takeaway',null)`, [w.A.slug, open.token, o.order_no]))?.code).toBe('42501');
   });
 });
