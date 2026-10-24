@@ -10,15 +10,15 @@ const label = (date: string, today: string) => {
   return `${diff === 0 ? 'Today' : diff === 1 ? 'Tomorrow' : ''} ${new Date(`${date}T00:00:00Z`).toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' })}`.trim();
 };
 
-export function BuffetManager({ flash }: { flash: (ok: boolean, t: string) => void }) {
+export function BuffetManager({ flash, bare }: { flash: (ok: boolean, t: string) => void; bare?: boolean }) {
   const [d, setD] = useState<{ today: string; days: Day[] } | null>(null);
   const [open, setOpen] = useState<string | null>(null);
   const load = useCallback(async () => { try { setD(await apiGet('/api/padharosaa/v1/staff/buffet')); } catch { flash(false, 'The buffet list could not be loaded.'); } }, [flash]);
   useEffect(() => { void load(); }, [load]);
   if (!d) return null;
   return (
-    <section className="mt-4 rounded-2xl bg-white p-4 shadow-sm" aria-labelledby="buffet-h">
-      <h2 id="buffet-h" className="text-lg font-extrabold">Buffet</h2>
+    <section className={bare ? 'mt-2' : 'mt-4 rounded-2xl bg-white p-4 shadow-sm'} aria-labelledby="buffet-h">
+      <h2 id="buffet-h" className={bare ? 'sr-only' : 'text-lg font-extrabold'}>Buffet</h2>
       <p className="text-sm text-stone-700">Set it for today and the coming week. Guests see today and the next two days.</p>
       <ul className="mt-3 space-y-2">{d.days.map((x) => <DayRow key={x.date} day={x} today={d.today} open={open === x.date} onOpen={() => setOpen(open === x.date ? null : x.date)} onSaved={async (ok) => { flash(ok, ok ? 'Buffet saved.' : 'Please check the times and name.'); if (ok) { setOpen(null); await load(); } }} />)}</ul>
     </section>

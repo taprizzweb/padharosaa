@@ -7,6 +7,7 @@ import { AlertSound } from '@/components/staff/sound';
 import { ApiFailure } from '@/lib/guest/client';
 import { GROUP_LABEL, GROUP_TEAMS, type Group } from '@/lib/padharosaa/areas';
 import { AreaNav, type NavCurrent } from './AreaNav';
+import { BuffetManager } from './BuffetManager';
 import { OrderCardDesk, TableCallDesk, type OrderDeskActions, type TableCallActions } from './DeskOrders';
 import type { BoardOrder, BoardRequest, BoardSession } from '@/lib/staff/logic';
 
@@ -39,6 +40,8 @@ export function DeskApp({ role, hotel, title = 'Reception desk', current = 'desk
   const [alerts, setAlerts] = useState<Alerts | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [soundOn, setSoundOn] = useState(false);
+  const [note, setNote] = useState<{ ok: boolean; text: string } | null>(null);
+  const flash = useCallback((ok: boolean, text: string) => setNote({ ok, text }), []);
   const sound = useRef(new AlertSound());
   const seen = useRef<Set<string>>(new Set());
   const first = useRef(true);
@@ -138,6 +141,7 @@ export function DeskApp({ role, hotel, title = 'Reception desk', current = 'desk
           </div>
         </section>
       )}
+      {note && <p role={note.ok ? 'status' : 'alert'} className={`mt-3 rounded-xl p-3 text-sm font-semibold ${note.ok ? 'bg-emerald-50 text-emerald-950' : 'bg-red-50 text-red-900'}`}>{note.text}</p>}
       {err && <p role="alert" className="mt-3 rounded-xl bg-red-50 p-3 text-sm font-semibold text-red-900">{err}</p>}
       {(() => {
         // one list for everything: guest requests and food orders together, urgent first, then the longest-waiting first
@@ -156,6 +160,12 @@ export function DeskApp({ role, hotel, title = 'Reception desk', current = 'desk
           </>
         );
       })()}
+      {(privileged || alerts?.teams.includes('front_desk') || alerts?.teams.includes('concierge')) && (
+        <details className="mt-6 rounded-2xl bg-white p-3 shadow-sm">
+          <summary className="min-h-11 cursor-pointer py-2 text-base font-extrabold">Buffet: set today and the coming days</summary>
+          <BuffetManager flash={flash} bare />
+        </details>
+      )}
     </div>
   );
 }

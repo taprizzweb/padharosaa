@@ -26,6 +26,7 @@ async function signIn(page: Page, email: string, landing: RegExp, next: string) 
 test.beforeAll(async () => { await q(`delete from public.hotel_settings where restaurant_id = ${RID}`); });
 test.afterAll(async () => {
   await q(`delete from public.guide_items where restaurant_id = ${RID}`);
+  await q(`delete from public.buffets where restaurant_id = ${RID}`);
   await q(`delete from public.hotel_settings where restaurant_id in (${RID}, (select id from public.restaurants where slug = 'cafe-aroma'))`);
 });
 
@@ -162,4 +163,14 @@ test('a bill request and a waiter call arrive on the reception desk with the res
     await q(`delete from public.table_sessions where id = $1`, [s]);
     await q(`delete from public.dining_tables where id = $1`, [t]);
   }
+});
+
+test('reception can set the buffet from the desk', async ({ page }) => {
+  await signIn(page, 'waiter@spice-garden.demo', /\/padharosaa\/desk$/, '/padharosaa/desk');
+  await page.getByText('Buffet: set today and the coming days').click();
+  await page.getByRole('button', { name: /^Today/ }).click();
+  await page.getByLabel(/^Name \(e.g. Thali night\)/).fill('Rajasthani thali night');
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(page.getByText('Buffet saved.')).toBeVisible();
+  expect((await q<{ n: number }>(`select count(*)::int n from public.buffets where restaurant_id = ${RID} and name = 'Rajasthani thali night'`))[0]!.n).toBe(1);
 });
