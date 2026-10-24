@@ -17,6 +17,7 @@ import { POST as foodPOST } from '@/app/api/padharosaa/v1/requests/food/route';
 import { POST as helpPOST } from '@/app/api/padharosaa/v1/requests/help/route';
 import { POST as staffReqPOST } from '@/app/api/padharosaa/v1/staff/requests/[id]/[action]/route';
 import { POST as diningPOST } from '@/app/api/padharosaa/v1/staff/dining/route';
+import { POST as kitchenDisplayPOST } from '@/app/api/padharosaa/v1/staff/kitchen-display/route';
 import { GET as teamGET } from '@/app/api/padharosaa/v1/staff/team/route';
 import { POST as profilePOST } from '@/app/api/padharosaa/v1/staff/team/[user]/route';
 import { POST as importPOST } from '@/app/api/padharosaa/v1/staff/team/import/route';
@@ -76,6 +77,13 @@ describe('food, handover and dining', () => {
     expect((await diningPOST(mk('/d', { body: { room_dining: false } }))).status).toBe(403); // kitchen cannot switch it
     as(w.A.manager);
     expect((await diningPOST(mk('/d', { body: { room_dining: false } }))).status).toBe(200);
+    // the kitchen display switch: manager and owner only
+    as(w.A.kitchen);
+    expect((await kitchenDisplayPOST(mk('/k', { body: { kitchen_display: true } }))).status).toBe(403);
+    as(w.A.manager);
+    expect((await kitchenDisplayPOST(mk('/k', { body: { kitchen_display: 'yes' } }))).status).toBe(400);
+    expect((await kitchenDisplayPOST(mk('/k', { body: { kitchen_display: true } }))).status).toBe(200);
+    expect((await kitchenDisplayPOST(mk('/k', { body: { kitchen_display: false } }))).status).toBe(200);
     const f2 = (await (await foodPOST(mk('/f', { body: { label: 'Tea' }, cookie, idem: randomUUID() }))).json()) as any;
     as(w.A.kitchen);
     expect((await staffReqPOST(mk('/h', { body: { version: f2.version, mode: 'deliver' } }), p({ id: f2.request_id, action: 'handover' }))).status).toBe(400);

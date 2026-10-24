@@ -43,7 +43,7 @@ export async function POST(req: Request) {
       // padh_my_alerts only answers for staff of an enabled Padharosaa hotel, so a good answer also means "this is a hotel".
       const alerts = await staffRpc<{ teams?: string[] | null }>(db, 'padh_my_alerts').catch(() => null);
       if (alerts || onPadHost) {
-        const area = homeFor((me as { role?: string }).role ?? '', alerts?.teams ?? []) ?? 'desk';
+        const area = homeFor((me as { role?: string }).role ?? '') ?? 'desk';
         home = areaHref(area, onPadHost);
       }
     }

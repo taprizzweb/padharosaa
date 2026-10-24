@@ -109,6 +109,7 @@ export const brandingBody = z
 // ---- dining, staff directory, alerts ----
 const TEAMS = ['concierge', 'front_desk', 'housekeeping', 'kitchen', 'maintenance', 'manager'] as const;
 export const handoverBody = z.object({ version: z.number().int().min(1), mode: z.enum(['deliver', 'takeaway']) }).strict();
+export const kitchenDisplayBody = z.object({ kitchen_display: z.boolean() }).strict();
 export const diningBody = z.object({ room_dining: z.boolean() }).strict();
 const waNumber = z.preprocess(normWhatsapp, z.string().regex(/^\+[1-9][0-9]{7,14}$/));
 export const profileBody = z.object({ department: z.enum(TEAMS), whatsapp: waNumber.nullish(), is_head: z.boolean().default(false) }).strict();

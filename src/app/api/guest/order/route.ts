@@ -40,7 +40,7 @@ export async function POST(req: Request) {
     // order that is not a hotel room order simply ignores the choice: the order itself is already placed either way.
     let handover: 'deliver' | 'takeaway' | null = null;
     if (body.handover && !r.replayed) {
-      const set = (mode: 'deliver' | 'takeaway') => rpc<{ handover: 'deliver' | 'takeaway' }>('guest_set_order_handover', { p_slug: body.slug, p_token: body.token, p_order_no: r.order_no, p_mode: mode, p_minutes: mode === 'takeaway' ? body.pickup_minutes ?? null : null });
+      const set = (mode: 'deliver' | 'takeaway') => rpc<{ handover: 'deliver' | 'takeaway' }>('guest_set_order_handover', { p_slug: body.slug, p_token: body.token, p_order_no: r.order_no, p_mode: mode, p_minutes: null });
       try {
         handover = (await set(body.handover)).handover;
       } catch (e) {

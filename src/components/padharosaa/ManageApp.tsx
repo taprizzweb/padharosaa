@@ -18,7 +18,7 @@ const TEAMS: [Team, string][] = [['front_desk', 'Front desk'], ['concierge', 'Co
 interface Settings {
   brand_color: string | null; logo_path: string | null; hero_path: string | null; tripadvisor_url: string | null; menu_url: string | null; review_link: string | null;
   offer_text: string | null; offer_until: string | null; info_text: string | null; wifi_name: string | null; checkout_time: string | null; breakfast_text: string | null;
-  reception_phone: string | null; manager_phone: string | null; room_dining: boolean; server_ready?: boolean;
+  reception_phone: string | null; manager_phone: string | null; room_dining: boolean; kitchen_display?: boolean; server_ready?: boolean;
 }
 interface Person { user_id: string; email: string; name: string; role: string; active: boolean; department: Team | null; whatsapp: string | null; is_head: boolean }
 interface ImportResult { email: string; ok: boolean; error?: 'exists' | 'invalid' | 'failed' | string; temporary_password?: string }
@@ -55,7 +55,7 @@ export function ManageApp({ role, restaurant, supabase }: { role: string; restau
   return (
     <div className="mx-auto min-h-dvh max-w-2xl bg-stone-50 px-4 pb-24 pt-4 text-stone-900">
       <header><h1 className="text-xl font-extrabold">Manage Padharosaa</h1><p className="text-sm text-stone-700">{restaurant.name}</p></header>
-      <AreaNav role={role} current={role === 'owner' ? 'owner' : 'manager'} />
+      <AreaNav role={role} current={role === 'owner' ? 'owner' : 'manager'} kitchenDisplay={!!s.kitchen_display} />
       {msg && <p role={msg.ok ? 'status' : 'alert'} className={`mt-3 rounded-xl p-3 text-sm font-semibold ${msg.ok ? 'bg-emerald-50 text-emerald-950' : 'bg-red-50 text-red-900'}`}>{msg.text}</p>}
       {s.server_ready === false && <p role="alert" className="mt-3 rounded-xl bg-red-50 p-3 text-sm font-semibold text-red-900">Guest sign-in is switched off: the setting PADHAROSAA_DATA_KEY is missing on the server. Add it in your hosting settings (Vercel → Environment Variables) and redeploy. Until then guests cannot enter.</p>}
       <Checklist s={s} insta={insta} />
@@ -64,8 +64,10 @@ export function ManageApp({ role, restaurant, supabase }: { role: string; restau
       <HomeCard s={s} save={save} />
       <StayCard s={s} save={save} />
       <LookCard s={s} insta={insta} restaurantId={restaurant.id} sb={sb} save={save} />
-      <Card title="Room dining" hint="Switch off if your hotel does not serve food to rooms. Then 'Room delivery' is never offered, and the kitchen can only choose Takeaway.">
+      <Card title="Room dining" hint="Switch off if your hotel does not serve food to rooms. Then 'Room delivery' is never offered, and the desk can only choose Takeaway.">
         <label className="flex min-h-11 items-center gap-3 font-semibold"><input type="checkbox" className="h-5 w-5" checked={s.room_dining} onChange={(e) => void save('dining', { room_dining: e.target.checked })} />Our hotel serves food to rooms</label>
+        <label className="flex min-h-11 items-center gap-3 font-semibold"><input type="checkbox" className="h-5 w-5" checked={!!s.kitchen_display} onChange={(e) => void save('kitchen-display', { kitchen_display: e.target.checked })} />We have a separate kitchen display</label>
+        <p className="text-sm text-stone-700">Everything always arrives at the reception desk first (every request and every food order). With a kitchen display, the kitchen also gets its own screen with the food orders.</p>
       </Card>
       <BuffetManager flash={flash} />
       <GuideManager flash={flash} />

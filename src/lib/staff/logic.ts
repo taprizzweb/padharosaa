@@ -17,6 +17,9 @@ export interface BoardOrder {
   /** room orders only: how it reaches the guest */
   handover?: 'deliver' | 'takeaway' | null;
   handover_minutes?: number | null;
+  ready_in_at?: string | null;
+  guest_eta_minutes?: number | null;
+  guest_eta_at?: string | null;
   is_room?: boolean;
   items: { name: string; qty: number; note: string | null }[];
 }

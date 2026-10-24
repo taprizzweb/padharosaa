@@ -1,41 +1,35 @@
-// The named front doors of a Padharosaa hotel (padharosaa.<domain>/owner, /manager, /kitchen, /reception, /housekeeping, /desk).
-// Pure rules, shared by the pages, the sign-in redirect and the middleware. The database still decides what each person
-// can actually see or do; this only decides which page is "theirs".
-export const AREAS = ['owner', 'manager', 'kitchen', 'reception', 'housekeeping', 'desk'] as const;
+// The named front doors of a Padharosaa hotel: padharosaa.<domain>/owner, /manager and /desk (the reception desk, where EVERY request and
+// food order arrives), plus /kitchen for hotels that say they have a separate kitchen display. Pure rules, shared by the pages, the
+// sign-in redirect and the middleware. The database still decides what each person can actually see or do; this only decides which
+// page is "theirs".
+export const AREAS = ['owner', 'manager', 'desk', 'kitchen'] as const;
 export type Area = (typeof AREAS)[number];
 
-/** Which teams each screen is about. The owner and manager see every team's requests everywhere; these decide what a screen starts on. */
+export const isArea = (v: string): v is Area => (AREAS as readonly string[]).includes(v);
+
+export const AREA_TITLE: Record<Area, string> = { owner: 'Owner', manager: 'Manager', desk: 'Reception desk', kitchen: 'Kitchen' };
+
+/** Which team's requests a filter chip shows. The owner and manager see every team's requests; the desk starts on all of them. */
 export type Group = 'all' | 'reception' | 'housekeeping' | 'kitchen' | 'manager';
 export const GROUP_TEAMS: Record<Group, readonly string[] | null> = {
   all: null, reception: ['front_desk', 'concierge'], housekeeping: ['housekeeping', 'maintenance'], kitchen: ['kitchen'], manager: ['manager'],
 };
 export const GROUP_LABEL: Record<Group, string> = { all: 'All', reception: 'Reception', housekeeping: 'Housekeeping', kitchen: 'Kitchen', manager: 'Manager' };
-export const groupOf = (a: Area): Group => (a === 'reception' || a === 'housekeeping' || a === 'kitchen' ? a : 'all');
 
-export const isArea = (v: string): v is Area => (AREAS as readonly string[]).includes(v);
-
-export const AREA_TITLE: Record<Area, string> = {
-  owner: 'Owner', manager: 'Manager', kitchen: 'Kitchen', reception: 'Reception', housekeeping: 'Housekeeping', desk: 'Padharosaa desk',
-};
-
-/** teams = what the database says this person may act on (padh_my_alerts().teams), e.g. ['housekeeping','maintenance'] */
-export function homeFor(role: string, teams: readonly string[]): Area | null {
-  if (role === 'owner') return 'owner';
-  if (role === 'manager') return 'manager';
-  if (role === 'kitchen') return 'kitchen';
-  if (role === 'waiter') {
-    const front = teams.some((t) => t === 'front_desk' || t === 'concierge');
-    const house = teams.some((t) => t === 'housekeeping' || t === 'maintenance');
-    return house && !front ? 'housekeeping' : 'reception';
-  }
+/** Owner, manager and kitchen have their own page; everyone else on staff (reception, concierge, housekeeping...) works on the desk. */
+export function homeFor(role: string): Area | null {
+  if (role === 'owner' || role === 'manager' || role === 'kitchen') return role;
+  if (role === 'waiter') return 'desk';
   return null;
 }
 
-export function canOpen(area: Area, role: string, teams: readonly string[]): boolean {
-  if (area === 'desk') return homeFor(role, teams) !== null; // every active staff member has the shared board
-  if (role === 'owner') return true;
-  if (role === 'manager') return area !== 'owner';
-  return homeFor(role, teams) === area;
+export function canOpen(area: Area, role: string): boolean {
+  const home = homeFor(role);
+  if (!home) return false;
+  if (area === 'desk') return true; // every active staff member can open the desk (they see what their role allows)
+  if (area === 'kitchen') return role === 'kitchen' || role === 'owner' || role === 'manager';
+  if (area === 'manager') return role === 'owner' || role === 'manager';
+  return role === 'owner';
 }
 
 /** On padharosaa.* the clean address is used; anywhere else (e.g. a vercel.app preview) the full path. */

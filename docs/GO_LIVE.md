@@ -31,18 +31,22 @@ Everything below is done from the browser. Nothing needs a developer once the ap
 
 The "Finish setup" box at the top of the page lists whatever is still empty.
 
-## Who opens what
+## Who opens what (three screens)
 
 | Person | Address | Sees |
 | --- | --- | --- |
 | Owner | `/owner` | everything, and can make a new guest link (own password needed) |
-| Manager | `/manager` | the same console; can see but not replace the guest link |
-| Reception, concierge | `/reception` | front desk and concierge requests |
-| Housekeeping, maintenance | `/housekeeping` | only their own team's requests |
-| Kitchen | `/kitchen` | food orders (the kitchen picks Room delivery or Takeaway) |
-| Anyone on staff | `/desk` | the shared live board for their own role |
+| Manager | `/manager` | the same console; can see but not replace the guest link; can open the desk |
+| Reception desk | `/desk` | **everything**: every help request of every kind, and every food order, in one list |
+| Kitchen display (optional) | `/kitchen` | only if the owner ticks "We have a separate kitchen display" in Manage; then food orders also appear here |
 
+Old addresses (`/reception`, `/housekeeping`) open the desk. The desk informs the right person (housekeeping, maintenance, kitchen) by phone, as hotels already do.
 Everyone signs in at the same place, `padharosaa.taprizz.in/login`, and is sent to their page.
+
+## Takeaway orders
+
+The guest picks Room delivery or Takeaway in the cart. If the hotel has no room dining, the guest is told so and can take the food from the desk.
+For takeaway, the **desk** taps "ready in N min". The guest sees that time and answers "I'm here now" or how many minutes they need. If the desk changes the time, the guest is asked again.
 
 ## Guest link and printed QR codes
 

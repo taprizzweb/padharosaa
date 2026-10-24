@@ -17,6 +17,7 @@ creating things needs an `Idempotency-Key` header (8–64 chars).
 ## Staff (existing Supabase Auth login; role checked in SQL; 120 actions/min per person)
 `POST staff/requests/{id}/{accept|complete|dismiss|pass|resolve}` (body carries `version`; stale = 409),
 `POST staff/sessions/{id}/{end|block}`, `POST staff/rooms/{id}/{stay-code|checkout}`, `GET staff/qr` (owner/manager: the guest link, any time), `POST staff/qr/rotate {password}` (owner only; asks for the owner's own password; every printed QR stops working). Platform admin: `GET|POST platform/hotels/{id}/qr` (same, with the admin's own password).
+`POST staff/kitchen-display {on}` (owner/manager: hotel has a separate kitchen display). Orders: `POST /api/staff/order-ready-in` (desk sets takeaway "ready in N min"); guest answers with `POST /api/guest/order-eta {minutes}` (0 = here now).
 
 ## Platform
 `POST platform/hotels/{id}/enable` (Taprizz admin only) — returns the QR key once.

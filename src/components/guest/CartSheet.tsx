@@ -12,8 +12,8 @@ export function CartSheet({
 }: {
   open: boolean; onClose: () => void; t: Translator; cart: Cart; items: Map<string, MenuItem>;
   placing: boolean; error: string | null; adjusted: boolean; onPlace: () => void;
-  /** hotel guests only: Room delivery or Takeaway (with a pickup time) */
-  handoverUi?: { roomDining: boolean; mode: 'deliver' | 'takeaway'; setMode: (m: 'deliver' | 'takeaway') => void; minutes: number; setMinutes: (n: number) => void } | null;
+  /** hotel guests only: Room delivery or Takeaway (the desk sets the Takeaway time) */
+  handoverUi?: { roomDining: boolean; mode: 'deliver' | 'takeaway'; setMode: (m: 'deliver' | 'takeaway') => void } | null;
 }) {
   const [openNotes, setOpenNotes] = useState<Set<string>>(new Set());
   return (
@@ -87,17 +87,6 @@ export function CartSheet({
                   {t('cart.handover.takeaway')}<span className="block text-xs font-medium">{t('cart.handover.takeawaySub')}</span>
                 </button>
               </div>
-              {(!handoverUi.roomDining || handoverUi.mode === 'takeaway') && (
-                <div role="group" aria-label={t('cart.handover.time')}>
-                  <p className="text-sm font-medium text-stone-800">{t('cart.handover.time')}</p>
-                  <div className="mt-1 flex flex-wrap gap-2">
-                    {[15, 30, 45, 60].map((n) => (
-                      <button key={n} type="button" aria-pressed={handoverUi.minutes === n} onClick={() => handoverUi.setMinutes(n)}
-                        className={`min-h-11 rounded-full border-2 px-4 text-sm font-bold ${handoverUi.minutes === n ? 'border-stone-900 bg-stone-900 text-white' : 'border-stone-400 bg-white text-stone-900'}`}>{t('cart.handover.minutes', { n })}</button>
-                    ))}
-                  </div>
-                </div>
-              )}
             </fieldset>
           )}
 

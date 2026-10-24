@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { formatPaise } from '@/lib/money';
-import { ApiFailure, askBill, callWaiter, currentPosition, placeOrder } from '@/lib/guest/client';
+import { ApiFailure, askBill, callWaiter, currentPosition, placeOrder, sendOrderEta } from '@/lib/guest/client';
 import type { MenuData, MenuItem, PayMode, WaiterReason } from '@/lib/guest/types';
 import { errorMessageKey, t } from '@/lib/i18n';
 import { trackEvent, type TrackIds } from '@/lib/guest/analytics';
@@ -36,7 +36,6 @@ export function GuestApp({
   const rdRaw = qs.get('rd');
   const rd = rdRaw === '1' || rdRaw === '0' ? rdRaw : null;
   const [handover, setHandover] = useState<'deliver' | 'takeaway'>(rdRaw === '0' ? 'takeaway' : 'deliver');
-  const [pickup, setPickup] = useState(30);
   const carry = [rd ? `&rd=${rd}` : '', back ? `&back=${encodeURIComponent(back)}` : '', catsParam.length ? `&cats=${catsParam.join(',')}` : '', dietParam.length ? `&diet=${dietParam.join(',')}` : ''].join('');
   const categories = useMemo(() => menu.categories ?? [], [menu.categories]);
   const items = useMemo(() => new Map<string, MenuItem>(categories.flatMap((c) => c.items).map((i) => [i.id, i])), [categories]);
@@ -123,7 +122,7 @@ export function GuestApp({
         ...(l.note?.trim() ? { note: l.note.trim() } : {}),
       })),
       note: cart.note.trim() || undefined,
-      ...(rd ? { handover: rd === '0' ? ('takeaway' as const) : handover, ...((rd === '0' || handover === 'takeaway') ? { pickup_minutes: pickup } : {}) } : {}),
+      ...(rd ? { handover: rd === '0' ? ('takeaway' as const) : handover } : {}),
     };
     try {
       const idem = idempotencyKeyFor(slug, JSON.stringify(payload));
@@ -198,7 +197,7 @@ export function GuestApp({
         {showStatus && closed && status ? (
           <ThankYou data={status} t={t} onBack={() => setView('menu')} exploreCode={menu.restaurant.explore_code} onExplore={() => track('explore_click')} />
         ) : showStatus ? (
-          <StatusView data={status} t={t} onAddMore={() => setView('menu')} />
+          <StatusView data={status} t={t} onAddMore={() => setView('menu')} onEta={async (orderNo, minutes) => { if (!token) return; await sendOrderEta({ slug, token, order_no: orderNo, minutes }); live.refresh(); }} />
         ) : (
           <MenuView initialCats={catsParam} initialDiet={dietParam} categories={categories} t={t} canOrder={canOrder} imageBase={imageBase} qtyOf={cart.qtyOf} onAdd={(id) => { track('cart_add', { item_id: id }); cart.add(id); }} onSet={cart.setQty} onCustomise={setChoosing} onTrack={track} />
         )}
@@ -251,7 +250,7 @@ export function GuestApp({
           setChoosing(null);
         }}
       />
-      <CartSheet open={sheet === 'cart'} onClose={() => setSheet(null)} t={t} cart={cart} items={items} placing={placing} error={orderError} adjusted={cart.adjusted} onPlace={place} handoverUi={rd ? { roomDining: rd === '1', mode: handover, setMode: setHandover, minutes: pickup, setMinutes: setPickup } : null} />
+      <CartSheet open={sheet === 'cart'} onClose={() => setSheet(null)} t={t} cart={cart} items={items} placing={placing} error={orderError} adjusted={cart.adjusted} onPlace={place} handoverUi={rd ? { roomDining: rd === '1', mode: handover, setMode: setHandover } : null} />
       <WaiterSheet open={sheet === 'waiter'} onClose={() => setSheet(null)} t={t} openRequest={waiterReq} busy={helpBusy} error={helpError} onPick={(r: WaiterReason) => token && void help(() => callWaiter(slug, token, r))} />
       <BillSheet open={sheet === 'bill'} onClose={() => setSheet(null)} t={t} openRequest={billReq} busy={helpBusy} error={helpError} onPick={(m: PayMode) => {
         if (!token) return;

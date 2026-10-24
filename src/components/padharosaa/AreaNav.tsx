@@ -3,20 +3,18 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 
-export type NavCurrent = 'owner' | 'manager' | 'desk' | 'reception' | 'housekeeping' | 'kitchen';
+export type NavCurrent = 'owner' | 'manager' | 'desk' | 'kitchen';
 
-/** Owner and manager see every screen of the hotel: one tap to move between the console, the live board and each team's screen. */
-export function AreaNav({ role, current }: { role: string; current: NavCurrent }) {
+/** Owner and manager see every screen of the hotel: the console, the one reception desk, and the kitchen display when the hotel has one. */
+export function AreaNav({ role, current, kitchenDisplay = false }: { role: string; current: NavCurrent; kitchenDisplay?: boolean }) {
   const [pad, setPad] = useState(false);
   useEffect(() => { setPad(/^padharosaa\./i.test(location.host)); }, []);
   if (role !== 'owner' && role !== 'manager') return null;
   const to = (a: string) => (pad ? `/${a}` : `/padharosaa/${a}`);
   const items: [NavCurrent, string, string][] = [
     [role as NavCurrent, role === 'owner' ? 'Owner console' : 'Manager console', to(role)],
-    ['desk', 'Live board (all)', to('desk')],
-    ['reception', 'Reception', to('reception')],
-    ['housekeeping', 'Housekeeping', to('housekeeping')],
-    ['kitchen', 'Kitchen (orders + menu)', to('kitchen')],
+    ['desk', 'Reception desk (everything)', to('desk')],
+    ...(kitchenDisplay ? ([['kitchen', 'Kitchen display', to('kitchen')]] as [NavCurrent, string, string][]) : []),
   ];
   return (
     <nav aria-label="Screens" className="-mx-4 mt-3 flex gap-2 overflow-x-auto px-4 pb-1">

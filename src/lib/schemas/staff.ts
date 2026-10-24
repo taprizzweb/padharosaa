@@ -7,6 +7,7 @@ const reason = z
   .transform((s) => s.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, '').trim())
   .pipe(z.string().max(200));
 
+export const orderReadyInBody = z.object({ order_id: uuid, minutes: z.number().int().min(1).max(180) }).strict();
 export const orderHandoverBody = z.object({ order_id: uuid, mode: z.enum(['deliver', 'takeaway']) }).strict();
 
 export const orderStatusBody = z

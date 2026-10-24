@@ -1,4 +1,5 @@
 'use client';
+import { useState } from 'react';
 import { exploreUrl } from '@/lib/profile';
 import { formatPaise } from '@/lib/money';
 import type { OrderStatus, StatusData, StatusOrder } from '@/lib/guest/types';
@@ -27,7 +28,41 @@ function Stepper({ status, t }: { status: Exclude<OrderStatus, 'cancelled'>; t: 
   );
 }
 
-function OrderCard({ o, t, roomDining }: { o: StatusOrder; t: Translator; roomDining?: boolean }) {
+/** Takeaway: the desk says when it will be ready, and the guest answers how long they will take to reach the desk. */
+function Takeaway({ o, t, roomDining, onEta }: { o: StatusOrder; t: Translator; roomDining?: boolean; onEta?: (orderNo: number, minutes: number) => Promise<void> }) {
+  const [busy, setBusy] = useState(false);
+  const [changing, setChanging] = useState(false);
+  const ready = o.handover_minutes && o.ready_in_at ? new Date(new Date(o.ready_in_at).getTime() + o.handover_minutes * 60_000) : null;
+  const answered = o.guest_eta_minutes !== null && o.guest_eta_minutes !== undefined;
+  const reply = async (n: number) => { if (!onEta || busy) return; setBusy(true); try { await onEta(o.order_no, n); setChanging(false); } finally { setBusy(false); } };
+  const chip = 'min-h-11 rounded-full border-2 px-4 text-sm font-bold border-sky-900 bg-white text-sky-950 disabled:opacity-60';
+  return (
+    <div className="mt-3 space-y-2 rounded-lg bg-sky-50 px-3 py-2 text-sm font-semibold text-sky-950">
+      {roomDining === false && <p>{t('status.handover.noRoom')}</p>}
+      {!ready ? <p>{t('status.takeaway.wait')}</p> : (
+        <>
+          <p>{t('status.takeaway.ready', { n: o.handover_minutes ?? 0, time: fmtTime(ready.toISOString()) })}</p>
+          {answered && !changing ? (
+            <>
+              <p>{o.guest_eta_minutes === 0 ? t('status.takeaway.repliedHere') : t('status.takeaway.replied', { n: o.guest_eta_minutes ?? 0 })}</p>
+              <button type="button" className="min-h-11 text-sm font-semibold underline" onClick={() => setChanging(true)}>{t('status.takeaway.change')}</button>
+            </>
+          ) : (
+            <div role="group" aria-label={t('status.takeaway.ask')}>
+              <p>{t('status.takeaway.ask')}</p>
+              <div className="mt-1 flex flex-wrap gap-2">
+                <button type="button" disabled={busy} className={chip} onClick={() => void reply(0)}>{t('status.takeaway.here')}</button>
+                {[5, 10, 15, 20, 30].map((n) => <button key={n} type="button" disabled={busy} className={chip} onClick={() => void reply(n)}>{t('status.takeaway.min', { n })}</button>)}
+              </div>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+function OrderCard({ o, t, roomDining, onEta }: { o: StatusOrder; t: Translator; roomDining?: boolean; onEta?: (orderNo: number, minutes: number) => Promise<void> }) {
   const cancelled = o.status === 'cancelled';
   return (
     <li className={`rounded-2xl border bg-white p-4 ${cancelled ? 'border-red-200' : 'border-stone-200'}`}>
@@ -52,12 +87,8 @@ function OrderCard({ o, t, roomDining }: { o: StatusOrder; t: Translator; roomDi
         </p>
       ) : (
         <>
-          {o.handover && (
-            <p className="mt-3 rounded-lg bg-sky-50 px-3 py-2 text-sm font-semibold text-sky-950">
-              {o.handover === 'takeaway' && roomDining === false && <span className="mb-1 block">{t('status.handover.noRoom')}</span>}
-              {o.handover === 'takeaway' && o.handover_minutes ? t('status.handover.takeawayTime', { n: o.handover_minutes }) : t(`status.handover.${o.handover}` as 'status.handover.deliver')}
-            </p>
-          )}
+          {o.handover === 'deliver' && <p className="mt-3 rounded-lg bg-sky-50 px-3 py-2 text-sm font-semibold text-sky-950">{t('status.handover.deliver')}</p>}
+          {o.handover === 'takeaway' && <Takeaway o={o} t={t} roomDining={roomDining} onEta={onEta} />}
           <Stepper status={o.status as Exclude<OrderStatus, 'cancelled'>} t={t} />
           {o.status === 'placed' && <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-center text-sm font-semibold text-amber-900">{t('status.notAccepted')}</p>}
         </>
@@ -66,7 +97,7 @@ function OrderCard({ o, t, roomDining }: { o: StatusOrder; t: Translator; roomDi
   );
 }
 
-export function StatusView({ data, t, onAddMore }: { data: StatusData | null; t: Translator; onAddMore: () => void }) {
+export function StatusView({ data, t, onAddMore, onEta }: { data: StatusData | null; t: Translator; onAddMore: () => void; onEta?: (orderNo: number, minutes: number) => Promise<void> }) {
   const orders = data?.orders ?? [];
   return (
     <div className="mx-auto max-w-2xl px-4 pb-4 pt-4">
@@ -81,7 +112,7 @@ export function StatusView({ data, t, onAddMore }: { data: StatusData | null; t:
           <p className="py-10 text-center text-stone-600">{t('status.noOrders')}</p>
         ) : (
           <>
-            <ul className="mt-3 space-y-3">{[...orders].reverse().map((o) => <OrderCard key={o.order_no} o={o} t={t}  roomDining={data?.room_dining} />)}</ul>
+            <ul className="mt-3 space-y-3">{[...orders].reverse().map((o) => <OrderCard key={o.order_no} o={o} t={t} roomDining={data?.room_dining} onEta={onEta} />)}</ul>
             <div className="mt-4 flex items-baseline justify-between rounded-2xl bg-stone-900 px-4 py-3 text-white">
               <span className="font-semibold">{t('status.tableTotal')}</span>
               <span className="text-xl font-extrabold">{formatPaise(data.total_paise ?? 0)}</span>

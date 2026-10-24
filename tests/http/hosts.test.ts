@@ -20,7 +20,7 @@ describe('one app, two front doors', () => {
     expect(new URL(desk.headers.get('location')!).pathname).toBe('/login');
   });
   it('every role address asks a signed-out visitor to sign in on the Padharosaa page, then comes back', async () => {
-    for (const a of ['owner', 'manager', 'kitchen', 'reception', 'housekeeping', 'desk', 'orders']) {
+    for (const a of ['owner', 'manager', 'kitchen', 'desk', 'orders']) {
       const res = await fetch(`${BASE}/${a}`, { headers: pad, redirect: 'manual' });
       expect(res.status, a).toBe(307);
       const to = new URL(res.headers.get('location')!);
@@ -28,8 +28,15 @@ describe('one app, two front doors', () => {
       expect(to.searchParams.get('next'), a).toBe(a === 'orders' ? '/staff' : `/padharosaa/${a}`);
     }
   });
+  it('the old reception and housekeeping addresses go to the one desk', async () => {
+    for (const a of ['reception', 'housekeeping']) {
+      const res = await fetch(`${BASE}/${a}`, { headers: pad, redirect: 'manual' });
+      expect(res.status, a).toBe(307);
+      expect(new URL(res.headers.get('location')!).pathname, a).toBe('/desk');
+    }
+  });
   it('the role addresses are not a Padharosaa page on the menu host (they are just menu slugs there)', async () => {
-    for (const a of ['owner', 'kitchen', 'reception']) {
+    for (const a of ['owner', 'kitchen']) {
       const res = await fetch(`${BASE}/${a}`, { headers: { 'x-forwarded-host': 'menu.taprizz.in' }, redirect: 'manual' });
       expect(res.status, a).not.toBe(307); // no sign-in redirect: the menu app does not know these addresses
       expect(await res.text(), a).not.toContain('Hotel staff sign in');

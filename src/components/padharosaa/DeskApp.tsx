@@ -7,13 +7,15 @@ import { AlertSound } from '@/components/staff/sound';
 import { ApiFailure } from '@/lib/guest/client';
 import { GROUP_LABEL, GROUP_TEAMS, type Group } from '@/lib/padharosaa/areas';
 import { AreaNav, type NavCurrent } from './AreaNav';
+import { OrderCardDesk, type OrderDeskActions } from './DeskOrders';
+import type { BoardOrder } from '@/lib/staff/logic';
 
 type Team = 'concierge' | 'front_desk' | 'housekeeping' | 'kitchen' | 'maintenance' | 'manager';
 interface Req {
   id: string; type: string; team: Team; label: string; detail: string | null; urgent: boolean; status: string; handover: string | null; version: number;
   created_at: string; accepted_at: string | null; room: string; guest_name: string; diet: string | null; occasion: string | null; mobile: string | null; guests_in_room: number;
 }
-interface Alerts { room_dining: boolean; muted: Team[]; teams: Team[] }
+interface Alerts { room_dining: boolean; kitchen_display?: boolean; muted: Team[]; teams: Team[] }
 const TEAM_NAME: Record<Team, string> = { concierge: 'Concierge', front_desk: 'Front desk', housekeeping: 'Housekeeping', kitchen: 'Kitchen', maintenance: 'Maintenance', manager: 'Manager' };
 const PRESETS = ['Not available right now', 'We do not offer this', 'Already on the way', 'Fully booked, please choose another time', 'We will call you'];
 const OUTCOMES = [['fixed', 'Fixed'], ['replacement_sent', 'Replacement sent'], ['room_changed', 'Room changed'], ['compensation_offered', 'Compensation offered']] as const;
@@ -21,13 +23,17 @@ const OPEN = ['received', 'accepted', 'preparing', 'ready'];
 
 const mins = (iso: string) => Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000));
 
-export function DeskApp({ role, hotel, title = 'Padharosaa desk', current = 'desk', start = 'all' }: { role: string; hotel: string; title?: string; current?: NavCurrent; start?: Group }) {
+export function DeskApp({ role, hotel, title = 'Reception desk', current = 'desk', start = 'all' }: { role: string; hotel: string; title?: string; current?: NavCurrent; start?: Group }) {
   const privileged = role === 'owner' || role === 'manager';
   const [group, setGroup] = useState<Group>(start);
   // on padharosaa.* the menu live screen is reached through /orders (the plain /staff address belongs to the desk there)
   const [ordersHref, setOrdersHref] = useState('/staff');
   useEffect(() => { if (/^padharosaa\./i.test(location.host)) setOrdersHref('/orders'); }, []);
   const [reqs, setReqs] = useState<Req[] | null>(null);
+  const [orders, setOrders] = useState<BoardOrder[]>([]);
+  const [orderRoomDining, setOrderRoomDining] = useState(true);
+  const seenOrders = useRef<Set<string>>(new Set());
+  const firstOrders = useRef(true);
   const [alerts, setAlerts] = useState<Alerts | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [soundOn, setSoundOn] = useState(false);
@@ -38,8 +44,9 @@ export function DeskApp({ role, hotel, title = 'Padharosaa desk', current = 'des
 
   const load = useCallback(async () => {
     try {
-      const [b, a] = await Promise.all([apiGet<{ requests: Req[] }>('/api/padharosaa/v1/staff/board'), apiGet<Alerts>('/api/padharosaa/v1/staff/alerts')]);
+      const [b, a, ob] = await Promise.all([apiGet<{ requests: Req[] }>('/api/padharosaa/v1/staff/board'), apiGet<Alerts>('/api/padharosaa/v1/staff/alerts'), apiGet<{ orders: BoardOrder[]; room_dining?: boolean }>('/api/staff/board').catch(() => null)]);
       setReqs(b.requests); setAlerts(a); setErr(null);
+      if (ob) { setOrders(ob.orders ?? []); setOrderRoomDining(ob.room_dining !== false); }
     } catch (e) {
       if (e instanceof ApiFailure && e.status === 401) window.location.assign('/login?next=/padharosaa/desk');
       else if (e instanceof ApiFailure && e.status === 403) setErr('This restaurant is not a Padharosaa hotel yet. Please ask Taprizz to switch Padharosaa on for it, then reload this page.');
@@ -63,6 +70,26 @@ export function DeskApp({ role, hotel, title = 'Padharosaa desk', current = 'des
   }, [reqs, pending]);
   useEffect(() => { if (!pending.length) return; const i = setInterval(() => sound.current.play(pending.some((r) => r.urgent) ? 'help' : 'waiter'), 20000); return () => clearInterval(i); }, [pending]);
 
+  // food orders ring the same alarm: once for each new order, and again every 20 seconds while one is still waiting
+  const waitingOrders = orders.filter((o) => o.status === 'placed');
+  useEffect(() => {
+    const fresh = waitingOrders.filter((o) => !seenOrders.current.has(o.id));
+    for (const o of orders) seenOrders.current.add(o.id);
+    if (firstOrders.current) { firstOrders.current = false; return; }
+    if (fresh.length && !muted.has('kitchen')) sound.current.play('order');
+  }, [orders, waitingOrders, muted]);
+  useEffect(() => { if (!waitingOrders.length || muted.has('kitchen')) return; const i = setInterval(() => sound.current.play('order'), 20000); return () => clearInterval(i); }, [waitingOrders.length, muted]);
+  const orderAct = async (f: () => Promise<unknown>) => {
+    try { await f(); setErr(null); } catch { setErr('That did not go through. Please try again.'); }
+    await load();
+  };
+  const orderActions: OrderDeskActions = {
+    advance: (o, to) => orderAct(() => apiPost('/api/staff/order-status', { order_id: o.id, status: to })),
+    cancel: (o, reason) => orderAct(() => apiPost('/api/staff/order-status', { order_id: o.id, status: 'cancelled', reason })),
+    handover: (o, mode) => orderAct(() => apiPost('/api/staff/order-handover', { order_id: o.id, mode })),
+    readyIn: (o, minutes) => orderAct(() => apiPost('/api/staff/order-ready-in', { order_id: o.id, minutes })),
+  };
+
   const act = async (r: Req, action: string, body: Record<string, unknown> = {}) => {
     try { await apiPost(`/api/padharosaa/v1/staff/requests/${r.id}/${action}`, { version: r.version, ...body }); setErr(null); }
     catch (e) { setErr(e instanceof ApiFailure && e.status === 409 ? 'Someone else just changed this request. The screen has been refreshed.' : 'That did not go through. Please try again.'); }
@@ -79,12 +106,12 @@ export function DeskApp({ role, hotel, title = 'Padharosaa desk', current = 'des
           {!privileged && <Link href={ordersHref} prefetch={false} className="inline-flex min-h-11 items-center rounded-full border-2 border-stone-800 px-4 text-sm font-bold">Food orders</Link>}
         </div>
       </header>
-      <AreaNav role={role} current={current} />
+      <AreaNav role={role} current={current} kitchenDisplay={!!alerts?.kitchen_display} />
       {privileged && (
         <div role="group" aria-label="Show requests of" className="mt-3 flex flex-wrap gap-2">
           {(Object.keys(GROUP_LABEL) as Group[]).map((g) => {
             const t = GROUP_TEAMS[g];
-            const n = t ? allOpen.filter((r) => t.includes(r.team)).length : allOpen.length;
+            const n = (t ? allOpen.filter((r) => t.includes(r.team)).length : allOpen.length) + (g === 'all' || g === 'kitchen' ? orders.length : 0);
             return <button key={g} type="button" aria-pressed={group === g} onClick={() => setGroup(g)} className={`min-h-11 rounded-full border-2 px-4 text-sm font-bold ${group === g ? 'border-stone-900 bg-stone-900 text-white' : 'border-stone-400 text-stone-900'}`}>{GROUP_LABEL[g]} ({n})</button>;
           })}
         </div>
@@ -98,9 +125,23 @@ export function DeskApp({ role, hotel, title = 'Padharosaa desk', current = 'des
         </section>
       )}
       {err && <p role="alert" className="mt-3 rounded-xl bg-red-50 p-3 text-sm font-semibold text-red-900">{err}</p>}
-      <h2 className="mt-5 text-sm font-bold uppercase tracking-wide text-stone-700">Open ({open.length})</h2>
-      {reqs && open.length === 0 && <p className="mt-2 rounded-2xl bg-white p-6 text-center text-stone-700">All clear. New requests appear here by themselves.</p>}
-      <ul className="mt-2 space-y-3">{open.map((r) => <Card key={r.id} r={r} role={role} roomDining={alerts?.room_dining ?? true} muted={muted.has(r.team)} act={act} />)}</ul>
+      {(() => {
+        // one list for everything: guest requests and food orders together, urgent first, then the longest-waiting first
+        const orderGroup = privileged ? GROUP_TEAMS[group] : null;
+        const shownOrders = orderGroup && group !== 'kitchen' ? [] : orders;
+        const items = [
+          ...open.map((r) => ({ key: `r${r.id}`, urgent: r.urgent, at: r.created_at, node: <Card key={`r${r.id}`} r={r} role={role} roomDining={alerts?.room_dining ?? true} muted={muted.has(r.team)} act={act} /> })),
+          ...shownOrders.map((o) => ({ key: `o${o.id}`, urgent: false, at: o.created_at, node: <OrderCardDesk key={`o${o.id}`} o={o} role={role} roomDining={orderRoomDining} a={orderActions} /> })),
+        ].sort((x, y) => Number(y.urgent) - Number(x.urgent) || new Date(x.at).getTime() - new Date(y.at).getTime());
+        return (
+          <>
+            <h2 className="mt-5 text-sm font-bold uppercase tracking-wide text-stone-700">Open ({items.length})</h2>
+            {reqs && items.length === 0 && <p className="mt-2 rounded-2xl bg-white p-6 text-center text-stone-700">All clear. New requests and food orders appear here by themselves.</p>}
+            <ul className="mt-2 space-y-3">{items.map((x) => x.node)}</ul>
+            <p className="mt-6 text-center text-sm"><Link href={ordersHref} prefetch={false} className="font-semibold underline">Restaurant tables: waiter calls and bills</Link></p>
+          </>
+        );
+      })()}
     </div>
   );
 }

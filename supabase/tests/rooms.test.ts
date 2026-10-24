@@ -268,3 +268,67 @@ describe('the guest picks Room delivery or Takeaway when ordering', () => {
     for (const role of ['anon', 'authenticated'] as const) expect((await db.asErr(role, role === 'authenticated' ? w.A.kitchen : null, `select public.guest_set_order_handover($1,$2,$3,'takeaway',null)`, [w.A.slug, open.token, o.order_no]))?.code).toBe('42501');
   });
 });
+
+describe('one desk: takeaway time from the desk, the guest answers; kitchen display switch', () => {
+  beforeEach(async () => { await db.admin(`update public.orders set status = 'served' where restaurant_id = $1 and status = 'placed'`, [w.A.rid]); });
+  const ready = (uid: string, id: string, m: number | null) => rpc(db, uid, `public.staff_set_order_ready_in($1, $2)`, [id, m]);
+  const readyErr = (uid: string, id: string, m: number | null) => rpcErr(db, uid, `public.staff_set_order_ready_in($1, $2)`, [id, m]);
+  const eta = (slug: string, token: string, no: number, m: number | null) => svc<any>('guest_set_order_eta', [slug, token, no, m]);
+  const etaErr = (slug: string, token: string, no: number, m: number | null) => svcErr('guest_set_order_eta', [slug, token, no, m]);
+
+  async function takeawayOrder() {
+    await db.admin(`insert into public.hotel_settings (restaurant_id, enabled, room_dining) values ($1, true, true) on conflict (restaurant_id) do update set enabled = true, room_dining = true`, [w.A.rid]);
+    const { token } = await getRooms(w.A.owner);
+    const open = await svc<{ token: string }>('guest_open_room', [w.A.slug, token, '204', null]);
+    const o = await placeOrder(db, w.A, { token: open.token }, line(w.A.chai));
+    return { ...o, token: open.token };
+  }
+
+  it('the desk gives a takeaway a time; the guest answers; the board and status carry both; a new time asks again', async () => {
+    const o = await takeawayOrder();
+    expect((await readyErr(w.A.waiter, o.order_id, 15))?.code).toBe('GM010'); // no handover chosen yet
+    await rpc(db, w.A.waiter, `public.staff_set_order_handover($1, 'takeaway')`, [o.order_id]);
+    expect((await ready(w.A.waiter, o.order_id, 15))[0]!.r).toMatchObject({ handover_minutes: 15 });
+    const st1 = await svc<any>('guest_get_status', [o.session_id, 30]);
+    expect(st1.orders.find((x: any) => x.order_no === o.order_no)).toMatchObject({ handover: 'takeaway', handover_minutes: 15, guest_eta_minutes: null });
+    expect(st1.orders.find((x: any) => x.order_no === o.order_no).ready_in_at).toBeTruthy();
+    expect(await eta(w.A.slug, o.token, o.order_no, 10)).toEqual({ guest_eta_minutes: 10 });
+    const board = (((await rpc(db, w.A.waiter, `public.staff_get_board()`))[0]!.r as any).orders as any[]).find((x) => x.id === o.order_id);
+    expect(board).toMatchObject({ handover_minutes: 15, guest_eta_minutes: 10 });
+    expect(board.guest_eta_at).toBeTruthy();
+    expect(await eta(w.A.slug, o.token, o.order_no, 0)).toEqual({ guest_eta_minutes: 0 }); // "I am here now"
+    await ready(w.A.manager, o.order_id, 25);
+    const b2 = (((await rpc(db, w.A.waiter, `public.staff_get_board()`))[0]!.r as any).orders as any[]).find((x) => x.id === o.order_id);
+    expect(b2).toMatchObject({ handover_minutes: 25, guest_eta_minutes: null }); // asked again
+  });
+
+  it('who may do what, and what values are sane', async () => {
+    const o = await takeawayOrder();
+    await rpc(db, w.A.kitchen, `public.staff_set_order_handover($1, 'takeaway')`, [o.order_id]);
+    for (const bad of [0, 181, null]) expect((await readyErr(w.A.waiter, o.order_id, bad))?.code, String(bad)).toBe('GM015');
+    expect((await readyErr(w.stranger, o.order_id, 10))?.code).toBe('GM011');
+    expect((await readyErr(w.B.waiter, o.order_id, 10))?.code).toBe('GM012'); // another hotel
+    expect((await etaErr(w.A.slug, o.token, o.order_no, 5))?.code).toBe('GM010'); // the desk has not given a time yet
+    await ready(w.A.kitchen, o.order_id, 20);
+    for (const bad of [-1, 181, null]) expect((await etaErr(w.A.slug, o.token, o.order_no, bad))?.code, String(bad)).toBe('GM015');
+    expect((await etaErr(w.A.slug, w.A.t1.token, o.order_no, 5))?.code).toBe('GM012'); // not their table
+    expect((await etaErr(w.B.slug, o.token, o.order_no, 5))?.code).toBe('GM012');
+    await rpc(db, w.A.kitchen, `public.staff_set_order_status($1, 'preparing', null)`, [o.order_id]);
+    await rpc(db, w.A.kitchen, `public.staff_set_order_status($1, 'ready', null)`, [o.order_id]);
+    await rpc(db, w.A.kitchen, `public.staff_set_order_status($1, 'served', null)`, [o.order_id]);
+    expect((await etaErr(w.A.slug, o.token, o.order_no, 5))?.code).toBe('GM010'); // already served
+    for (const role of ['anon', 'authenticated'] as const) expect((await db.asErr(role, role === 'authenticated' ? w.A.waiter : null, `select public.guest_set_order_eta($1,$2,$3,5)`, [w.A.slug, o.token, o.order_no]))?.code).toBe('42501');
+    expect((await db.asErr('service_role', null, `select public.staff_set_order_ready_in($1, 5)`, [o.order_id]))?.code).toBe('42501');
+  });
+
+  it('the kitchen display switch: owner and manager only, shown to staff', async () => {
+    await db.admin(`insert into public.hotel_settings (restaurant_id, enabled) values ($1, true) on conflict (restaurant_id) do update set enabled = true, kitchen_display = false`, [w.A.rid]);
+    expect(((await rpc(db, w.A.waiter, `public.padh_my_alerts()`))[0]!.r as any).kitchen_display).toBe(false);
+    for (const uid of [w.A.waiter, w.A.kitchen, w.stranger]) expect((await rpcErr(db, uid, `public.padh_set_kitchen_display(true)`))?.code, uid).toBe('GM011');
+    expect((await rpc(db, w.A.manager, `public.padh_set_kitchen_display(true)`))[0]!.r).toEqual({ kitchen_display: true });
+    expect(((await rpc(db, w.A.kitchen, `public.padh_my_alerts()`))[0]!.r as any).kitchen_display).toBe(true);
+    expect(((await rpc(db, w.A.owner, `public.padh_manage_settings()`))[0]!.r as any).kitchen_display).toBe(true);
+    expect((await rpcErr(db, w.A.owner, `public.padh_set_kitchen_display(null)`))?.code).toBe('GM015');
+    await rpc(db, w.A.owner, `public.padh_set_kitchen_display(false)`);
+  });
+});

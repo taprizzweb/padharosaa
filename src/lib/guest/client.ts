@@ -40,12 +40,14 @@ export interface PlaceOrderInput {
   items: { item_id: string; qty: number; note?: string; variant_id?: string; option_ids?: string[] }[];
   note?: string;
   handover?: 'deliver' | 'takeaway';
-  pickup_minutes?: number;
   idempotency_key: string;
   geo?: { lat: number; lng: number; accuracy: number };
 }
 export const placeOrder = (input: PlaceOrderInput) =>
   post<{ order_no: number; total_paise: number; status: string; replayed: boolean; handover?: 'deliver' | 'takeaway' | null }>('/api/guest/order', input);
+
+export const sendOrderEta = (input: { slug: string; token: string; order_no: number; minutes: number }) =>
+  post<{ guest_eta_minutes: number }>('/api/guest/order-eta', input);
 
 export const openRoom = (slug: string, token: string, room: string) =>
   post<{ token: string; label: string }>('/api/guest/room', { slug, token, room });

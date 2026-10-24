@@ -1,9 +1,6 @@
-import type { Metadata } from 'next';
-import { renderArea } from '../area';
+import { redirect } from 'next/navigation';
 
-export const metadata: Metadata = { title: 'Padharosaa Housekeeping', robots: { index: false, follow: false } };
-export const dynamic = 'force-dynamic';
-
+// There is one desk now: every request and every food order arrives there. Old bookmarks land on it.
 export default function Page() {
-  return renderArea('housekeeping');
+  redirect('/padharosaa/desk');
 }

@@ -31,15 +31,16 @@ export const orderBody = z
       .min(1)
       .max(25),
     note: text(200).optional(),
-    // hotel room orders only: how it reaches the guest, and the pickup time for Takeaway
+    // hotel room orders only: how it reaches the guest. (The desk sets the Takeaway time, never the guest.)
     handover: z.enum(['deliver', 'takeaway']).optional(),
-    pickup_minutes: z.number().int().min(5).max(180).optional(),
     idempotency_key: z.string().min(8).max(64).regex(/^[A-Za-z0-9_-]+$/),
     // Only sent when the cafe asks for it; used for one distance check and never stored.
     geo: z.object({ lat: z.number().min(-90).max(90), lng: z.number().min(-180).max(180), accuracy: z.number().min(0).max(100000) }).strict().optional(),
   })
   .strict();
 export type OrderBody = z.infer<typeof orderBody>;
+
+export const orderEtaBody = z.object({ slug, token, order_no: z.number().int().min(1), minutes: z.number().int().min(0).max(180) }).strict();
 
 export const roomBody = z.object({ slug, token, room: text(10).pipe(z.string().min(1)) }).strict();
 

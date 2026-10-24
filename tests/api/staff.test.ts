@@ -264,7 +264,7 @@ describe('POST /api/auth/login', () => {
   it('staff of a Padharosaa hotel land on their own page by default; an explicit next still wins', async () => {
     await db.admin(`insert into public.hotel_settings (restaurant_id) values ($1) on conflict do nothing`, [w.A.rid]);
     try {
-      for (const [who, page] of [[w.A.kitchen, 'kitchen'], [w.A.owner, 'owner'], [w.A.manager, 'manager'], [w.A.waiter, 'reception']] as const)
+      for (const [who, page] of [[w.A.kitchen, 'kitchen'], [w.A.owner, 'owner'], [w.A.manager, 'manager'], [w.A.waiter, 'desk']] as const)
         expect((await json(await call({ email: await emailOf(who), password: PASSWORD }))).next, page).toBe(`/padharosaa/${page}`);
       expect((await json(await call({ email: await emailOf(w.A.owner), password: PASSWORD, next: '/padharosaa/manage' }))).next).toBe('/padharosaa/manage');
       expect((await json(await call({ email: await emailOf(w.A.owner), password: PASSWORD, next: '/staff' }))).next).toBe('/staff');
@@ -277,7 +277,7 @@ describe('POST /api/auth/login', () => {
     const email = await emailOf(w.A.waiter);
     const pad = await call({ email, password: PASSWORD }, { host: 'padharosaa.taprizz.in' });
     expect(pad.status).toBe(200);
-    expect((await json(pad)).next).toBe('/reception'); // the clean address on padharosaa.*
+    expect((await json(pad)).next).toBe('/desk'); // the clean address on padharosaa.*
     expect((await json(await call({ email, password: PASSWORD }, { host: 'menu.taprizz.in' }))).next).toBe('/staff');
   });
   it('wrong password, unknown email and a non-staff account all give the SAME answer (no account enumeration)', async () => {

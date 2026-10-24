@@ -4,12 +4,11 @@ import { newNonce, securityHeaders } from '@/lib/security/csp';
 
 // Edge-safe: only reads NEXT_PUBLIC_* values (inlined at build time). The full env check runs at boot
 // in instrumentation.ts.
-const PROTECTED = /^\/(staff|dash|admin|account|padharosaa\/(desk|manage|owner|manager|kitchen|reception|housekeeping))(\/|$)/;
+const PROTECTED = /^\/(staff|dash|admin|account|padharosaa\/(desk|manage|owner|manager|kitchen))(\/|$)/;
 // padharosaa.<domain>: the clean role addresses are rewritten onto the real pages. '/orders' is the menu live screen (kitchen food orders).
 const PAD_ROUTES: Record<string, string> = {
   '/': '/padharosaa/login', '/login': '/padharosaa/login', '/orders': '/staff',
-  '/owner': '/padharosaa/owner', '/manager': '/padharosaa/manager', '/kitchen': '/padharosaa/kitchen', '/reception': '/padharosaa/reception',
-  '/housekeeping': '/padharosaa/housekeeping', '/desk': '/padharosaa/desk', '/demo': '/padharosaa/demo/rambagh', '/demo/rambagh': '/padharosaa/demo/rambagh',
+  '/owner': '/padharosaa/owner', '/manager': '/padharosaa/manager', '/kitchen': '/padharosaa/kitchen', '/desk': '/padharosaa/desk', '/demo': '/padharosaa/demo/rambagh', '/demo/rambagh': '/padharosaa/demo/rambagh',
 };
 
 export async function middleware(request: NextRequest) {
@@ -42,6 +41,11 @@ export async function middleware(request: NextRequest) {
     if (path === '/staff') {
       const to = request.nextUrl.clone();
       to.pathname = '/padharosaa/desk';
+      return decorate(NextResponse.redirect(to));
+    }
+    if (path === '/reception' || path === '/housekeeping') {
+      const to = request.nextUrl.clone();
+      to.pathname = '/desk';
       return decorate(NextResponse.redirect(to));
     }
     const target = PAD_ROUTES[path];

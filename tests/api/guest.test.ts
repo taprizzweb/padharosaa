@@ -55,11 +55,11 @@ describe('hotel guests choose Room delivery or Takeaway while ordering', () => {
 
   it('Takeaway with a pickup time and Room delivery are saved with the order; the status shows them', async () => {
     const t = await roomTable('502');
-    const res = await orderPOST(req('/api/guest/order', orderBody(t, { handover: 'takeaway', pickup_minutes: 30 }), { ip: uniqueIp() }));
+    const res = await orderPOST(req('/api/guest/order', orderBody(t, { handover: 'takeaway' }), { ip: uniqueIp() }));
     expect(res.status).toBe(200);
     expect(await json(res)).toMatchObject({ handover: 'takeaway' });
     const cookie = cookieFrom(res)!;
-    expect((await statusOf(cookie)).orders[0]).toMatchObject({ handover: 'takeaway', handover_minutes: 30 });
+    expect((await statusOf(cookie)).orders[0]).toMatchObject({ handover: 'takeaway', handover_minutes: null }); // the desk, not the guest, sets the time
     const t2 = await roomTable('503');
     const r2 = await orderPOST(req('/api/guest/order', orderBody(t2, { handover: 'deliver' }), { ip: uniqueIp() }));
     expect(await json(r2)).toMatchObject({ handover: 'deliver' });
@@ -68,7 +68,7 @@ describe('hotel guests choose Room delivery or Takeaway while ordering', () => {
   it('a hotel without room dining turns Room delivery into Takeaway, and the status says delivery is not available', async () => {
     const t = await roomTable('504');
     await db.admin(`update public.hotel_settings set room_dining = false where restaurant_id = $1`, [w.A.rid]);
-    const res = await orderPOST(req('/api/guest/order', orderBody(t, { handover: 'deliver', pickup_minutes: 15 }), { ip: uniqueIp() }));
+    const res = await orderPOST(req('/api/guest/order', orderBody(t, { handover: 'deliver' }), { ip: uniqueIp() }));
     expect(res.status).toBe(200);
     expect(await json(res)).toMatchObject({ handover: 'takeaway' });
     const st = await statusOf(cookieFrom(res)!);
@@ -79,10 +79,10 @@ describe('hotel guests choose Room delivery or Takeaway while ordering', () => {
 
   it('an ordinary table order ignores the choice (it is still placed); bad values are refused before anything happens', async () => {
     const t = await freshTable();
-    const res = await orderPOST(req('/api/guest/order', orderBody(t, { handover: 'takeaway', pickup_minutes: 20 }), { ip: uniqueIp() }));
+    const res = await orderPOST(req('/api/guest/order', orderBody(t, { handover: 'takeaway' }), { ip: uniqueIp() }));
     expect(res.status).toBe(200);
     expect((await json(res)).handover).toBeNull();
-    for (const bad of [{ handover: 'bike' }, { handover: 'takeaway', pickup_minutes: 2 }, { handover: 'takeaway', pickup_minutes: 999 }]) {
+    for (const bad of [{ handover: 'bike' }, { handover: 'takeaway', pickup_minutes: 30 }]) { // the guest can no longer pick the time
       expect((await orderPOST(req('/api/guest/order', orderBody(await freshTable(), bad), { ip: uniqueIp() }))).status, JSON.stringify(bad)).toBe(400);
     }
   });

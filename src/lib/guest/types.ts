@@ -66,7 +66,10 @@ export interface StatusOrder {
   cancel_reason: string | null;
   /** hotel room orders: how the order reaches the guest (chosen by the guest, changeable by the kitchen) and the pickup time for Takeaway */
   handover?: 'deliver' | 'takeaway' | null;
+  /** Takeaway: the desk's "ready in" minutes, when it was said, and the guest's reply (0 = here now) */
   handover_minutes?: number | null;
+  ready_in_at?: string | null;
+  guest_eta_minutes?: number | null;
   items: StatusOrderItem[];
 }
 export interface StatusRequest {
