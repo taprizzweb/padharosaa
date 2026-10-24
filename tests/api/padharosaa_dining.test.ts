@@ -104,7 +104,9 @@ describe('dining link and chips', () => {
     const cookie = await guest();
     const cat = (await db.admin<{ id: string }>(`select id from public.categories where restaurant_id = $1 limit 1`, [w.A.rid]))[0]!.id;
     await db.admin(`insert into public.categories (restaurant_id, name_en, name_hi) values ($1, 'Empty one', 'x')`, [w.A.rid]);
-    // no menu link and no room-service link yet: nothing to open
+    // a hotel always has its own room-service link now, so Dining is available from the start; switching it off (the old way) still hides Dining
+    expect(((await (await diningGET(mk('/d', { cookie }))).json()) as any).available).toBe(true);
+    await db.admin(`update public.restaurants set room_token = null where id = $1`, [w.A.rid]);
     expect(((await (await diningGET(mk('/d', { cookie }))).json()) as any).available).toBe(false);
     // the hotel's own restaurant on its room-service link
     const token = 'a'.repeat(64);
