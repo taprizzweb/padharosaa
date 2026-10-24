@@ -54,7 +54,7 @@ test('the owner sees the same link; a new one needs their own password and a tic
   const make = page.getByRole('button', { name: 'Create new link' });
   await expect(make).toBeDisabled(); // no password and no tick yet
   await page.getByLabel('Your password to confirm').fill('wrong-password');
-  await page.getByRole('checkbox').check();
+  await page.getByRole('checkbox', { name: /old QR codes will stop working/ }).check();
   await make.click();
   await expect(page.getByText('That password was not right')).toBeVisible();
   expect(await linkOf(page)).toBe(first);
@@ -98,7 +98,7 @@ test('a first-time owner link: no tick is asked for, and one tap creates it', as
   await signIn(page, 'owner@spice-garden.demo', /\/padharosaa\/owner$/, '/padharosaa/owner');
   await expect(page.getByText('No saved link yet')).toBeVisible();
   await page.getByRole('button', { name: 'Create guest link' }).click();
-  await expect(page.getByRole('checkbox')).toHaveCount(0);
+  await expect(page.getByRole('checkbox', { name: /old QR codes will stop working/ })).toHaveCount(0);
   await page.getByLabel('Your password to confirm').fill(DEMO_PASSWORD);
   await page.getByRole('button', { name: 'Create new link' }).click();
   await expect(page.getByLabel('Guest link')).toBeVisible();
