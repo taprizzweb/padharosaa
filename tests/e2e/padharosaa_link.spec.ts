@@ -136,11 +136,11 @@ test('a guest login left over from one hotel never opens another hotel\'s page',
 test('the owner adds many guide places from a CSV; sending the same list again adds nothing twice', async ({ page }) => {
   await signIn(page, 'owner@spice-garden.demo', /\/padharosaa\/owner$/, '/padharosaa/owner');
   const rows = 'Amer Fort, place, "Hilltop fort, mirror hall", Early morning, Amer\nLaxmi Misthan Bhandar, food, Famous for ghewar';
-  await page.getByLabel('Places CSV').fill(rows);
+  await page.getByLabel('Places CSV', { exact: true }).fill(rows);
   await page.getByRole('button', { name: 'Add these places' }).click();
   await expect(page.getByText('2 added and live for guests')).toBeVisible();
   await expect(page.getByText('Amer Fort', { exact: true }).first()).toBeVisible();
-  await page.getByLabel('Places CSV').fill(rows);
+  await page.getByLabel('Places CSV', { exact: true }).fill(rows);
   await page.getByRole('button', { name: 'Add these places' }).click();
   await expect(page.getByText(/0 added.*2 already in the guide/)).toBeVisible();
   expect((await q<{ n: number }>(`select count(*)::int n from public.guide_items where restaurant_id = ${RID} and active and not needs_review`))[0]!.n).toBe(2);
