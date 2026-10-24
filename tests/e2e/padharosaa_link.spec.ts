@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
-import { completeSignIn, q } from './helpers';
+import { q } from './helpers';
+import { DEMO_TOTP_SECRET, totp } from '../../supabase/tests/helpers/totp';
 import { DEMO_PASSWORD } from '../../supabase/tests/helpers/local-supabase';
 
 // The guest link of a Padharosaa hotel: always visible to the platform admin, the owner and the manager; a new one needs the
@@ -13,7 +14,13 @@ async function signIn(page: Page, email: string, landing: RegExp, next: string) 
   await page.getByLabel('Email').fill(email);
   await page.getByLabel('Password').fill(DEMO_PASSWORD);
   await page.getByRole('button', { name: 'Sign in' }).click();
-  await completeSignIn(page, undefined, landing);
+  // a demo owner or manager lands straight on the page they asked for; an admin or an account with a second step goes through it first
+  await page.waitForURL(new RegExp(`account/mfa|${landing.source}`), { timeout: 30_000 });
+  if (page.url().includes('/account/mfa')) {
+    await page.getByLabel('6-digit code').fill(totp(DEMO_TOTP_SECRET));
+    await page.getByRole('button', { name: 'Confirm' }).click();
+    await page.waitForURL(landing, { timeout: 30_000 });
+  }
 }
 
 test.beforeAll(async () => { await q(`delete from public.hotel_settings where restaurant_id = ${RID}`); });
