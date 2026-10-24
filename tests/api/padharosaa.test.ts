@@ -28,6 +28,7 @@ import { POST as staffSessPOST } from '@/app/api/padharosaa/v1/staff/sessions/[i
 import { POST as staffRoomPOST } from '@/app/api/padharosaa/v1/staff/rooms/[id]/[action]/route';
 import { serverEnv } from '@/env';
 import { GET as settingsGET } from '@/app/api/padharosaa/v1/staff/settings/route';
+import { GET as deskBoardGET } from '@/app/api/padharosaa/v1/staff/board/route';
 import { GET as roomsGET, POST as roomsPOST } from '@/app/api/padharosaa/v1/staff/rooms/route';
 import { POST as rotatePOST } from '@/app/api/padharosaa/v1/staff/qr/rotate/route';
 import { GET as qrGET } from '@/app/api/padharosaa/v1/staff/qr/route';
@@ -258,6 +259,18 @@ describe('staff actions over the API', () => {
     expect((await act(id, 'complete', { version: 1 })).status).toBe(409); // stale
     expect((await act(id, 'complete', { version: 2 })).status).toBe(200);
     expect((await act(id, 'launch', { version: 1 })).status).toBe(404);
+  });
+
+  it('one unreadable guest number never takes the desk down: the board still loads and that guest shows without a number', async () => {
+    const c = await guest('9888888882');
+    const id = await mkRequest(c, 'cab', 'Cab to station');
+    await db.admin(`update public.guest_sessions set mobile_enc = '\\x0102' where id = (select session_id from public.requests where id = $1)`, [id]);
+    as(w.A.waiter);
+    const res = await deskBoardGET(mk('/api/padharosaa/v1/staff/board'));
+    expect(res.status).toBe(200);
+    const row = ((await json(res)).requests as { id: string; mobile: string | null }[]).find((r) => r.id === id);
+    expect(row).toBeDefined();
+    expect(row!.mobile).toBeNull();
   });
 
   it('dismiss reaches the guest\'s chat with the reason; pass and resolve work; help "not yet" escalates', async () => {
