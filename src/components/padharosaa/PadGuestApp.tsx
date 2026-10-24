@@ -14,6 +14,8 @@ interface Home {
   links: { instagram_url: string | null; google_review_url: string | null; tripadvisor_url: string | null; menu_url: string | null };
   contacts: { reception: string | null; manager: string | null };
 }
+const clock12 = (hhmm: string) => { const [h, m] = hhmm.split(':').map(Number); return `${((h! + 11) % 12) + 1}:${String(m).padStart(2, '0')} ${h! < 12 ? 'AM' : 'PM'}`; };
+function ClosedBanner({ text }: { text: string | null }) { return text ? <p role="status" className="rounded-2xl p-3 text-sm font-semibold" style={{ background: '#FDF1D6', color: '#6b4308' }}>{text}</p> : null; }
 interface Me { name: string; room: string; language: string; hotel_name: string; slug?: string }
 interface ReqView {
   request: { id: string; label: string; status: string; dismissed_reason: string | null; created_at: string; accepted_at: string | null; completed_at: string | null; version: number; resolution: string | null; followup_asked: boolean };
@@ -27,13 +29,17 @@ export function PadGuestApp({ slug, qrKey, imageBase }: { slug: string; qrKey: s
   const [home, setHome] = useState<Home | null>(null);
   const [lang, setLang] = useState<Lang>('en');
   const [screen, setScreen] = useState<Screen>({ s: 'home' });
+  const [hours, setHours] = useState<{ open: boolean; start: string | null; end: string | null } | null>(null);
   const c = COPY[lang];
+  const closed = hours && !hours.open ? (hours.start ? fill(c.closedNow, { at: clock12(hours.start) }) : c.closedNoTime) : null;
 
+  const loadHours = useCallback(async () => { const r = await api<{ open: boolean; start: string | null; end: string | null }>('hours'); if (r.ok) setHours(r.data); }, []);
+  useEffect(() => { void loadHours(); const t = setInterval(() => { if (!document.hidden) void loadHours(); }, 60_000); return () => clearInterval(t); }, [loadHours]);
   const loadHome = useCallback(async () => {
     const r = await api<Home>('home');
-    if (r.ok) setHome(r.data);
+    if (r.ok) { setHome(r.data); void loadHours(); }
     else if (r.status === 401 || r.status === 403) setMe(null);
-  }, []);
+  }, [loadHours]);
 
   useEffect(() => {
     void (async () => {
@@ -54,13 +60,13 @@ export function PadGuestApp({ slug, qrKey, imageBase }: { slug: string; qrKey: s
         {me === null && <Login slug={slug} qrKey={qrKey} c={c} lang={lang} setLang={setLang} imageBase={imageBase} onDone={async () => { const r = await api<Me>('sessions/me'); if (r.ok) { setMe(r.data); await loadHome(); } }} />}
         {me && home && (
           <>
-            {screen.s === 'home' && <HomeScreen me={me} home={home} c={c} go={setScreen} imageBase={imageBase} lang={lang} setLang={setLang} />}
-            {screen.s === 'services' && <Services c={c} back={() => setScreen({ s: 'home' })} done={(id) => { void loadHome(); setScreen({ s: 'track', id }); }} />}
+            {screen.s === 'home' && <HomeScreen me={me} home={home} c={c} closed={closed} go={setScreen} imageBase={imageBase} lang={lang} setLang={setLang} />}
+            {screen.s === 'services' && <Services c={c} closed={closed} onClosed={() => void loadHours()} back={() => setScreen({ s: 'home' })} done={(id) => { void loadHome(); setScreen({ s: 'track', id }); }} />}
             {screen.s === 'guide' && <GuideScreen c={c} back={() => setScreen({ s: 'home' })} goPlan={() => setScreen({ s: 'plan' })} />}
             {screen.s === 'plan' && <PlanScreen c={c} back={() => setScreen({ s: 'home' })} goGuide={() => setScreen({ s: 'guide' })} />}
             {screen.s === 'buffet' && <BuffetScreen c={c} back={() => setScreen({ s: 'home' })} />}
             {screen.s === 'dining' && <DiningScreen c={c} back={() => setScreen({ s: 'home' })} />}
-            {screen.s === 'help' && <HelpDialog c={c} close={() => setScreen({ s: 'home' })} done={(id) => { void loadHome(); setScreen({ s: 'track', id }); }} />}
+            {screen.s === 'help' && <HelpDialog c={c} closed={closed} onClosed={() => void loadHours()} close={() => setScreen({ s: 'home' })} done={(id) => { void loadHome(); setScreen({ s: 'track', id }); }} />}
             {screen.s === 'stay' && <Stay c={c} back={() => setScreen({ s: 'home' })} />}
             {screen.s === 'track' && <Track id={screen.id} c={c} links={home.links} back={() => { void loadHome(); setScreen({ s: 'home' }); }} />}
             <Footer home={home} c={c} />
@@ -135,7 +141,7 @@ function Tile({ icon, title, sub, onClick, big, wide }: { icon: IconName; title:
   );
 }
 
-function HomeScreen({ me, home, c, go, imageBase, lang, setLang }: { me: Me; home: Home; c: Copy; go: (s: Screen) => void; imageBase: string; lang: Lang; setLang: (l: Lang) => void }) {
+function HomeScreen({ me, home, c, closed, go, imageBase, lang, setLang }: { me: Me; home: Home; c: Copy; closed: string | null; go: (s: Screen) => void; imageBase: string; lang: Lang; setLang: (l: Lang) => void }) {
   const b = home.buffet;
   const buffetSub = !b.set ? c.buffetNotSet : b.mode === 'none' ? c.buffetNone : `${b.name ?? ''} ${b.start ?? ''}–${b.end ?? ''}`.trim();
   const logo = home.look.logo_path ? `${imageBase}${home.look.logo_path}` : null;
@@ -152,6 +158,7 @@ function HomeScreen({ me, home, c, go, imageBase, lang, setLang }: { me: Me; hom
           <h1 className="text-4xl font-semibold leading-[1.06] tracking-tight" style={{ textShadow: '0 1px 12px rgba(60,20,12,.25)' }}>{fill(c.hello, { name: me.name })}</h1>
           <p className="mt-2 text-base" style={{ color: 'var(--on-hero-soft)' }}>{fill(c.room, { room: me.room })}</p>
         </div>
+        <ClosedBanner text={closed} />
         {home.offer && (
           <div className="rounded-[22px] p-4 text-white shadow-lg" style={{ background: 'linear-gradient(135deg,#8E1B2D 0%,#C42B45 60%,#B32A48 130%)' }}>
             <span className="text-[11px] font-bold uppercase tracking-[.16em] text-white/95">● {c.offerTag}</span>
@@ -249,7 +256,7 @@ function Footer({ home, c }: { home: Home; c: Copy }) {
   );
 }
 
-function Services({ c, back, done }: { c: Copy; back: () => void; done: (id: string) => void }) {
+function Services({ c, closed, onClosed, back, done }: { c: Copy; closed: string | null; onClosed: () => void; back: () => void; done: (id: string) => void }) {
   const [kind, setKind] = useState<'housekeeping' | 'wake' | 'cab' | 'late_checkout'>('housekeeping');
   const [label, setLabel] = useState<string>(c.hk[0]!);
   const [detail, setDetail] = useState('');
@@ -262,6 +269,7 @@ function Services({ c, back, done }: { c: Copy; back: () => void; done: (id: str
     const r = await api<{ id?: string; request_id?: string }>('requests', { method: 'POST', idem: true, body: JSON.stringify({ type: kind, label: text, ...(detail.trim() ? { detail: detail.trim() } : {}), urgent: false }) });
     setBusy(false);
     const id = r.ok ? (r.data.id ?? r.data.request_id) : null;
+    if (!r.ok && r.key === 'service_closed') onClosed();
     if (id) done(id); else setErr(true);
   };
   return (
@@ -280,8 +288,9 @@ function Services({ c, back, done }: { c: Copy; back: () => void; done: (id: str
           </fieldset>
         )}
         <label className="block text-sm font-semibold">{c.detail}<textarea maxLength={500} rows={3} value={detail} onChange={(e) => setDetail(e.target.value)} className="mt-1 w-full rounded-xl border bg-white p-3 text-base text-stone-900" /></label>
-        {err && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm font-medium text-red-900">{c.failed}</p>}
-        <Btn onClick={() => void send()} disabled={busy}>{busy ? c.sending : c.send}</Btn>
+        <ClosedBanner text={closed} />
+        {err && !closed && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm font-medium text-red-900">{c.failed}</p>}
+        <Btn onClick={() => void send()} disabled={busy || !!closed}>{busy ? c.sending : c.send}</Btn>
       </div>
     </main>
   );
@@ -348,7 +357,7 @@ function Track({ id, c, back, links }: { id: string; c: Copy; back: () => void; 
 const HELP_ORDER = ['towel_bedsheet', 'water', 'wifi', 'ac_electrical', 'tv', 'cleanliness', 'noise', 'other'] as const;
 
 /** "Call for problems": a dialog over the home screen. Pick as many chips as apply, add a note if you like, send to reception. */
-function HelpDialog({ c, close, done }: { c: Copy; close: () => void; done: (id: string) => void }) {
+function HelpDialog({ c, closed, onClosed, close, done }: { c: Copy; closed: string | null; onClosed: () => void; close: () => void; done: (id: string) => void }) {
   const [picked, setPicked] = useState<Set<string>>(new Set());
   const [note, setNote] = useState('');
   const [urgent, setUrgent] = useState(false);
@@ -363,6 +372,7 @@ function HelpDialog({ c, close, done }: { c: Copy; close: () => void; done: (id:
     const r = await api<{ request_id?: string; id?: string }>('requests/help', { method: 'POST', idem: true, body: JSON.stringify({ categories: [...picked], ...(note.trim() ? { detail: note.trim() } : {}), urgent }) });
     setBusy(false);
     const id = r.ok ? (r.data.request_id ?? r.data.id) : null;
+    if (!r.ok && r.key === 'service_closed') onClosed();
     if (id) done(id); else setErr('failed');
   };
   return (
@@ -386,8 +396,9 @@ function HelpDialog({ c, close, done }: { c: Copy; close: () => void; done: (id:
         <label className="block"><span className="block text-sm font-bold">{c.helpElse}</span><span className="block text-sm" style={{ opacity: 0.8 }}>{c.helpElseHint}</span>
           <textarea rows={3} maxLength={500} value={note} onChange={(e) => setNote(e.target.value)} className="mt-1 w-full rounded-xl border-2 bg-white p-3 text-base text-stone-900" style={{ borderColor: 'var(--tint)' }} /></label>
         <label className="flex min-h-11 items-center gap-3 text-sm font-semibold"><input type="checkbox" checked={urgent} onChange={(e) => setUrgent(e.target.checked)} className="h-5 w-5" />{c.urgent}</label>
-        {err && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm font-medium text-red-900">{err === 'need' ? c.helpNeed : c.failed}</p>}
-        <Btn onClick={() => void send()} disabled={busy}>{busy ? c.sending : c.helpSend}</Btn>
+        <ClosedBanner text={closed} />
+        {err && !closed && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm font-medium text-red-900">{err === 'need' ? c.helpNeed : c.failed}</p>}
+        <Btn onClick={() => void send()} disabled={busy || !!closed}>{busy ? c.sending : c.helpSend}</Btn>
       </div>
     </dialog>
   );

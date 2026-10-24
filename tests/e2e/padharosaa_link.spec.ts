@@ -201,3 +201,32 @@ test('the owner opens Menu from the console and clears old dishes: select all, d
     await q(`delete from public.categories where restaurant_id = ${RID} and name_en like 'Zz Old%'`);
   }
 });
+
+test('the owner sets opening and closing time; after closing a guest sees it and cannot send a request, and from the opening time it works again', async ({ page, browser }) => {
+  await q(`insert into public.rooms (restaurant_id, number) values (${RID}, '204') on conflict do nothing`);
+  const t = async (plus: string) => (await q<{ t: string }>(`select to_char((now() at time zone 'Asia/Kolkata')::time + interval '${plus}', 'HH24:MI') as t`))[0]!.t;
+  await signIn(page, 'owner@spice-garden.demo', /\/padharosaa\/owner$/, '/padharosaa/owner');
+  const card = page.getByRole('heading', { name: 'Opening and closing time for requests' }).locator('..');
+  await card.getByLabel('Starts at').fill(await t('+2 hours'));
+  await card.getByLabel('Closes at').fill(await t('+3 hours'));
+  await card.getByRole('button', { name: 'Save hours' }).click();
+  await expect(page.getByText('Hours saved.')).toBeVisible();
+  const ctx = await browser.newContext();
+  const g = await ctx.newPage();
+  await g.goto(second);
+  await g.getByLabel('Your name').fill('Late Guest');
+  await g.getByLabel('Mobile number').fill('9822222222');
+  await g.getByLabel('Room number').fill('204');
+  await g.getByRole('button', { name: 'Enter' }).click();
+  await expect(g.getByText('Namaste, Late')).toBeVisible();
+  await expect(g.getByText(/Requests are closed right now\. They open again at/)).toBeVisible();
+  await g.getByText('Help / problem').first().click();
+  await expect(g.getByRole('button', { name: /^Send/ })).toBeDisabled();
+  await g.keyboard.press('Escape');
+  // the owner opens it all day again: the guest can send
+  await card.getByRole('button', { name: 'Open all day' }).click();
+  await expect(page.getByText('Requests are open all day again.')).toBeVisible();
+  await g.reload();
+  await expect(g.getByText(/Requests are closed right now/)).toHaveCount(0);
+  await ctx.close();
+});

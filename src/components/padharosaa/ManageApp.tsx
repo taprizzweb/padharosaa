@@ -18,7 +18,7 @@ const TEAMS: [Team, string][] = [['front_desk', 'Front desk'], ['concierge', 'Co
 interface Settings {
   brand_color: string | null; logo_path: string | null; hero_path: string | null; tripadvisor_url: string | null; menu_url: string | null; review_link: string | null;
   offer_text: string | null; offer_until: string | null; info_text: string | null; wifi_name: string | null; checkout_time: string | null; breakfast_text: string | null;
-  reception_phone: string | null; manager_phone: string | null; room_dining: boolean; kitchen_display?: boolean; server_ready?: boolean;
+  reception_phone: string | null; manager_phone: string | null; room_dining: boolean; kitchen_display?: boolean; server_ready?: boolean; service_start?: string | null; service_end?: string | null;
 }
 interface Person { user_id: string; email: string; name: string; role: string; active: boolean; department: Team | null; whatsapp: string | null; is_head: boolean }
 interface ImportResult { email: string; ok: boolean; error?: 'exists' | 'invalid' | 'failed' | string; temporary_password?: string }
@@ -69,6 +69,7 @@ export function ManageApp({ role, restaurant, supabase }: { role: string; restau
         <label className="flex min-h-11 items-center gap-3 font-semibold"><input type="checkbox" className="h-5 w-5" checked={!!s.kitchen_display} onChange={(e) => void save('kitchen-display', { kitchen_display: e.target.checked })} />We have a separate kitchen display</label>
         <p className="text-sm text-stone-700">Everything always arrives at the reception desk first (every request and every food order). With a kitchen display, the kitchen also gets its own screen with the food orders.</p>
       </Card>
+      <HoursCard s={s} save={save} />
       <BuffetManager flash={flash} />
       <GuideManager flash={flash} />
       <TeamCard canImport={role === 'owner'} flash={flash} />
@@ -97,6 +98,24 @@ function Checklist({ s, insta }: { s: Settings; insta: string }) {
 }
 
 type Save = (path: string, body: unknown, done?: string) => Promise<void>;
+
+function HoursCard({ s, save }: { s: Settings; save: Save }) {
+  const [f, setF] = useState({ start: s.service_start ?? '', end: s.service_end ?? '' });
+  const set = !!(s.service_start && s.service_end);
+  return (
+    <Card title="Opening and closing time for requests" hint="Guests can send requests (help, services, food orders to the room) only between these times. After closing, nothing reaches the desk until the next opening time. Leave both empty to take requests all day and night. Asking for the bill is always possible.">
+      <div className="grid grid-cols-2 gap-2">
+        <Field label="Starts at"><input type="time" className={inputCls} value={f.start} onChange={(e) => setF({ ...f, start: e.target.value })} /></Field>
+        <Field label="Closes at"><input type="time" className={inputCls} value={f.end} onChange={(e) => setF({ ...f, end: e.target.value })} /></Field>
+      </div>
+      <p className="text-sm text-stone-700">{set ? `Right now guests can send requests from ${s.service_start} to ${s.service_end}.` : 'Right now requests are taken all day and night.'} A time like 18:00 to 02:00 (past midnight) works too.</p>
+      <div className="flex flex-wrap gap-2">
+        <button type="button" className={btnCls} disabled={!f.start || !f.end || f.start === f.end} onClick={() => void save('hours', { start: f.start, end: f.end }, 'Hours saved.')}>Save hours</button>
+        {set && <button type="button" className={btnCls} onClick={() => { setF({ start: '', end: '' }); void save('hours', { start: null, end: null }, 'Requests are open all day again.'); }}>Open all day</button>}
+      </div>
+    </Card>
+  );
+}
 
 function HomeCard({ s, save }: { s: Settings; save: Save }) {
   const [f, setF] = useState({ offer: s.offer_text ?? '', until: s.offer_until ? s.offer_until.slice(0, 16) : '', info: s.info_text ?? '' });

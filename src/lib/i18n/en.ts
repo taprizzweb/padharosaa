@@ -224,6 +224,7 @@ export const en = {
   'error.login_failed': 'We could not sign you in with those details. Please check them or ask reception.',
   'error.locked': 'Too many tries. Please wait 15 minutes or ask reception.',
   'error.verification_unavailable': 'This hotel needs an extra check that is not available yet. Please ask reception.',
+  'error.service_closed': 'Requests are closed right now. They open again at the hotel\'s opening time. For anything urgent please call reception.',
   'error.not_configured': 'This service is not fully set up yet. Please ask reception for help.',
   'error.server_error': 'Something went wrong on our side. Please try again.',
   'error.network': 'No connection. Your cart is saved. Please try again.',

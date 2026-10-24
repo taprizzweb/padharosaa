@@ -28,7 +28,8 @@ Everything below is done from the browser. Nothing needs a developer once the ap
 | 5 | **Guest home texts** | Today's offer and an information line. |
 | 6 | **Team** | *Add one person* for reception, housekeeping, kitchen and managers. Give each person the one-time password. If someone forgets it, tap *Reset password* (a new one-time password appears once); a wrong email is fixed with *Change email*. |
 | 7 | **Menu** | Tap *Menu (add or delete dishes)* at the top. Add dishes one by one, or *Import CSV*. To clear an old menu: *Select all dishes* then *Delete selected*, or *Delete* on a category to remove it with all its dishes. |
-| 8 | **Jaipur guide / Buffet** | Add places and set today's buffet (both are optional). |
+| 8 | **Opening and closing time** | Set when guests can send requests. After closing nothing reaches the desk until the next opening time (asking for the bill stays possible). Leave empty for all day. |
+| 9 | **Jaipur guide / Buffet** | Add places and set today's buffet (both are optional). |
 
 The "Finish setup" box at the top of the page lists whatever is still empty.
 
