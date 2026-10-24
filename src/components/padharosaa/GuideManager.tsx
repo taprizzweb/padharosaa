@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { apiGet, apiPost } from '@/components/staff/hooks';
+import { GUIDE_CSV_SAMPLE, parseGuideCsv } from '@/lib/padharosaa/csv';
 import { discoverLabel } from '@/lib/padharosaa/places';
 
 type Cat = 'place' | 'food' | 'craft' | 'tip';
@@ -30,6 +31,8 @@ export function GuideManager({ flash }: { flash: (ok: boolean, t: string) => voi
   const [loc, setLoc] = useState({ lat: '', lng: '' });
   const [editing, setEditing] = useState<string | 'new' | null>(null);
   const [itin, setItin] = useState<Itin | null>(null);
+  const [csv, setCsv] = useState('');
+  const [csvPublish, setCsvPublish] = useState(true);
 
   const load = useCallback(async () => {
     try { const d = await apiGet<Manage>(`${base}/guide`); setG(d); if (d.location) setLoc({ lat: String(d.location.lat), lng: String(d.location.lng) }); } catch { flash(false, 'The guide could not be loaded.'); }
@@ -62,6 +65,19 @@ export function GuideManager({ flash }: { flash: (ok: boolean, t: string) => voi
     const body = { ...it, link_url: it.link_url || undefined, lat: it.lat ?? undefined, lng: it.lng ?? undefined, description_en: it.description_en ?? undefined, description_hi: it.description_hi ?? undefined, maps_query: it.maps_query ?? undefined, address: it.address ?? undefined, best_time: it.best_time ?? undefined, publish };
     await post('save', body); setEditing(null); flash(true, publish ? 'Published. Guests can see it now.' : 'Saved.'); await load();
   });
+  const importCsv = () => run('csv', async () => {
+    const { rows, bad } = parseGuideCsv(csv);
+    if (!rows.length) { flash(false, 'No valid rows found. Each row needs at least a name.'); return; }
+    let saved = 0, skipped = 0, failed = 0;
+    for (let i = 0; i < rows.length; i += 100) {
+      const r = await post<{ saved: number; skipped: number; failed: number }>('csv', { publish: csvPublish, items: rows.slice(i, i + 100) });
+      saved += r.saved; skipped += r.skipped; failed += r.failed;
+    }
+    setCsv('');
+    flash(failed + bad === 0, `${saved} added${csvPublish ? ' and live for guests' : ' (hidden until you show them)'}${skipped ? `, ${skipped} already in the guide` : ''}${failed + bad ? `, ${failed + bad} row(s) skipped because they were not valid` : ''}.`);
+    await load();
+  });
+  const sample = () => { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([GUIDE_CSV_SAMPLE], { type: 'text/csv' })); a.download = 'jaipur-guide-sample.csv'; a.click(); URL.revokeObjectURL(a.href); };
   const archive = (id: string) => run('arch', async () => { await post('archive', { id }); await load(); });
   const saveItin = () => run('itin', async () => { if (!itin) return; await post('itinerary', { ...itin, tagline: itin.tagline ?? undefined, tip: itin.tip ?? undefined, stops: itin.stops.map((s) => ({ ...s, note: s.note ?? undefined, maps_query: s.maps_query ?? undefined, lat: s.lat ?? undefined, lng: s.lng ?? undefined })) }); setItin(null); flash(true, 'Day plan saved.'); await load(); });
 
@@ -97,6 +113,15 @@ export function GuideManager({ flash }: { flash: (ok: boolean, t: string) => voi
             <button type="button" className={btn + ' mt-2'} disabled={picked.size === 0 || busy === 'import'} onClick={() => void importPicked()}>Add {picked.size} selected as drafts</button>
           </div>
         )}
+      </div>
+
+      <div className="mt-3 rounded-xl bg-stone-50 p-3">
+        <h3 className="font-bold">Add many places at once (CSV)</h3>
+        <p className="text-sm text-stone-700">One place per row: <span className="font-mono">name, type, description, best_time, address, maps_query, website, lat, lng</span>. Only the name is needed. Type is place, food, craft or tip. Put a description with commas inside &quot;quotes&quot;. A place already in the guide is skipped.</p>
+        <textarea aria-label="Places CSV" rows={5} className={inputCls} placeholder={'Amer Fort, place, Hilltop fort with a mirror hall, Early morning, Amer\nLaxmi Misthan Bhandar, food, Famous for ghewar, Evening, Johari Bazaar'} value={csv} onChange={(e) => setCsv(e.target.value)} />
+        <input type="file" accept=".csv,text/csv" aria-label="Choose a places CSV file" className="mt-2 block min-h-11 w-full" onChange={async (e) => { const f = e.target.files?.[0]; if (f && f.size < 500_000) setCsv(await f.text()); }} />
+        <label className="mt-2 flex min-h-11 items-center gap-3 text-sm font-semibold"><input type="checkbox" className="h-5 w-5" checked={csvPublish} onChange={(e) => setCsvPublish(e.target.checked)} />Show these to guests straight away</label>
+        <div className="mt-2 flex flex-wrap gap-2"><button type="button" className={btn} disabled={!csv.trim() || busy === 'csv'} onClick={() => void importCsv()}>{busy === 'csv' ? 'Adding…' : 'Add these places'}</button><button type="button" className={btn2} onClick={sample}>Download a sample CSV</button></div>
       </div>
 
       <div className="mt-3">

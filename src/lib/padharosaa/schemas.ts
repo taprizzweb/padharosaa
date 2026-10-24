@@ -154,6 +154,12 @@ export const discoverBody = z.object({ radius_m: z.number().int().min(500).max(1
 export const importBody = z
   .object({ items: z.array(z.object({ category: z.enum(['place', 'food', 'craft']), name: text(1, 100), lat, lng, address: optionalText(200).nullish() }).strict()).min(1).max(30) })
   .strict();
+export const guideCsvBody = z
+  .object({
+    publish: z.boolean(),
+    items: z.array(z.object({ category: z.enum(['place', 'food', 'craft', 'tip']), name: text(1, 100), description_en: optionalText(600).nullish(), best_time: optionalText(100).nullish(), address: optionalText(200).nullish(), maps_query: optionalText(200).nullish(), link_url: z.string().url().max(500).refine((u) => u.startsWith('https://'), 'must be https').nullish(), lat: lat.nullish(), lng: lng.nullish() }).strict()).min(1).max(100),
+  })
+  .strict();
 export const describeBody = z.object({ ids: z.array(uuid).min(1).max(10) }).strict();
 export const itineraryBody = z
   .object({

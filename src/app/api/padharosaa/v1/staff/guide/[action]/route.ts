@@ -3,14 +3,14 @@ import { serverEnv } from '@/env';
 import { ApiError } from '@/lib/errors';
 import { limit } from '@/lib/guest/rpc';
 import { discoverNearby, describeWithAi } from '@/lib/padharosaa/discover';
-import { describeBody, discoverBody, guideSaveBody, idBody, importBody, itineraryBody, locationBody } from '@/lib/padharosaa/schemas';
+import { describeBody, discoverBody, guideCsvBody, guideSaveBody, idBody, importBody, itineraryBody, locationBody } from '@/lib/padharosaa/schemas';
 import { staffRpc } from '@/lib/staff/rpc';
 
 export const dynamic = 'force-dynamic';
 
 interface Manage { location: { lat: number; lng: number } | null; items: { id: string; category: string; name: string; address: string | null; source: string; needs_review: boolean }[] }
 
-// save | archive | location | itinerary | itinerary-archive | discover | import | describe  (owner / manager; every write is checked again in SQL)
+// save | archive | location | itinerary | itinerary-archive | discover | import | csv | describe  (owner / manager; every write is checked again in SQL)
 export async function POST(req: Request, { params }: { params: Promise<{ action: string }> }) {
   const { action } = await params;
   return staffRoute(req, { method: 'POST' }, async (ctx, raw) => {
@@ -52,6 +52,23 @@ export async function POST(req: Request, { params }: { params: Promise<{ action:
           saved++;
         }
         return jsonOk({ saved }, ctx.requestId);
+      }
+      case 'csv': {
+        // the manager's own list (parsed in the browser): saved as manual items, shown to guests at once or kept hidden; a name already in the guide is skipped, so the same file can be sent twice
+        const b = guideCsvBody.parse(raw);
+        await limit(`psc:${ctx.userId}`, 20, 3600);
+        const g = await staffRpc<Manage>(ctx.db, 'padh_guide_manage');
+        const have = new Set(g.items.map((i) => `${i.category}:${i.name.toLowerCase()}`));
+        let saved = 0, skipped = 0, failed = 0;
+        for (const it of b.items) {
+          const key = `${it.category}:${it.name.toLowerCase()}`;
+          if (have.has(key)) { skipped++; continue; }
+          try {
+            await staffRpc(ctx.db, 'padh_guide_save', { p: { ...it, link_url: it.link_url ?? null, source: 'manual', publish: b.publish } });
+            have.add(key); saved++;
+          } catch { failed++; }
+        }
+        return jsonOk({ saved, skipped, failed }, ctx.requestId);
       }
       case 'describe': {
         const b = describeBody.parse(raw);
