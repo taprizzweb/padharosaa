@@ -2,9 +2,9 @@
 import { useState } from 'react';
 import { exploreUrl } from '@/lib/profile';
 import { formatPaise } from '@/lib/money';
-import type { OrderStatus, StatusData, StatusOrder } from '@/lib/guest/types';
+import type { Diet, OrderStatus, StatusData, StatusOrder } from '@/lib/guest/types';
 import type { Translator } from '@/lib/i18n';
-import { btnPrimary, btnSecondary, IconCheck } from './ui';
+import { btnPrimary, btnSecondary, DietMark, IconCheck } from './ui';
 
 const STAGES: Exclude<OrderStatus, 'cancelled'>[] = ['placed', 'preparing', 'ready', 'served'];
 const fmtTime = (iso: string) => new Intl.DateTimeFormat('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'Asia/Kolkata' }).format(new Date(iso));
@@ -62,7 +62,7 @@ function Takeaway({ o, t, roomDining, onEta }: { o: StatusOrder; t: Translator; 
   );
 }
 
-function OrderCard({ o, t, roomDining, onEta }: { o: StatusOrder; t: Translator; roomDining?: boolean; onEta?: (orderNo: number, minutes: number) => Promise<void> }) {
+function OrderCard({ o, t, roomDining, dietOf, onEta }: { o: StatusOrder; t: Translator; roomDining?: boolean; dietOf?: (name: string) => Diet | null; onEta?: (orderNo: number, minutes: number) => Promise<void> }) {
   const cancelled = o.status === 'cancelled';
   return (
     <li className={`rounded-2xl border bg-white p-4 ${cancelled ? 'border-red-200' : 'border-stone-200'}`}>
@@ -73,7 +73,7 @@ function OrderCard({ o, t, roomDining, onEta }: { o: StatusOrder; t: Translator;
       <ul className="mt-2 space-y-1 text-sm">
         {o.items.map((it, idx) => (
           <li key={idx}>
-            <span className="font-semibold">{it.qty} ×</span> {it.name_en}
+            <span className="font-semibold">{it.qty} ×</span> {dietOf?.(it.name_en) && <><DietMark diet={dietOf(it.name_en)!} t={t} />{' '}</>}{it.name_en}
             {it.note && <span className="block text-stone-600">“{it.note}”</span>}
           </li>
         ))}
@@ -97,7 +97,7 @@ function OrderCard({ o, t, roomDining, onEta }: { o: StatusOrder; t: Translator;
   );
 }
 
-export function StatusView({ data, t, onAddMore, onEta }: { data: StatusData | null; t: Translator; onAddMore: () => void; onEta?: (orderNo: number, minutes: number) => Promise<void> }) {
+export function StatusView({ data, t, dietOf, onAddMore, onEta }: { data: StatusData | null; t: Translator; dietOf?: (name: string) => Diet | null; onAddMore: () => void; onEta?: (orderNo: number, minutes: number) => Promise<void> }) {
   const orders = data?.orders ?? [];
   return (
     <div className="mx-auto max-w-2xl px-4 pb-4 pt-4">
@@ -112,7 +112,7 @@ export function StatusView({ data, t, onAddMore, onEta }: { data: StatusData | n
           <p className="py-10 text-center text-stone-600">{t('status.noOrders')}</p>
         ) : (
           <>
-            <ul className="mt-3 space-y-3">{[...orders].reverse().map((o) => <OrderCard key={o.order_no} o={o} t={t} roomDining={data?.room_dining} onEta={onEta} />)}</ul>
+            <ul className="mt-3 space-y-3">{[...orders].reverse().map((o) => <OrderCard key={o.order_no} o={o} t={t} roomDining={data?.room_dining} dietOf={dietOf} onEta={onEta} />)}</ul>
             <div className="mt-4 flex items-baseline justify-between rounded-2xl bg-stone-900 px-4 py-3 text-white">
               <span className="font-semibold">{t('status.tableTotal')}</span>
               <span className="text-xl font-extrabold">{formatPaise(data.total_paise ?? 0)}</span>

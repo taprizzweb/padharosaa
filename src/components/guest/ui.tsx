@@ -36,14 +36,14 @@ export const IconCheck = ({ className }: IconProps) => (
 
 const DIET_COLOR: Record<Diet, string> = { veg: '#15803d', jain: '#15803d', nonveg: '#b91c1c', egg: '#a16207' };
 
-/** Indian packaged-food convention: coloured square outline with a dot (triangle for non-veg). */
+/** Indian packaged-food convention: a small square with a coloured border and a dot inside: green for vegetarian, red for non-vegetarian. */
 export function DietMark({ diet, t }: { diet: Diet; t: Translator }) {
   const color = DIET_COLOR[diet];
   return (
-    <span className="inline-flex items-center gap-1">
-      <svg width="16" height="16" viewBox="0 0 16 16" role="img" aria-label={t(`diet.${diet}` as 'diet.veg')}>
+    <span className="inline-flex shrink-0 items-center gap-1 align-middle">
+      <svg width="14" height="14" viewBox="0 0 16 16" role="img" aria-label={t(`diet.${diet}` as 'diet.veg')}>
         <rect x="1" y="1" width="14" height="14" rx="2" fill="#fff" stroke={color} strokeWidth="1.5" />
-        {diet === 'nonveg' ? <path d="M8 4.2 12 11.5H4z" fill={color} /> : <circle cx="8" cy="8" r="3.2" fill={color} />}
+        <circle cx="8" cy="8" r="3.2" fill={color} />
       </svg>
       {diet === 'jain' && <span className="text-xs font-semibold text-green-800">{t('diet.jain')}</span>}
     </span>

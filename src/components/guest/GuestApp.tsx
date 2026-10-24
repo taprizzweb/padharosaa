@@ -14,6 +14,7 @@ import { MenuView } from './MenuView';
 import { RestaurantHero, RestaurantInfo } from './RestaurantHero';
 import { ItemOptionsSheet } from './ItemOptionsSheet';
 import { LinkPicker } from './LinkPicker';
+import { barItemIds, markFor, parseDietParam } from '@/lib/guest/filters';
 import { PoweredBy } from './PoweredBy';
 import { StatusView, ThankYou } from './StatusView';
 import { forgetIdempotencyKey, idempotencyKeyFor, useCart, useLiveStatus } from './hooks';
@@ -31,7 +32,7 @@ export function GuestApp({
   const backRaw = qs.get('back') ?? '';
   const back = /^\/(?![/\\])/.test(backRaw) || /^https:\/\/[^\s]+$/i.test(backRaw) ? backRaw.slice(0, 300) : null;
   const catsParam = (qs.get('cats') ?? '').split(',').filter((x) => /^[0-9a-f-]{36}$/.test(x)).slice(0, 30);
-  const dietParam = (qs.get('diet') ?? '').split(',').filter((x): x is 'veg' | 'jain' => x === 'veg' || x === 'jain');
+  const dietParam = parseDietParam(qs.get('diet'));
   // Set only by the Padharosaa hotel app: rd=1 means the hotel delivers to rooms, rd=0 means it does not. Shows the Room delivery / Takeaway choice.
   const rdRaw = qs.get('rd');
   const rd = rdRaw === '1' || rdRaw === '0' ? rdRaw : null;
@@ -39,6 +40,9 @@ export function GuestApp({
   const carry = [rd ? `&rd=${rd}` : '', back ? `&back=${encodeURIComponent(back)}` : '', catsParam.length ? `&cats=${catsParam.join(',')}` : '', dietParam.length ? `&diet=${dietParam.join(',')}` : ''].join('');
   const categories = useMemo(() => menu.categories ?? [], [menu.categories]);
   const items = useMemo(() => new Map<string, MenuItem>(categories.flatMap((c) => c.items).map((i) => [i.id, i])), [categories]);
+  const barIds = useMemo(() => barItemIds(categories), [categories]);
+  // an order line only keeps the dish name, so its mark is found by that name (a bar dish, or an unknown name, has none)
+  const dietOfName = useMemo(() => { const m = new Map<string, MenuItem>(); for (const i of items.values()) if (!m.has(i.name_en)) m.set(i.name_en, i); return (name: string) => { const i = m.get(name); return i ? markFor(i, barIds) : null; }; }, [items, barIds]);
   const cart = useCart(slug, items);
 
   const tokenValid = !!menu.token_valid && !!token;
@@ -197,7 +201,7 @@ export function GuestApp({
         {showStatus && closed && status ? (
           <ThankYou data={status} t={t} onBack={() => setView('menu')} exploreCode={menu.restaurant.explore_code} onExplore={() => track('explore_click')} />
         ) : showStatus ? (
-          <StatusView data={status} t={t} onAddMore={() => setView('menu')} onEta={async (orderNo, minutes) => { if (!token) return; await sendOrderEta({ slug, token, order_no: orderNo, minutes }); live.refresh(); }} />
+          <StatusView data={status} t={t} dietOf={dietOfName} onAddMore={() => setView('menu')} onEta={async (orderNo, minutes) => { if (!token) return; await sendOrderEta({ slug, token, order_no: orderNo, minutes }); live.refresh(); }} />
         ) : (
           <MenuView initialCats={catsParam} initialDiet={dietParam} categories={categories} t={t} canOrder={canOrder} imageBase={imageBase} qtyOf={cart.qtyOf} onAdd={(id) => { track('cart_add', { item_id: id }); cart.add(id); }} onSet={cart.setQty} onCustomise={setChoosing} onTrack={track} />
         )}
@@ -250,7 +254,7 @@ export function GuestApp({
           setChoosing(null);
         }}
       />
-      <CartSheet open={sheet === 'cart'} onClose={() => setSheet(null)} t={t} cart={cart} items={items} placing={placing} error={orderError} adjusted={cart.adjusted} onPlace={place} handoverUi={rd ? { roomDining: rd === '1', mode: handover, setMode: setHandover } : null} />
+      <CartSheet open={sheet === 'cart'} onClose={() => setSheet(null)} t={t} cart={cart} items={items} barIds={barIds} placing={placing} error={orderError} adjusted={cart.adjusted} onPlace={place} handoverUi={rd ? { roomDining: rd === '1', mode: handover, setMode: setHandover } : null} />
       <WaiterSheet open={sheet === 'waiter'} onClose={() => setSheet(null)} t={t} openRequest={waiterReq} busy={helpBusy} error={helpError} onPick={(r: WaiterReason) => token && void help(() => callWaiter(slug, token, r))} />
       <BillSheet open={sheet === 'bill'} onClose={() => setSheet(null)} t={t} openRequest={billReq} busy={helpBusy} error={helpError} onPick={(m: PayMode) => {
         if (!token) return;

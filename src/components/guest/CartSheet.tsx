@@ -2,15 +2,16 @@
 import { useState } from 'react';
 import { formatPaise } from '@/lib/money';
 import { lineLabel, unitPrice } from '@/lib/guest/options';
+import { markFor } from '@/lib/guest/filters';
 import type { MenuItem } from '@/lib/guest/types';
 import type { Translator } from '@/lib/i18n';
 import type { Cart } from './hooks';
-import { Alert, IconMinus, IconPlus, Notice, Sheet, btnPrimary } from './ui';
+import { Alert, DietMark, IconMinus, IconPlus, Notice, Sheet, btnPrimary } from './ui';
 
 export function CartSheet({
-  open, onClose, t, cart, items, placing, error, adjusted, onPlace, handoverUi = null,
+  open, onClose, t, cart, items, barIds, placing, error, adjusted, onPlace, handoverUi = null,
 }: {
-  open: boolean; onClose: () => void; t: Translator; cart: Cart; items: Map<string, MenuItem>;
+  open: boolean; onClose: () => void; t: Translator; cart: Cart; items: Map<string, MenuItem>; barIds: ReadonlySet<string>;
   placing: boolean; error: string | null; adjusted: boolean; onPlace: () => void;
   /** hotel guests only: Room delivery or Takeaway (the desk sets the Takeaway time) */
   handoverUi?: { roomDining: boolean; mode: 'deliver' | 'takeaway'; setMode: (m: 'deliver' | 'takeaway') => void } | null;
@@ -35,7 +36,7 @@ export function CartSheet({
                 <li key={l.id} className="py-3">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="font-semibold leading-snug">{name}</p>
+                      <p className="font-semibold leading-snug">{markFor(item, barIds) && <><DietMark diet={markFor(item, barIds)!} t={t} />{' '}</>}{name}</p>
                       {label && <p className="text-sm font-medium text-stone-800">{label}</p>}
                       <p className="text-sm text-stone-600">{formatPaise(unit)} × {l.qty} = <span className="font-semibold text-stone-900">{formatPaise(unit * l.qty)}</span></p>
                     </div>

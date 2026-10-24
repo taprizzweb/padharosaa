@@ -457,6 +457,63 @@ test.describe('menu behaviour', () => {
   });
 });
 
+test.describe('menu diet chips and marks', () => {
+  test.use({ viewport: { width: 375, height: 800 } });
+  test('Veg, Non-Veg, Jain, Bar, Bestsellers; marks before names; bar dishes have no mark; no sideways page scroll at 375px', async ({ page }) => {
+    const rid = `(select id from public.restaurants where slug = 'spice-garden')`;
+    const cat = (await q<{ id: string }>(`insert into public.categories (restaurant_id, name_en) values (${rid}, 'Bar - Zz Beer') returning id`))[0]!.id;
+    await q(`insert into public.items (restaurant_id, category_id, name_en, price_paise, diet, is_bestseller) values (${rid}, $1, 'Zz Lager', 30000, 'veg', true)`, [cat]);
+    try {
+      const t = await newTable();
+      await open(page, t);
+      const chips = page.getByRole('group', { name: 'Filters' }).getByRole('button');
+      await expect(chips).toHaveText(['Veg', 'Non-Veg', 'Jain', 'Bar', 'Bestsellers']);
+      const h = (name: string) => page.getByRole('heading', { name, level: 3 });
+      // the marks sit before the dish names
+      await expect(h('Chicken Tikka').getByRole('img', { name: 'Non-vegetarian' })).toBeVisible();
+      await expect(h('Paneer Tikka').getByRole('img', { name: 'Vegetarian' })).toBeVisible();
+      await expect(h('Zz Lager').getByRole('img')).toHaveCount(0); // a bar dish has no mark
+
+      await page.getByRole('button', { name: 'Non-Veg', exact: true }).click(); // Non-Veg alone
+      await expect(h('Chicken Tikka')).toBeVisible();
+      await expect(h('Paneer Tikka')).toHaveCount(0);
+      await expect(h('Zz Lager')).toHaveCount(0); // the bar dish is stored as veg but never shows under a diet chip
+      await page.getByRole('button', { name: 'Veg', exact: true }).click(); // Veg turns Non-Veg off
+      await expect(page.getByRole('button', { name: 'Non-Veg', exact: true })).toHaveAttribute('aria-pressed', 'false');
+      await expect(h('Zz Lager')).toHaveCount(0);
+      await page.getByRole('button', { name: 'Bestsellers' }).click(); // Veg + Bestsellers
+      await expect(h('Paneer Tikka')).toBeVisible();
+      await expect(h('Hara Bhara Kebab')).toHaveCount(0);
+      await page.getByRole('button', { name: 'Veg', exact: true }).click();
+      await page.getByRole('button', { name: 'Bestsellers' }).click();
+
+      await page.getByRole('button', { name: 'Bar', exact: true }).click(); // Bar alone
+      await expect(h('Zz Lager')).toBeVisible();
+      await expect(h('Chicken Tikka')).toHaveCount(0);
+      const catChips = page.getByRole('group', { name: /Pick what you feel like/ });
+      await expect(catChips.getByRole('button', { name: /Zz Beer/ })).toBeVisible();
+      await expect(catChips.getByRole('button', { name: /Beverages/ })).toHaveCount(0); // categories with no match are hidden
+      await page.getByRole('button', { name: 'Veg', exact: true }).click(); // Bar + Veg keeps the bar dishes
+      await expect(h('Zz Lager')).toBeVisible();
+      await page.getByRole('button', { name: 'Veg', exact: true }).click();
+      await page.getByRole('button', { name: 'Bar', exact: true }).click();
+
+      await page.getByRole('button', { name: 'Non-Veg', exact: true }).click(); // a chip stays on while searching
+      await page.getByLabel('Search the menu').fill('biryani');
+      await expect(card(page, 'Chicken Biryani')).toBeVisible();
+      await expect(card(page, 'Veg Biryani')).toHaveCount(0);
+      await expect(card(page, 'Chicken Biryani').getByRole('img', { name: 'Non-vegetarian' })).toBeVisible();
+
+      // the page never scrolls sideways, and the chip row scrolls itself
+      expect(await page.getByRole('group', { name: 'Filters' }).evaluate((e) => e.scrollWidth > e.clientWidth)).toBe(true);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    } finally {
+      await q(`delete from public.items where name_en = 'Zz Lager'`);
+      await q(`delete from public.categories where id = $1`, [cat]);
+    }
+  });
+});
+
 test.describe('friendly states', () => {
   test('invalid, rotated and missing QR codes cannot order', async ({ page }) => {
     const t = await newTable();
