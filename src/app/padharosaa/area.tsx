@@ -4,6 +4,7 @@ import { AreaNav } from '@/components/padharosaa/AreaNav';
 import { DeskApp } from '@/components/padharosaa/DeskApp';
 import { StaffApp, type StaffMe } from '@/components/staff/StaffApp';
 import { ManageApp } from '@/components/padharosaa/ManageApp';
+import { StaffSettings } from '@/components/padharosaa/StaffSettings';
 import { publicEnv } from '@/env';
 import { AREA_TITLE, areaHref, canOpen, homeFor, isPadHost, type Area } from '@/lib/padharosaa/areas';
 import { userClient } from '@/lib/supabase/server';
@@ -29,6 +30,20 @@ export async function renderArea(area: Area) {
   if (area === 'owner' || area === 'manager') {
     const env = publicEnv();
     return <ManageApp role={m.role} restaurant={m.restaurant} supabase={{ url: env.NEXT_PUBLIC_SUPABASE_URL, anonKey: env.NEXT_PUBLIC_SUPABASE_ANON_KEY }} />;
+  }
+  if (area === 'settings') {
+    const meta = me as { display_name?: string; name?: string };
+    return <StaffSettings role={m.role} name={meta.display_name ?? meta.name ?? '—'} email={data.user.email ?? null} hotel={m.restaurant.name} />;
+  }
+  if (area === 'menu') {
+    // The menu for staff who are not owner or manager: the sold-out switches (what is finished today). Adding or deleting dishes stays with the owner and manager.
+    const env = publicEnv();
+    return (
+      <>
+        <div className="mx-auto max-w-5xl px-4 pt-3"><AreaNav role={m.role} current="menu" kitchenDisplay={kitchenDisplay} /></div>
+        <StaffApp me={me as StaffMe} hotel soldOutOnly supabase={{ url: env.NEXT_PUBLIC_SUPABASE_URL, anonKey: env.NEXT_PUBLIC_SUPABASE_ANON_KEY }} />
+      </>
+    );
   }
   if (area === 'kitchen') {
     // The kitchen has ONE screen: every food order (from the hotel menu, room delivery or takeaway) and the sold-out switches for the menu.

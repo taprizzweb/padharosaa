@@ -1,6 +1,5 @@
 'use client';
 
-import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { apiGet, apiPost } from '@/components/staff/hooks';
 import { AlertSound } from '@/components/staff/sound';
@@ -27,9 +26,6 @@ const mins = (iso: string) => Math.max(0, Math.round((Date.now() - new Date(iso)
 export function DeskApp({ role, hotel, title = 'Reception desk', current = 'desk', start = 'all' }: { role: string; hotel: string; title?: string; current?: NavCurrent; start?: Group }) {
   const privileged = role === 'owner' || role === 'manager';
   const [group, setGroup] = useState<Group>(start);
-  // on padharosaa.* the menu live screen is reached through /orders (the plain /staff address belongs to the desk there)
-  const [ordersHref, setOrdersHref] = useState('/staff');
-  useEffect(() => { if (/^padharosaa\./i.test(location.host)) setOrdersHref('/orders'); }, []);
   const [reqs, setReqs] = useState<Req[] | null>(null);
   const [orders, setOrders] = useState<BoardOrder[]>([]);
   const [calls, setCalls] = useState<BoardRequest[]>([]);
@@ -120,7 +116,6 @@ export function DeskApp({ role, hotel, title = 'Reception desk', current = 'desk
         <div><h1 className="text-xl font-extrabold">{title}</h1><p className="text-sm text-stone-700">{hotel}</p></div>
         <div className="flex gap-2">
           <button type="button" className="min-h-11 rounded-full border-2 border-stone-800 px-4 text-sm font-bold" onClick={async () => setSoundOn(await sound.current.enable())} aria-pressed={soundOn}>{soundOn ? 'Alarm sound is ON' : 'Turn alarm sound on'}</button>
-          {!privileged && <Link href={ordersHref} prefetch={false} className="inline-flex min-h-11 items-center rounded-full border-2 border-stone-800 px-4 text-sm font-bold">Food orders</Link>}
         </div>
       </header>
       <AreaNav role={role} current={current} kitchenDisplay={!!alerts?.kitchen_display} />

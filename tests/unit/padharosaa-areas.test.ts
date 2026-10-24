@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { AREAS, GROUP_TEAMS, areaHref, canOpen, homeFor, isPadHost } from '@/lib/padharosaa/areas';
 
 describe('padharosaa addresses: owner, manager, desk (and kitchen)', () => {
-  it('there are only these screens', () => expect([...AREAS]).toEqual(['owner', 'manager', 'desk', 'kitchen']));
+  it('there are only these screens', () => expect([...AREAS]).toEqual(['owner', 'manager', 'desk', 'kitchen', 'menu', 'settings']));
   it('everyone has exactly one home; reception, concierge and housekeeping all work on the desk', () => {
     expect(homeFor('owner')).toBe('owner');
     expect(homeFor('manager')).toBe('manager');

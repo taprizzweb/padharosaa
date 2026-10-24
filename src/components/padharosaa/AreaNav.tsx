@@ -3,20 +3,22 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 
-export type NavCurrent = 'owner' | 'manager' | 'desk' | 'kitchen';
+export type NavCurrent = 'owner' | 'manager' | 'desk' | 'kitchen' | 'menu' | 'settings';
 
 /** Owner and manager see every screen of the hotel: the console, the one reception desk, and the kitchen display when the hotel has one. */
 export function AreaNav({ role, current, kitchenDisplay = false }: { role: string; current: NavCurrent; kitchenDisplay?: boolean }) {
   const [pad, setPad] = useState(false);
   useEffect(() => { setPad(/^padharosaa\./i.test(location.host)); }, []);
-  if (role !== 'owner' && role !== 'manager') return null;
   const to = (a: string) => (pad ? `/${a}` : `/padharosaa/${a}`);
-  const items: [NavCurrent, string, string][] = [
+  // reception and the rest of the staff: their working screen, the menu (sold-out switches) and their own settings, nothing else
+  const staffItems: [NavCurrent, string, string][] = [['desk', 'Desk', to('desk')], ['menu', 'Menu', to('menu')], ['settings', 'Settings', to('settings')]];
+  const items: [NavCurrent, string, string][] = role !== 'owner' && role !== 'manager' ? (role === 'waiter' ? staffItems : []) : [
     [role as NavCurrent, role === 'owner' ? 'Owner console' : 'Manager console', to(role)],
     ['desk', 'Reception desk (everything)', to('desk')],
     ['menu' as NavCurrent, 'Menu (add or delete dishes)', '/dash/menu'],
     ...(kitchenDisplay ? ([['kitchen', 'Kitchen display', to('kitchen')]] as [NavCurrent, string, string][]) : []),
   ];
+  if (items.length === 0) return null;
   return (
     <nav aria-label="Screens" className="-mx-4 mt-3 flex gap-2 overflow-x-auto px-4 pb-1">
       {items.map(([k, label, href]) => (

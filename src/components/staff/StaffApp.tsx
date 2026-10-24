@@ -22,8 +22,8 @@ const LARGE_KEY = 'gm:staff:large';
 const fmtClock = (d: Date) => new Intl.DateTimeFormat('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true, timeZone: 'Asia/Kolkata' }).format(d);
 const errText = (e: unknown) => t(errorMessageKey(e instanceof ApiFailure ? (e.status === 0 ? 'network' : e.key) : 'server_error'));
 
-export function StaffApp({ me, supabase, hotel = false }: { me: StaffMe; supabase: { url: string; anonKey: string }; hotel?: boolean }) {
-  const [tab, setTab] = useState<'live' | 'soldout'>('live');
+export function StaffApp({ me, supabase, hotel = false, soldOutOnly = false }: { me: StaffMe; supabase: { url: string; anonKey: string }; hotel?: boolean; soldOutOnly?: boolean }) {
+  const [tab, setTab] = useState<'live' | 'soldout'>(soldOutOnly ? 'soldout' : 'live');
   const [cancelOrder, setCancelOrder] = useState<BoardOrder | null>(null);
   const [closeSession, setCloseSession] = useState<BoardSession | null>(null);
   const [busy, setBusy] = useState<Set<string>>(new Set());
@@ -167,10 +167,12 @@ export function StaffApp({ me, supabase, hotel = false }: { me: StaffMe; supabas
       )}
 
       <div className="mx-auto max-w-screen-2xl px-4 pt-4">
-        <div role="tablist" aria-label="Staff screens" className="mb-5 flex gap-2">
-          {tabBtn('live', 'Live')}
-          {tabBtn('soldout', 'Sold out')}
-        </div>
+        {!soldOutOnly && (
+          <div role="tablist" aria-label="Staff screens" className="mb-5 flex gap-2">
+            {tabBtn('live', 'Live')}
+            {tabBtn('soldout', 'Sold out')}
+          </div>
+        )}
         {toast && <div className="mb-4"><Alert>{toast}</Alert></div>}
         <main>
           {tab === 'live' ? (

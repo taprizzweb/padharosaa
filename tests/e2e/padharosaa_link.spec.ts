@@ -230,3 +230,20 @@ test('the owner sets opening and closing time; after closing a guest sees it and
   await expect(g.getByText(/Requests are closed right now/)).toHaveCount(0);
   await ctx.close();
 });
+
+test('reception sees only the desk, the menu (sold-out switches) and settings, and no console, dashboard or team tools', async ({ page }) => {
+  await signIn(page, 'waiter@spice-garden.demo', /\/padharosaa\/desk$/, '/padharosaa/desk');
+  const nav = page.getByRole('navigation', { name: 'Screens' });
+  await expect(nav.getByRole('link')).toHaveText(['Desk', 'Menu', 'Settings']);
+  await expect(page.getByRole('heading', { name: 'Opening and closing time for requests' })).toHaveCount(0);
+  await nav.getByRole('link', { name: 'Menu' }).click();
+  await expect(page).toHaveURL(/\/padharosaa\/menu$/);
+  await expect(page.getByRole('tab', { name: 'Live' })).toHaveCount(0); // only the sold-out switches
+  await page.getByRole('navigation', { name: 'Screens' }).getByRole('link', { name: 'Settings' }).click();
+  await expect(page).toHaveURL(/\/padharosaa\/settings$/);
+  await expect(page.getByRole('link', { name: 'Change my password' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Sign out' })).toBeVisible();
+  // the owner's pages stay closed to reception
+  await page.goto('/padharosaa/owner');
+  await expect(page).toHaveURL(/\/padharosaa\/desk$/);
+});

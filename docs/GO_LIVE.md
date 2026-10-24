@@ -39,7 +39,7 @@ The "Finish setup" box at the top of the page lists whatever is still empty.
 | --- | --- | --- |
 | Owner | `/owner` | everything, and can make a new guest link (own password needed) |
 | Manager | `/manager` | the same console; can see but not replace the guest link; can open the desk |
-| Reception desk | `/desk` | **everything**: every help request of every kind, and every food order, in one list |
+| Reception desk | `/desk` | **everything**: every help request of every kind, and every food order, in one list. Reception also has only two other screens: **Menu** (`/menu`: the sold-out switches) and **Settings** (`/settings`: their own password and sign-out). They never see the console, team, hours or QR tools. |
 | Kitchen display (optional) | `/kitchen` | only if the owner ticks "We have a separate kitchen display" in Manage; then food orders also appear here |
 
 Old addresses (`/reception`, `/housekeeping`) open the desk. The desk informs the right person (housekeeping, maintenance, kitchen) by phone, as hotels already do.
