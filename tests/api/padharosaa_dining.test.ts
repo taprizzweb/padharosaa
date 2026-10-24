@@ -21,6 +21,7 @@ import { POST as kitchenDisplayPOST } from '@/app/api/padharosaa/v1/staff/kitche
 import { GET as teamGET } from '@/app/api/padharosaa/v1/staff/team/route';
 import { POST as profilePOST } from '@/app/api/padharosaa/v1/staff/team/[user]/route';
 import { POST as importPOST } from '@/app/api/padharosaa/v1/staff/team/import/route';
+import { POST as accountPOST } from '@/app/api/padharosaa/v1/staff/team/[user]/account/route';
 import { GET as alertsGET, POST as alertsPOST } from '@/app/api/padharosaa/v1/staff/alerts/route';
 import { GET as settingsGET } from '@/app/api/padharosaa/v1/staff/settings/route';
 import { GET as diningGET } from '@/app/api/padharosaa/v1/dining/route';
@@ -180,6 +181,39 @@ describe('staff directory, import and alerts', () => {
     // leave the hotel as it was for the next test
     await db.admin(`delete from public.staff where user_id = (select id from auth.users where email = 'kiran@haveli.test')`);
     await db.admin(`delete from auth.users where email = 'kiran@haveli.test'`);
+  });
+
+  it('the owner resets a person\'s password or corrects their email; managers, staff, the owner\'s own login and other hotels are refused', async () => {
+    const mkUser = async (email: string, rid: string, role: string) => {
+      const u = (await db.admin<any>(`insert into auth.users (email) values ($1) returning id`, [email]))[0].id as string;
+      await db.admin(`insert into public.staff (user_id, restaurant_id, role, display_name) values ($1, $2, $3, 'Test')`, [u, rid, role]);
+      return u;
+    };
+    const target = await mkUser('meera@haveli.test', w.A.rid, 'waiter');
+    const acct = (uid: string, body: unknown) => accountPOST(mk('/a', { body }), p({ user: uid }));
+    as(w.A.owner);
+    const r = await acct(target, { action: 'reset' });
+    expect(r.status).toBe(200);
+    const pw = ((await r.json()) as any).temporary_password as string;
+    expect(pw.length).toBeGreaterThanOrEqual(12);
+    expect(authState.meta.get(target)?.app_metadata?.must_change_password).toBe(true);
+    expect((await acct(target, { action: 'email', email: 'Meera.New@Haveli.test' })).status).toBe(200);
+    expect((await db.admin<any>(`select email from auth.users where id = $1`, [target]))[0].email).toBe('meera.new@haveli.test');
+    expect((await db.admin<any>(`select count(*)::int n from public.audit_log where restaurant_id = $1 and entity_id = $2 and action in ('staff_password_reset','staff_email_changed')`, [w.A.rid, target]))[0].n).toBe(2);
+    expect((await acct(target, { action: 'email', email: 'manager@x' })).status).toBe(400);
+    expect((await acct(target, { action: 'email', email: ((await db.admin<any>(`select email from auth.users where id = $1`, [w.A.manager]))[0].email) })).status).toBe(409);
+    expect((await acct(w.A.owner, { action: 'reset' })).status).toBe(403); // the owner's own login is not changed here
+    expect((await acct(target, { action: 'delete' })).status).toBe(400);
+    const other = await mkUser('other@haveli.test', w.B.rid, 'waiter');
+    expect((await acct(other, { action: 'reset' })).status).toBe(404); // another hotel's person
+    as(w.A.manager);
+    expect((await acct(target, { action: 'reset' })).status).toBe(403);
+    as(w.A.waiter);
+    expect((await acct(target, { action: 'reset' })).status).toBe(403);
+    as(null);
+    expect((await acct(target, { action: 'reset' })).status).toBe(401);
+    await db.admin(`delete from public.staff where user_id in ($1, $2)`, [target, other]);
+    await db.admin(`delete from auth.users where id in ($1, $2)`, [target, other]);
   });
 
   it('owner imports people: logins with one-time temporary passwords, department and WhatsApp saved; duplicates reported; others refused', async () => {

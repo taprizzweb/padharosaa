@@ -173,12 +173,24 @@ function TeamCard({ canImport, flash }: { canImport: boolean; flash: (ok: boolea
   const [csv, setCsv] = useState('');
   const [results, setResults] = useState<ImportResult[] | null>(null);
   const [busy, setBusy] = useState(false);
+  const [shown, setShown] = useState<{ name: string; email: string; password: string } | null>(null);
+  const [fixing, setFixing] = useState<{ id: string; email: string } | null>(null);
   const [one, setOne] = useState({ name: '', email: '', department: 'front_desk' as Team, whatsapp: '', head: false });
   const load = useCallback(async () => { try { setPeople((await apiGet<{ staff: Person[] }>('/api/padharosaa/v1/staff/team')).staff); } catch { setPeople([]); } }, []);
   useEffect(() => { void load(); }, [load]);
   const setProfile = async (p: Person, patch: Partial<Person>) => {
     const n = { ...p, ...patch };
     try { await apiPost(`/api/padharosaa/v1/staff/team/${p.user_id}`, { department: n.department ?? 'front_desk', whatsapp: n.whatsapp || null, is_head: n.is_head }); await load(); } catch { flash(false, 'Could not save. Use the number format +91 98765 43210.'); }
+  };
+  const resetPassword = async (p: Person) => {
+    if (!window.confirm(`Give ${p.name} a new one-time password? Their old password stops working at once.`)) return;
+    try { const r = await apiPost<{ temporary_password: string }>(`/api/padharosaa/v1/staff/team/${p.user_id}/account`, { action: 'reset' }); setShown({ name: p.name, email: p.email, password: r.temporary_password }); } catch { flash(false, 'The password could not be reset. Please try again.'); }
+  };
+  const changeEmail = async (p: Person, email: string) => {
+    const e = email.trim().toLowerCase();
+    if (!/^\S+@\S+\.\S+$/.test(e)) { flash(false, 'Please type a correct email.'); return; }
+    try { await apiPost(`/api/padharosaa/v1/staff/team/${p.user_id}/account`, { action: 'email', email: e }); setFixing(null); flash(true, `${p.name} now signs in with ${e}. Their password stays the same.`); await load(); }
+    catch (err) { flash(false, err instanceof ApiFailure && err.status === 409 ? 'That email already has a login.' : 'The email could not be changed. Please try again.'); }
   };
   const doImport = async () => {
     const { rows, bad } = parseStaffCsv(csv);
@@ -205,7 +217,14 @@ function TeamCard({ canImport, flash }: { canImport: boolean; flash: (ok: boolea
     const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([body], { type: 'text/csv' })); a.download = 'new-staff-logins.csv'; a.click(); URL.revokeObjectURL(a.href);
   };
   return (
-    <Card title="Team" hint="Set each person's department and WhatsApp number. The head of a department gets the WhatsApp when a guest reports a problem for that department. Passwords are never shown here.">
+    <Card title="Team" hint="Set each person's department and WhatsApp number. The head of a department gets the WhatsApp when a guest reports a problem for that department. Passwords are never shown here, but the owner can give anyone a new one-time password or correct their email.">
+      {shown && (
+        <div className="rounded-xl bg-amber-50 p-3" role="status">
+          <p className="text-sm font-bold">New one-time password for {shown.name} ({shown.email}). It is shown only once; they must change it when they sign in.</p>
+          <p className="mt-1 text-lg"><code>{shown.password}</code></p>
+          <button type="button" className={btnCls + ' mt-2'} onClick={() => setShown(null)}>Done</button>
+        </div>
+      )}
       {people?.length === 0 && <p className="text-sm text-stone-700">No team members yet.</p>}
       <ul className="space-y-3">
         {(people ?? []).map((p) => (
@@ -216,6 +235,20 @@ function TeamCard({ canImport, flash }: { canImport: boolean; flash: (ok: boolea
               <input aria-label={`WhatsApp for ${p.name}`} inputMode="tel" placeholder="+91 98765 43210" defaultValue={p.whatsapp ?? ''} className={inputCls + ' !mt-0'} onBlur={(e) => { if (e.target.value !== (p.whatsapp ?? '') && p.department) void setProfile(p, { whatsapp: e.target.value }); }} />
               <label className="flex min-h-11 items-center gap-2 text-sm font-semibold"><input type="checkbox" className="h-5 w-5" checked={p.is_head} disabled={!p.department} onChange={(e) => void setProfile(p, { is_head: e.target.checked })} />Department head</label>
             </div>
+            {canImport && p.role !== 'owner' && (
+              <div className="mt-2">
+                <div className="flex flex-wrap gap-2">
+                  <button type="button" className={btnCls} onClick={() => void resetPassword(p)}>Reset password</button>
+                  <button type="button" className={btnCls} onClick={() => setFixing(fixing?.id === p.user_id ? null : { id: p.user_id, email: p.email })}>Change email</button>
+                </div>
+                {fixing?.id === p.user_id && (
+                  <form className="mt-2 flex flex-wrap items-end gap-2" onSubmit={(e) => { e.preventDefault(); void changeEmail(p, fixing.email); }}>
+                    <Field label={`New email for ${p.name}`}><input type="email" inputMode="email" autoComplete="off" className={inputCls} value={fixing.email} maxLength={120} onChange={(e) => setFixing({ id: p.user_id, email: e.target.value })} /></Field>
+                    <button type="submit" className={btnCls}>Save email</button>
+                  </form>
+                )}
+              </div>
+            )}
           </li>
         ))}
       </ul>

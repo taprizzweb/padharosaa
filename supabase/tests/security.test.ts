@@ -105,7 +105,7 @@ describe('function privileges', () => {
     const auth = await execBy('authenticated');
     expect(auth.filter((n) => n.startsWith('staff_') || n.startsWith('mgr_')).length).toBe(39);
     const svcOnly = await execBy('service_role');
-    expect(svcOnly.filter((n) => n.startsWith('owner_')).sort()).toEqual(['owner_add_staff', 'owner_check_staff', 'owner_set_staff']);
+    expect(svcOnly.filter((n) => n.startsWith('owner_')).sort()).toEqual(['owner_add_staff', 'owner_check_staff', 'owner_check_staff_action', 'owner_set_staff']);
     expect(auth.filter((n) => n.startsWith('owner_'))).toEqual([]);
   });
   it('every SECURITY DEFINER function pins search_path to empty', async () => {

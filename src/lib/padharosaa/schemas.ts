@@ -113,6 +113,10 @@ export const kitchenDisplayBody = z.object({ kitchen_display: z.boolean() }).str
 export const diningBody = z.object({ room_dining: z.boolean() }).strict();
 const waNumber = z.preprocess(normWhatsapp, z.string().regex(/^\+[1-9][0-9]{7,14}$/));
 export const profileBody = z.object({ department: z.enum(TEAMS), whatsapp: waNumber.nullish(), is_head: z.boolean().default(false) }).strict();
+export const accountBody = z.discriminatedUnion('action', [
+  z.object({ action: z.literal('reset') }).strict(),
+  z.object({ action: z.literal('email'), email: z.string().trim().toLowerCase().email().max(120) }).strict(),
+]);
 export const alertBody = z.object({ team: z.enum(TEAMS), muted: z.boolean() }).strict();
 export const staffRowSchema = z
   .object({ name: text(1, 60), email: z.string().email().max(120).transform((v) => v.toLowerCase()), department: z.enum(TEAMS), whatsapp: waNumber.nullish(), is_head: z.boolean().default(false) })
