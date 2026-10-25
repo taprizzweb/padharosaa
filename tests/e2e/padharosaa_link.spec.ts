@@ -562,7 +562,7 @@ test('guest services ask for what the team needs; a declined request is not left
     // laundry pick-up: housekeeping, with the time the guest wants it collected
     await g.getByRole('button', { name: 'Back to home' }).click();
     await g.getByText('Services', { exact: true }).click();
-    await g.getByLabel('Laundry pick-up').check();
+    await g.getByRole('button', { name: 'Laundry', exact: true }).click();
     await g.getByRole('button', { name: 'Send request' }).click();
     await expect(g.getByText('Please choose a time.')).toBeVisible();
     await g.getByLabel('Pickup time').fill('17:00');

@@ -312,7 +312,7 @@ function TimePick({ label, value, onChange }: { label: string; value: string; on
 }
 
 function Services({ c, closed, onClosed, back, done }: { c: Copy; closed: string | null; onClosed: () => void; back: () => void; done: (id: string) => void }) {
-  const [kind, setKind] = useState<'housekeeping' | 'wake' | 'cab' | 'late_checkout'>('housekeeping');
+  const [kind, setKind] = useState<'housekeeping' | 'laundry' | 'wake' | 'cab' | 'late_checkout'>('housekeeping');
   const [label, setLabel] = useState<string>(c.hk[0]!);
   const [detail, setDetail] = useState('');
   const [when, setWhen] = useState('');
@@ -320,11 +320,12 @@ function Services({ c, closed, onClosed, back, done }: { c: Copy; closed: string
   const [car, setCar] = useState<string>(c.carTypes[0]!);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<null | 'failed' | 'time' | 'where'>(null);
-  const kinds = ['housekeeping', 'wake', 'cab', 'late_checkout'] as const;
+  const kinds = ['housekeeping', 'laundry', 'wake', 'cab', 'late_checkout'] as const;
+  const laundryLabel = c.hk[c.hk.length - 1]!; // the last housekeeping entry is the laundry pick-up text
   const pick = (k: (typeof kinds)[number]) => { setKind(k); setErr(null); };
   const send = async () => {
     // each service asks for what the team needs, so reception never has to call the guest back
-    const laundry = kind === 'housekeeping' && label === c.hk[c.hk.length - 1];
+    const laundry = kind === 'laundry';
     if ((kind === 'wake' || kind === 'late_checkout' || kind === 'cab' || laundry) && !when) { setErr('time'); return; }
     if (kind === 'cab' && dest.trim().length < 2) { setErr('where'); return; }
     const lines = kind === 'wake' ? [fill(c.wakeAt, { t: clock12(when) })]
@@ -334,8 +335,8 @@ function Services({ c, closed, onClosed, back, done }: { c: Copy; closed: string
       : [];
     if (detail.trim()) lines.push(detail.trim());
     setBusy(true); setErr(null);
-    const text = kind === 'housekeeping' ? `${c.types.housekeeping}: ${label}` : c.types[kind];
-    const r = await api<{ id?: string; request_id?: string }>('requests', { method: 'POST', idem: true, body: JSON.stringify({ type: kind, label: text, ...(lines.length ? { detail: lines.join(' · ').slice(0, 500) } : {}), urgent: false }) });
+    const text = kind === 'housekeeping' ? `${c.types.housekeeping}: ${label}` : laundry ? `${c.types.housekeeping}: ${laundryLabel}` : c.types[kind];
+    const r = await api<{ id?: string; request_id?: string }>('requests', { method: 'POST', idem: true, body: JSON.stringify({ type: laundry ? 'housekeeping' : kind, label: text, ...(lines.length ? { detail: lines.join(' · ').slice(0, 500) } : {}), urgent: false }) });
     setBusy(false);
     const id = r.ok ? (r.data.id ?? r.data.request_id) : null;
     if (!r.ok && r.key === 'service_closed') onClosed();
@@ -354,10 +355,10 @@ function Services({ c, closed, onClosed, back, done }: { c: Copy; closed: string
         </div>
         {kind === 'housekeeping' && (
           <fieldset><legend className="mb-1 text-sm font-semibold">{c.hkLabel}</legend>
-            {c.hk.map((h) => <label key={h} className="flex min-h-11 items-center gap-3"><input type="radio" name="hk" checked={label === h} onChange={() => setLabel(h)} className="h-5 w-5" />{h}</label>)}
-            {label === c.hk[c.hk.length - 1] && <TimePick label={c.cabTime} value={when} onChange={setWhen} />}
+            {c.hk.slice(0, -1).map((h) => <label key={h} className="flex min-h-11 items-center gap-3"><input type="radio" name="hk" checked={label === h} onChange={() => setLabel(h)} className="h-5 w-5" />{h}</label>)}
           </fieldset>
         )}
+        {kind === 'laundry' && <TimePick label={c.cabTime} value={when} onChange={setWhen} />}
         {kind === 'wake' && <TimePick label={c.wakeTime} value={when} onChange={setWhen} />}
         {kind === 'late_checkout' && <TimePick label={c.lateTime} value={when} onChange={setWhen} />}
         {kind === 'cab' && (
