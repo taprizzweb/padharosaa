@@ -65,6 +65,7 @@ function DayRow({ day, today, open, onOpen, onSaved }: { day: Day; today: string
 function NotifyCard({ time, onSave, flash }: { time: string; onSave: boolean; flash: (ok: boolean, t: string) => void }) {
   const [t, setT] = useState(time);
   const [on, setOn] = useState(onSave);
+  const [saved, setSaved] = useState({ time, onSave }); // what is stored now (the line under the buttons)
   const [testing, setTesting] = useState(false);
   const [result, setResult] = useState<string | null>(null);
   const test = async () => {
@@ -76,7 +77,7 @@ function NotifyCard({ time, onSave, flash }: { time: string; onSave: boolean; fl
     setTesting(false);
   };
   const save = async (nt: string, ns: boolean) => {
-    try { await apiPost('/api/padharosaa/v1/staff/buffet/notify', { time: nt, onSave: ns }); flash(true, 'Alert settings saved.'); } catch (e) { flash(false, `The alert settings could not be saved${e instanceof ApiFailure ? ` (${e.status} ${e.key}${e.requestId ? `, ref ${e.requestId.slice(0, 8)}` : ''})` : ''}.`); }
+    try { await apiPost('/api/padharosaa/v1/staff/buffet/notify', { time: nt, onSave: ns }); setSaved({ time: nt, onSave: ns }); flash(true, 'Alert settings saved.'); } catch (e) { flash(false, `The alert settings could not be saved${e instanceof ApiFailure ? ` (${e.status} ${e.key}${e.requestId ? `, ref ${e.requestId.slice(0, 8)}` : ''})` : ''}.`); }
   };
   return (
     <div className="mt-3 rounded-xl border-2 border-stone-200 p-3" data-testid="buffet-notify">
@@ -88,7 +89,7 @@ function NotifyCard({ time, onSave, flash }: { time: string; onSave: boolean; fl
         <button type="button" className="min-h-11 rounded-xl bg-stone-900 px-4 text-sm font-bold text-white" onClick={() => void save(t, on)}>Save time</button>
         {t && <button type="button" className="min-h-11 rounded-xl border-2 border-stone-300 px-4 text-sm font-bold" onClick={() => { setT(''); void save('', on); }}>No daily reminder</button>}
       </div>
-      <p className="mt-2 text-sm font-semibold" data-testid="notify-state">{time ? `Saved: a reminder goes to every guest phone every day at ${clock12(time)}, when today's buffet is set.` : 'No daily reminder is set.'} {onSave ? 'A message also goes out when you save today\'s buffet.' : 'Saving the buffet sends no message.'}</p>
+      <p className="mt-2 text-sm font-semibold" data-testid="notify-state">{saved.time ? `Saved: a reminder goes to every guest phone every day at ${clock12(saved.time)}, when today's buffet is set.` : 'No daily reminder is set.'} {saved.onSave ? 'A message also goes out when you save today\'s buffet.' : 'Saving the buffet sends no message.'}</p>
       <button type="button" disabled={testing} className="mt-2 min-h-11 rounded-xl border-2 border-stone-800 px-4 text-sm font-bold disabled:opacity-50" onClick={() => void test()}>{testing ? 'Sending…' : 'Send a test alert now'}</button>
       {result && <p role="status" className="mt-2 rounded-xl bg-stone-100 p-3 text-sm font-semibold" data-testid="notify-test">{result}</p>}
     </div>
