@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { apiGet, apiPost } from '@/components/staff/hooks';
 import { AlertSound } from '@/components/staff/sound';
 import { ApiFailure } from '@/lib/guest/client';
-import { GROUP_LABEL, GROUP_TEAMS, type Group } from '@/lib/padharosaa/areas';
+import { GROUP_LABEL, GROUP_TEAMS, soundsFor, type Group } from '@/lib/padharosaa/areas';
 import { AreaNav, type NavCurrent } from './AreaNav';
 import { BuffetManager } from './BuffetManager';
 import { OrderCardDesk, TableCallDesk, type OrderDeskActions, type TableCallActions } from './DeskOrders';
@@ -61,15 +61,17 @@ export function DeskApp({ role, hotel, title = 'Reception desk', current = 'desk
   const open = useMemo(() => { const t = privileged ? GROUP_TEAMS[group] : null; return t ? allOpen.filter((r) => t.includes(r.team)) : allOpen; }, [allOpen, group, privileged]);
   const pending = allOpen.filter((r) => r.status === 'received' && !muted.has(r.team));
 
+  // each kind of request has its own sound (urgent siren, food chime, help ding-dong, housekeeping bell, waiter beeps); several kinds play one after another
+  const playMany = (kinds: Parameters<AlertSound['play']>[0][]) => kinds.forEach((k, i) => setTimeout(() => sound.current.play(k), i * 1100));
   // alarm: once for each new request, and again every 20 seconds while something unmuted is still waiting
   useEffect(() => {
     if (!reqs) return;
     const fresh = pending.filter((r) => !seen.current.has(r.id));
     for (const r of reqs) seen.current.add(r.id);
     if (first.current) { first.current = false; return; }
-    if (fresh.length) sound.current.play(fresh.some((r) => r.urgent || r.type === 'help') ? 'help' : fresh[0]!.type === 'food' ? 'order' : 'waiter');
+    if (fresh.length) playMany(soundsFor(fresh));
   }, [reqs, pending]);
-  useEffect(() => { if (!pending.length) return; const i = setInterval(() => sound.current.play(pending.some((r) => r.urgent) ? 'help' : 'waiter'), 20000); return () => clearInterval(i); }, [pending]);
+  useEffect(() => { if (!pending.length) return; const i = setInterval(() => playMany(soundsFor(pending)), 20000); return () => clearInterval(i); }, [pending]);
 
   // food orders ring the same alarm: once for each new order, and again every 20 seconds while one is still waiting
   const waitingOrders = orders.filter((o) => o.status === 'placed');
@@ -86,7 +88,7 @@ export function DeskApp({ role, hotel, title = 'Reception desk', current = 'desk
     const fresh = calls.filter((c) => !seenCalls.current.has(c.id));
     for (const c of calls) seenCalls.current.add(c.id);
     if (firstCalls.current) { firstCalls.current = false; return; }
-    if (fresh.length) sound.current.play('waiter');
+    if (fresh.length) playMany(fresh.some((c) => c.type === 'bill') ? (fresh.some((c) => c.type === 'waiter') ? ['bill', 'waiter'] : ['bill']) : ['waiter']);
   }, [calls]);
   const orderAct = async (f: () => Promise<unknown>) => {
     try { await f(); setErr(null); } catch { setErr('That did not go through. Please try again.'); }
@@ -133,6 +135,10 @@ export function DeskApp({ role, hotel, title = 'Reception desk', current = 'desk
           <h2 className="text-sm font-bold">My alerts (only for me)</h2>
           <div className="mt-2 flex flex-wrap gap-2">
             {alerts.teams.map((t) => <button key={t} type="button" aria-pressed={!muted.has(t)} onClick={() => void toggleMute(t)} className={`min-h-11 rounded-full border-2 px-3 text-sm font-semibold ${muted.has(t) ? 'border-stone-400 text-stone-700' : 'border-emerald-800 bg-emerald-50 text-emerald-950'}`}>{TEAM_NAME[t]}: {muted.has(t) ? 'muted' : 'on'}</button>)}
+          </div>
+          <p className="mt-3 text-xs font-bold uppercase tracking-wide text-stone-700">Hear each alarm (turn the sound on first)</p>
+          <div className="mt-1 flex flex-wrap gap-2">
+            {([['urgent', 'Urgent'], ['order', 'Food order'], ['help', 'Help'], ['housekeeping', 'Housekeeping'], ['waiter', 'Waiter call'], ['bill', 'Bill']] as const).map(([k, label]) => <button key={k} type="button" onClick={() => sound.current.play(k)} className="min-h-11 rounded-full border-2 border-stone-400 px-3 text-sm font-semibold text-stone-900">▶ {label}</button>)}
           </div>
         </section>
       )}

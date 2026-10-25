@@ -36,3 +36,19 @@ export function canOpen(area: Area, role: string): boolean {
 export const areaHref = (area: Area, onPadHost: boolean): string => (onPadHost ? `/${area}` : `/padharosaa/${area}`);
 
 export const isPadHost = (host: string | null | undefined): boolean => /^padharosaa\./i.test(host ?? '');
+
+/**
+ * Which alarm a desk request plays, so the ear can tell them apart without looking: urgent (siren), a food order (chime), a guest problem
+ * or help (ding-dong), housekeeping and maintenance (soft bell), and everything else (concierge, cab, wake-up...) the waiter beeps.
+ */
+export type DeskSound = 'urgent' | 'order' | 'help' | 'housekeeping' | 'waiter';
+export const DESK_SOUND_ORDER: readonly DeskSound[] = ['urgent', 'order', 'help', 'housekeeping', 'waiter'];
+export function soundForRequest(r: { urgent: boolean; type: string; team: string }): DeskSound {
+  if (r.urgent) return 'urgent';
+  if (r.type === 'food') return 'order';
+  if (r.type === 'help') return 'help';
+  if (r.team === 'housekeeping' || r.team === 'maintenance' || r.type === 'housekeeping') return 'housekeeping';
+  return 'waiter';
+}
+/** The sounds to play for a set of requests: one of each kind, most important first. */
+export const soundsFor = (rs: { urgent: boolean; type: string; team: string }[]): DeskSound[] => DESK_SOUND_ORDER.filter((k) => rs.some((r) => soundForRequest(r) === k));

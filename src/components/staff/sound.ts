@@ -12,12 +12,19 @@ interface Tone {
 }
 
 /** Four clearly different tones, readable in a noisy kitchen: chime (order), triple beep (waiter), rising triad (bill), ding-dong (guest problem). */
-export const TONES: Record<AlertKind, Tone> = {
+/** The reception desk also tells urgent requests and housekeeping apart from the rest. */
+export type SoundKind = AlertKind | 'urgent' | 'housekeeping';
+
+export const TONES: Record<SoundKind, Tone> = {
   order: { wave: 'sine', gain: 0.35, notes: [{ freq: 880, at: 0, dur: 0.2 }, { freq: 660, at: 0.22, dur: 0.35 }] },
   waiter: { wave: 'square', gain: 0.18, notes: [{ freq: 1100, at: 0, dur: 0.1 }, { freq: 1100, at: 0.17, dur: 0.1 }, { freq: 1100, at: 0.34, dur: 0.1 }] },
   bill: { wave: 'triangle', gain: 0.4, notes: [{ freq: 523, at: 0, dur: 0.16 }, { freq: 659, at: 0.18, dur: 0.16 }, { freq: 784, at: 0.36, dur: 0.34 }] },
   // a guest problem: ding-dong-ding-dong, unlike the other three
   help: { wave: 'sine', gain: 0.42, notes: [{ freq: 988, at: 0, dur: 0.14 }, { freq: 740, at: 0.17, dur: 0.14 }, { freq: 988, at: 0.34, dur: 0.14 }, { freq: 740, at: 0.51, dur: 0.3 }] },
+  // urgent: a fast, loud siren (high-low four times), impossible to mistake for anything else
+  urgent: { wave: 'sawtooth', gain: 0.3, notes: [0, 1, 2, 3].flatMap((i) => [{ freq: 1400, at: i * 0.36, dur: 0.17 }, { freq: 800, at: i * 0.36 + 0.18, dur: 0.17 }]) },
+  // housekeeping: two soft low notes, like a bell in a corridor
+  housekeeping: { wave: 'triangle', gain: 0.45, notes: [{ freq: 392, at: 0, dur: 0.35 }, { freq: 494, at: 0.4, dur: 0.5 }] },
 };
 
 /** Browsers only allow sound after a tap, so `enable()` must be called from a click handler. */
@@ -41,7 +48,7 @@ export class AlertSound {
     return this.ready;
   }
 
-  play(kind: AlertKind): void {
+  play(kind: SoundKind): void {
     const ctx = this.ctx;
     if (!ctx || ctx.state !== 'running') return;
     const tone = TONES[kind];
