@@ -4,6 +4,7 @@ import webpush from 'web-push';
 import { serverEnv } from '@/env';
 import { rpc } from '@/lib/guest/rpc';
 
+export interface PushResult { configured: boolean; targets: number; sent: number; dropped: number; failed: number; codes: number[] }
 export interface BuffetToday { slug: string; hotel: string; name: string | null; start: string; end: string; venue: string | null; restaurant_id?: string }
 interface Target { id: string; sub: webpush.PushSubscription }
 
@@ -21,23 +22,25 @@ export function buffetMessage(b: BuffetToday, kind: 'saved' | 'reminder'): { tit
 }
 
 /** Sends one message to every phone of a hotel that allowed it. A phone that has gone (410/404) is forgotten. Never throws. */
-export async function pushToHotel(restaurantId: string, msg: { title: string; body: string; url: string; tag: string }, send: typeof webpush.sendNotification = webpush.sendNotification): Promise<{ sent: number; dropped: number; failed: number }> {
-  const out = { sent: 0, dropped: 0, failed: 0 };
+export async function pushToHotel(restaurantId: string, msg: { title: string; body: string; url: string; tag: string }, send: typeof webpush.sendNotification = webpush.sendNotification): Promise<PushResult> {
+  const out: PushResult = { configured: true, targets: 0, sent: 0, dropped: 0, failed: 0, codes: [] };
   const keys = vapid();
-  if (!keys) return out;
+  if (!keys) return { ...out, configured: false };
   try {
     const targets = await rpc<Target[]>('padh_push_targets', { p_restaurant: restaurantId });
+    out.targets = targets.length;
     const payload = JSON.stringify(msg);
     const opts = { vapidDetails: keys, TTL: 6 * 3600, urgency: 'normal' as const };
     for (let i = 0; i < targets.length; i += 25) {
       await Promise.all(targets.slice(i, i + 25).map(async (t) => {
         try { await send(t.sub, payload, opts); out.sent++; } catch (e) {
           const code = (e as { statusCode?: number }).statusCode;
-          if (code === 404 || code === 410) { out.dropped++; await rpc('padh_push_drop', { p_session: t.id }).catch(() => undefined); } else out.failed++;
+          if (code === 404 || code === 410) { out.dropped++; await rpc('padh_push_drop', { p_session: t.id }).catch(() => undefined); } else { out.failed++; out.codes.push(code ?? 0); }
         }
       }));
     }
-  } catch { out.failed++; }
+  } catch { out.failed++; out.codes.push(0); }
+  console.warn(JSON.stringify({ msg: 'push_sent', restaurant: restaurantId, tag: msg.tag, ...out }));
   return out;
 }
 

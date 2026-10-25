@@ -205,7 +205,7 @@ export function DeskApp({ role, hotel, title = 'Reception desk', current = 'desk
       )}
       {(privileged || alerts?.teams.includes('front_desk') || alerts?.teams.includes('concierge')) && (
         <details className="mt-6 rounded-2xl bg-white p-3 shadow-sm">
-          <summary className="min-h-11 cursor-pointer py-2 text-base font-extrabold">Buffet: set today and the coming days</summary>
+          <summary className="min-h-11 cursor-pointer py-2 text-base font-extrabold">Buffet and guest phone alerts</summary>
           <BuffetManager flash={flash} bare />
         </details>
       )}

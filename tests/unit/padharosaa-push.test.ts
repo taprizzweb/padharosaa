@@ -21,7 +21,7 @@ describe('buffet push', () => {
       return {} as never;
     });
     const r = await pushToHotel('rid', { title: 't', body: 'b', url: '/x', tag: 'g' }, send as never);
-    expect(r).toEqual({ sent: 1, dropped: 1, failed: 1 });
+    expect(r).toMatchObject({ configured: true, targets: 3, sent: 1, dropped: 1, failed: 1, codes: [500] });
     expect(calls.filter((c) => c.name === 'padh_push_drop').map((c) => c.args.p_session)).toEqual(['s2']);
   });
 });

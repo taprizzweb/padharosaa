@@ -169,7 +169,7 @@ test('a bill request and a waiter call arrive on the reception desk with the res
 
 test('reception can set the buffet from the desk', async ({ page }) => {
   await signIn(page, 'waiter@spice-garden.demo', /\/padharosaa\/desk$/, '/padharosaa/desk');
-  await page.getByText('Buffet: set today and the coming days').click();
+  await page.getByText('Buffet and guest phone alerts').click();
   await page.getByRole('button', { name: /^Today/ }).click();
   await page.getByLabel(/^Name \(e.g. Thali night\)/).fill('Rajasthani thali night');
   await page.getByRole('button', { name: 'Save', exact: true }).click();
@@ -181,6 +181,9 @@ test('reception can set the buffet from the desk', async ({ page }) => {
   await card.getByRole('button', { name: 'Save time' }).click();
   await expect(page.getByText('Alert settings saved.')).toBeVisible();
   expect((await q<{ t: string }>(`select to_char(buffet_notify_time, 'HH24:MI') t from public.hotel_settings where restaurant_id = ${RID}`))[0]!.t).toBe('18:30');
+  await expect(page.getByTestId('notify-state')).toContainText('every day at 6:30 PM');
+  await card.getByRole('button', { name: 'Send a test alert now' }).click();
+  await expect(page.getByTestId('notify-test')).toContainText(/keys are missing|No guest phone has allowed alerts|Test sent/);
   await card.getByLabel('Send when today\'s buffet is saved').uncheck();
   await expect.poll(async () => (await q<{ b: boolean }>(`select buffet_notify_on_save b from public.hotel_settings where restaurant_id = ${RID}`))[0]!.b).toBe(false);
 });

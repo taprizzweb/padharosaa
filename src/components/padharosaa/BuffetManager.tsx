@@ -6,6 +6,7 @@ import { ApiFailure } from '@/lib/guest/client';
 
 interface Day { date: string; set: boolean; mode: 'in_house' | 'outdoor' | 'none' | null; name: string | null; start: string | null; end: string | null; venue: string | null; highlights: string | null; mood: string | null }
 const inputCls = 'mt-1 min-h-11 w-full rounded-xl border-2 border-stone-300 bg-white px-3 text-base text-stone-900';
+const clock12 = (hhmm: string) => { const [h, m] = hhmm.split(':').map(Number); return `${((h! + 11) % 12) + 1}:${String(m).padStart(2, '0')} ${h! < 12 ? 'AM' : 'PM'}`; };
 const label = (date: string, today: string) => {
   const diff = Math.round((Date.parse(`${date}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) / 86400000);
   return `${diff === 0 ? 'Today' : diff === 1 ? 'Tomorrow' : ''} ${new Date(`${date}T00:00:00Z`).toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' })}`.trim();
@@ -64,6 +65,16 @@ function DayRow({ day, today, open, onOpen, onSaved }: { day: Day; today: string
 function NotifyCard({ time, onSave, flash }: { time: string; onSave: boolean; flash: (ok: boolean, t: string) => void }) {
   const [t, setT] = useState(time);
   const [on, setOn] = useState(onSave);
+  const [testing, setTesting] = useState(false);
+  const [result, setResult] = useState<string | null>(null);
+  const test = async () => {
+    setTesting(true); setResult(null);
+    try {
+      const r = await apiPost<{ configured: boolean; targets: number; sent: number; dropped: number; failed: number; codes: number[] }>('/api/padharosaa/v1/staff/buffet/notify/test', {});
+      setResult(!r.configured ? 'Alerts are not switched on for this website yet (the keys are missing).' : r.targets === 0 ? 'No guest phone has allowed alerts yet. A guest must tap "Get buffet alerts on this phone" on their home screen first.' : `Test sent: ${r.sent} phone${r.sent === 1 ? '' : 's'} reached${r.dropped ? `, ${r.dropped} no longer exist${r.dropped === 1 ? 's' : ''} and ${r.dropped === 1 ? 'was' : 'were'} removed` : ''}${r.failed ? `, ${r.failed} failed (code ${r.codes.join(', ')})` : ''}.`);
+    } catch { setResult('The test could not be sent. Please try again.'); }
+    setTesting(false);
+  };
   const save = async (nt: string, ns: boolean) => {
     try { await apiPost('/api/padharosaa/v1/staff/buffet/notify', { time: nt, onSave: ns }); flash(true, 'Alert settings saved.'); } catch (e) { flash(false, `The alert settings could not be saved${e instanceof ApiFailure ? ` (${e.status} ${e.key}${e.requestId ? `, ref ${e.requestId.slice(0, 8)}` : ''})` : ''}.`); }
   };
@@ -77,6 +88,9 @@ function NotifyCard({ time, onSave, flash }: { time: string; onSave: boolean; fl
         <button type="button" className="min-h-11 rounded-xl bg-stone-900 px-4 text-sm font-bold text-white" onClick={() => void save(t, on)}>Save time</button>
         {t && <button type="button" className="min-h-11 rounded-xl border-2 border-stone-300 px-4 text-sm font-bold" onClick={() => { setT(''); void save('', on); }}>No daily reminder</button>}
       </div>
+      <p className="mt-2 text-sm font-semibold" data-testid="notify-state">{time ? `Saved: a reminder goes to every guest phone every day at ${clock12(time)}, when today's buffet is set.` : 'No daily reminder is set.'} {onSave ? 'A message also goes out when you save today\'s buffet.' : 'Saving the buffet sends no message.'}</p>
+      <button type="button" disabled={testing} className="mt-2 min-h-11 rounded-xl border-2 border-stone-800 px-4 text-sm font-bold disabled:opacity-50" onClick={() => void test()}>{testing ? 'Sending…' : 'Send a test alert now'}</button>
+      {result && <p role="status" className="mt-2 rounded-xl bg-stone-100 p-3 text-sm font-semibold" data-testid="notify-test">{result}</p>}
     </div>
   );
 }
