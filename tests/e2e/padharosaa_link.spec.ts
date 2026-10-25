@@ -216,6 +216,7 @@ test('in a hotel only the Taprizz admin edits the menu: the owner has no edit op
     await expect(page).toHaveURL(/\/dash\/settings$/);
     await expect(page.getByRole('link', { name: 'Menu', exact: true })).toHaveCount(0);
     await page.getByRole('button', { name: 'Sign out' }).click();
+    await expect(page).toHaveURL(/\/login/);
     // the Taprizz admin edits it from the admin panel
     await signIn(page, 'admin@gotomenu.demo', /\/admin$/, '/admin');
     await page.getByRole('button', { name: 'Edit the menu of Spice Garden' }).click();
