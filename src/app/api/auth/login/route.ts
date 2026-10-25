@@ -40,14 +40,24 @@ export async function POST(req: Request) {
     // A Padharosaa hotel's staff land on their own page (owner, manager, kitchen, reception or housekeeping); everyone else keeps the menu live screen.
     const onPadHost = isPadHost(req.headers.get('x-forwarded-host') ?? req.headers.get('host'));
     let home = isAdmin ? '/admin' : '/staff';
+    let isHotelStaff = false;
     if (me && !isAdmin && !body.next) {
       // padh_my_alerts only answers for staff of an enabled Padharosaa hotel, so a good answer also means "this is a hotel".
       const alerts = await staffRpc<{ teams?: string[] | null }>(db, 'padh_my_alerts').catch(() => null);
       if (alerts || onPadHost) {
+        isHotelStaff = true;
         const area = homeFor((me as { role?: string }).role ?? '') ?? 'desk';
         home = areaHref(area, onPadHost);
       }
     }
-    return jsonOk({ ok: true, next: body.next ? safeNext(body.next) : home }, ctx.requestId);
+    // A hotel's staff always land on THEIR OWN page. A leftover "?next=" from an earlier screen (the desk sends an expired session to
+    // /login?next=/padharosaa/desk) must not put the owner or the kitchen on the reception desk.
+    let next = body.next ? safeNext(body.next) : home;
+    if (me && !isAdmin && body.next && (isHotelStaff || onPadHost)) {
+      const own = homeFor((me as { role?: string }).role ?? '');
+      const asked = /^\/(?:padharosaa\/)?(desk|owner|manager|kitchen|reception|housekeeping|staff)(?:\/|$)/.exec(next)?.[1];
+      if (own && asked && asked !== own) next = areaHref(own, onPadHost);
+    }
+    return jsonOk({ ok: true, next }, ctx.requestId);
   });
 }

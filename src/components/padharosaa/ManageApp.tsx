@@ -45,8 +45,11 @@ export function ManageApp({ role, restaurant, supabase }: { role: string; restau
     try {
       const d = await apiGet<Settings & { instagram: string | null }>('/api/padharosaa/v1/staff/settings');
       setS(d); setInsta((d.instagram ?? '').replace(/^https:\/\/www\.instagram\.com\//, '@')); setLoadErr(false);
-    } catch (e) { setLoadErr(e instanceof ApiFailure && e.status === 403 ? 'forbidden' : 'failed'); }
-  }, []);
+    } catch (e) {
+      if (e instanceof ApiFailure && e.status === 401) { window.location.assign(`/login?next=/padharosaa/${role}`); return; } // the sign-in expired: sign in again, back to this console
+      setLoadErr(e instanceof ApiFailure && e.status === 403 ? 'forbidden' : 'failed');
+    }
+  }, [role]);
   useEffect(() => { void load(); }, [load]);
 
   const save = async (path: string, body: unknown, done = 'Saved.') => {

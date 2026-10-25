@@ -471,7 +471,8 @@ test('reception hands a request to a person; it lands on that person\'s own disp
     await expect(card.getByText(`Assigned to ${mgrName}`)).toBeVisible();
     expect((await q<{ a: string }>(`select assigned_to::text a from public.requests where restaurant_id = ${RID} and label = 'Housekeeping: Extra pillows' order by created_at desc limit 1`))[0]!.a).toBe(mgrId);
     // the manager sees it as theirs
-    await signIn(m, 'manager@spice-garden.demo', /\/padharosaa\/desk$/, '/padharosaa/desk');
+    await signIn(m, 'manager@spice-garden.demo', /\/padharosaa\/manager$/, '/padharosaa/manager');
+    await m.goto('/padharosaa/desk');
     const mine = m.locator('li', { hasText: 'Housekeeping: Extra pillows' }).first();
     await expect(mine.getByText('Assigned to me')).toBeVisible();
     await m.getByRole('button', { name: /^Only mine/ }).click();
@@ -494,6 +495,23 @@ test('reception hands a request to a person; it lands on that person\'s own disp
     await q(`delete from public.request_routing where restaurant_id = ${RID}`);
     await gctx.close();
     await mctx.close();
+  }
+});
+
+test('signing in never drops the owner or the kitchen on the reception desk, even from an old ?next=desk link; the console has a Sign out button', async ({ browser }) => {
+  for (const [email, land] of [['owner@spice-garden.demo', /\/padharosaa\/owner$/], ['kitchen@spice-garden.demo', /\/padharosaa\/kitchen$/]] as const) {
+    const ctx = await browser.newContext();
+    const p = await ctx.newPage();
+    try {
+      await signIn(p, email, land, '/padharosaa/desk'); // an expired desk sends people to /login?next=/padharosaa/desk
+      await expect(p).toHaveURL(land);
+      if (email.startsWith('owner')) {
+        await p.getByRole('button', { name: 'Sign out' }).click();
+        await expect(p).toHaveURL(/\/login/);
+      }
+    } finally {
+      await ctx.close();
+    }
   }
 });
 

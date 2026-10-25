@@ -19,12 +19,14 @@ export function AreaNav({ role, current, kitchenDisplay = false }: { role: strin
     ...(kitchenDisplay ? ([['kitchen', 'Kitchen display', to('kitchen')]] as [NavCurrent, string, string][]) : []),
   ];
   if (items.length === 0) return null;
+  const signOut = async () => { try { await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ scope: 'local' }) }); } finally { window.location.assign('/login'); } };
   return (
     <nav aria-label="Screens" className="-mx-4 mt-3 flex gap-2 overflow-x-auto px-4 pb-1">
       {items.map(([k, label, href]) => (
         <Link key={k} href={href} prefetch={false} aria-current={k === current ? 'page' : undefined}
           className={`inline-flex min-h-11 shrink-0 items-center rounded-full px-4 text-sm font-bold ${k === current ? 'bg-stone-900 text-white' : 'border-2 border-stone-800 text-stone-900'}`}>{label}</Link>
       ))}
+      <button type="button" onClick={() => void signOut()} className="ml-auto inline-flex min-h-11 shrink-0 items-center rounded-full border-2 border-stone-400 px-4 text-sm font-bold text-stone-800">Sign out</button>
     </nav>
   );
 }
