@@ -11,6 +11,7 @@ import { BuffetManager } from './BuffetManager';
 import { GuideManager } from './GuideManager';
 import { CheckoutPanel } from './CheckoutPanel';
 import { GuestLinkPanel, RoomsCard, type LinkState } from './RoomsLink';
+import { prettyPhone } from '@/lib/padharosaa/phone';
 import { parseStaffCsv } from '@/lib/padharosaa/csv';
 import { buildTheme, contrast, normaliseHex } from '@/lib/padharosaa/theme';
 
@@ -199,7 +200,7 @@ function HomeCard({ s, save }: { s: Settings; save: Save }) {
 }
 
 function StayCard({ s, save }: { s: Settings; save: Save }) {
-  const [f, setF] = useState({ wifi: s.wifi_name ?? '', pass: '', out: s.checkout_time ?? '', bf: s.breakfast_text ?? '', rec: s.reception_phone ?? '', mgr: s.manager_phone ?? '' });
+  const [f, setF] = useState({ wifi: s.wifi_name ?? '', pass: '', out: s.checkout_time ?? '', bf: s.breakfast_text ?? '', rec: prettyPhone(s.reception_phone), mgr: prettyPhone(s.manager_phone) });
   const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement>) => setF({ ...f, [k]: e.target.value });
   return (
     <Card title="Stay, Wi-Fi and phone numbers" hint="The reception number appears as the always-visible Call reception button. Leave the password empty to keep the current one.">

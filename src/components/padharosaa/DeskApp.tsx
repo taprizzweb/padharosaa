@@ -1,5 +1,6 @@
 'use client';
 
+import { dialNumber } from '@/lib/padharosaa/phone';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { apiGet, apiPost } from '@/components/staff/hooks';
 import { AlertSound } from '@/components/staff/sound';
@@ -221,7 +222,7 @@ function Card({ r, role, me, people, refreshPeople, roomDining, muted, act }: { 
   return (
     <li className={`rounded-2xl border-l-8 bg-white p-4 shadow-sm ${urgentCls}`}>
       <div className="flex items-start justify-between gap-2">
-        <div><p className="text-lg font-extrabold">Room {r.room} <span className="font-semibold text-stone-700">· {r.guest_name}</span></p>{r.mobile && <a href={`tel:${r.mobile.replace(/[^+\d]/g, '')}`} className="text-sm font-semibold underline">{r.mobile}</a>}</div>
+        <div><p className="text-lg font-extrabold">Room {r.room} <span className="font-semibold text-stone-700">· {r.guest_name}</span></p>{r.mobile && <a href={`tel:${dialNumber(r.mobile)}`} className="text-sm font-semibold underline">{r.mobile}</a>}</div>
         <span className="rounded-full bg-stone-100 px-3 py-1 text-sm font-bold">{age} min</span>
       </div>
       <div className="mt-2 flex flex-wrap gap-1 text-xs font-bold">

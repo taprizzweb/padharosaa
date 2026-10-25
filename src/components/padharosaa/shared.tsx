@@ -1,5 +1,6 @@
 'use client';
 
+import { dialNumber } from '@/lib/padharosaa/phone';
 import { useEffect, useState, type ReactNode } from 'react';
 import type { Copy } from './copy';
 
@@ -17,7 +18,7 @@ export async function api<T>(path: string, init?: RequestInit & { idem?: boolean
 }
 
 export const time = (iso: string | null) => (iso ? new Date(iso).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : '');
-export const telHref = (p: string) => `tel:${p.replace(/[^+\d]/g, '')}`;
+export const telHref = (p: string) => `tel:${dialNumber(p)}`;
 export const safeUrl = (u: string | null | undefined) => (u && /^https:\/\//i.test(u) ? u : null);
 
 export function Btn({ children, onClick, disabled, kind = 'solid', type = 'button' }: { children: ReactNode; onClick?: () => void; disabled?: boolean; kind?: 'solid' | 'soft'; type?: 'button' | 'submit' }) {
