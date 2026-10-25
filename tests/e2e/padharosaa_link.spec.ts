@@ -540,6 +540,42 @@ test('the owner console opens on an Overview of today; the desk and the console 
   }
 });
 
+test('a hotel that gives every guest their own Wi-Fi login: the owner pastes the list and the guest sees the next login on Stay & Wi-Fi', async ({ browser }) => {
+  await q(`insert into public.rooms (restaurant_id, number) values (${RID}, '204') on conflict do nothing`);
+  await q(`delete from public.wifi_vouchers where restaurant_id = ${RID}`);
+  const octx = await browser.newContext();
+  const gctx = await browser.newContext({ viewport: { width: 375, height: 800 } });
+  const o = await octx.newPage();
+  const g = await gctx.newPage();
+  try {
+    await signIn(o, 'owner@spice-garden.demo', /\/padharosaa\/owner$/, '/padharosaa/owner');
+    await o.getByRole('tab', { name: 'Hotel' }).click();
+    await o.getByLabel('Logins (one per line)').fill('Username,Password\n70012 JHWS\n70013,KPLM');
+    await o.getByRole('button', { name: 'Add these logins' }).click();
+    await expect(o.getByText(/2 logins added/)).toBeVisible();
+    await expect(o.getByTestId('wifi-stock')).toContainText('2 unused');
+    await g.goto(second);
+    await g.getByLabel('Your name').fill('Wifi Guest');
+    await g.getByRole('button', { name: 'Accept cookies' }).click();
+    await g.getByLabel('Mobile number').fill('9877777777');
+    await g.getByLabel('Room number').fill('204');
+    await g.getByRole('button', { name: 'Enter' }).click();
+    await expect(g.getByText('Namaste, Wifi')).toBeVisible();
+    await g.getByText('Stay & Wi-Fi', { exact: true }).click();
+    const card = g.getByTestId('wifi-voucher');
+    await expect(card).toContainText('70012');
+    await expect(card).toContainText('JHWS');
+    await expect(o.getByTestId('wifi-stock')).toBeVisible();
+    await o.reload();
+    await o.getByRole('tab', { name: 'Hotel' }).click();
+    await expect(o.getByTestId('wifi-stock')).toContainText('1 unused · 1 given');
+  } finally {
+    await q(`delete from public.wifi_vouchers where restaurant_id = ${RID}`);
+    await octx.close();
+    await gctx.close();
+  }
+});
+
 test('a public demo hotel: one link, no sign-in, and the demo answers itself; a normal hotel has no demo link', async ({ browser }) => {
   test.setTimeout(150_000); // the demo answers after about 20 seconds
   const ctx = await browser.newContext({ viewport: { width: 375, height: 800 } });

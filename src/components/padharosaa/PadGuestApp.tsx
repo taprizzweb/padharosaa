@@ -426,11 +426,12 @@ function Checkout({ c, closed, onClosed, back, done }: { c: Copy; closed: string
 }
 
 function Stay({ c, back }: { c: Copy; back: () => void }) {
-  const [s, setS] = useState<{ wifi_name: string | null; wifi_password: string | null; checkout_time: string | null; breakfast: string | null } | null>(null);
+  const [s, setS] = useState<{ wifi_name: string | null; wifi_password: string | null; checkout_time: string | null; breakfast: string | null; voucher?: { username: string; password: string } | null } | null>(null);
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [qr, setQr] = useState<string | null>(null);
   useEffect(() => {
-    if (!s?.wifi_name) return;
+    if (!s?.wifi_name || s.voucher) return; // a personal login is typed in; a shared password can be joined by scanning
     // the standard Wi-Fi code: a phone camera offers to join the network by itself
     const esc = (v: string) => v.replace(/([\\;,:"])/g, '\\$1');
     const text = `WIFI:T:${s.wifi_password ? 'WPA' : 'nopass'};S:${esc(s.wifi_name)};${s.wifi_password ? `P:${esc(s.wifi_password)};` : ''};`;
@@ -438,10 +439,23 @@ function Stay({ c, back }: { c: Copy; back: () => void }) {
   }, [s]);
   useEffect(() => { void api<NonNullable<typeof s>>('stay').then((r) => { if (r.ok) setS(r.data); }); }, []);
   const copy = async () => { try { await navigator.clipboard.writeText(s?.wifi_password ?? ''); setCopied(true); setTimeout(() => setCopied(false), 2000); } catch { /* the password is shown, select it by hand */ } };
+  const copyText = async (key: string, v: string) => { try { await navigator.clipboard.writeText(v); setCopiedKey(key); setTimeout(() => setCopiedKey(null), 2000); } catch { /* the value is shown, select it by hand */ } };
   const row = (k: string, v: string | null | undefined) => v ? <div className="flex justify-between gap-4 border-t py-3 first:border-t-0" style={{ borderColor: 'var(--tint)' }}><dt className="text-sm font-semibold text-stone-600">{k}</dt><dd className="text-right font-bold">{v}</dd></div> : null;
   return (
     <main className="flex-1 space-y-3 pb-4"><Header c={c} back={back} title={c.stay} />
-      {(s?.wifi_name || s?.wifi_password) && (
+      {s?.voucher && (
+        <div className="mx-5 rounded-3xl bg-white p-4 text-stone-900 shadow-sm" data-testid="wifi-voucher">
+          <div className="flex items-center gap-3"><IconBox name="wifi" /><div><b className="block text-lg">{c.wifiLoginTitle}</b>{s.wifi_name && <span className="block text-sm text-stone-600">{c.wifiName}: <b>{s.wifi_name}</b></span>}</div></div>
+          <p className="mt-2 text-sm text-stone-600">{c.wifiLoginHint}</p>
+          {([['user', c.wifiUser, s.voucher.username], ['pass', c.wifiPass, s.voucher.password]] as const).map(([k, label, v]) => (
+            <div key={k} className="mt-2 flex items-center justify-between gap-3 rounded-2xl p-3" style={{ background: 'var(--tint)' }}>
+              <span className="min-w-0"><span className="block text-xs font-semibold text-stone-600">{label}</span><b className="block select-all break-all font-mono text-xl">{v}</b></span>
+              <button type="button" onClick={() => void copyText(k, v)} className="min-h-11 shrink-0 rounded-full border-2 px-4 text-sm font-bold" style={{ borderColor: 'var(--accent-text)', color: 'var(--accent-text)' }}>{copiedKey === k ? c.wifiCopied : c.wifiCopy}</button>
+            </div>
+          ))}
+        </div>
+      )}
+      {!s?.voucher && (s?.wifi_name || s?.wifi_password) && (
         <div className="mx-5 flex items-center gap-3.5 rounded-3xl bg-white p-4 text-stone-900 shadow-sm">
           <IconBox name="wifi" />
           <div className="min-w-0 flex-1">

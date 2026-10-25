@@ -14,6 +14,7 @@ import { GuideManager } from './GuideManager';
 import { CheckoutPanel } from './CheckoutPanel';
 import { GuestLinkPanel, RoomsCard, type LinkState } from './RoomsLink';
 import { prettyPhone } from '@/lib/padharosaa/phone';
+import { parseVoucherLines } from '@/lib/padharosaa/wifi';
 import { parseStaffCsv } from '@/lib/padharosaa/csv';
 import { buildTheme, contrast, normaliseHex } from '@/lib/padharosaa/theme';
 
@@ -84,6 +85,7 @@ export function ManageApp({ role, restaurant, supabase }: { role: string; restau
         <>
       <HomeCard s={s} save={save} />
       <StayCard s={s} save={save} />
+          <WifiVouchersCard flash={flash} />
       <LookCard s={s} insta={insta} restaurantId={restaurant.id} sb={sb} save={save} />
         </>
       )}
@@ -239,6 +241,33 @@ function StayCard({ s, save }: { s: Settings; save: Save }) {
       <Field label="Reception phone (e.g. 9828114008)"><input inputMode="tel" className={inputCls} value={f.rec} onChange={set('rec')} /></Field>
       <Field label="Manager phone"><input inputMode="tel" className={inputCls} value={f.mgr} onChange={set('mgr')} /></Field>
       <button type="button" className={btnCls} onClick={() => void save('stay', { wifi_name: f.wifi || null, wifi_password: f.pass || null, checkout_time: f.out || null, breakfast: f.bf || null, reception_phone: f.rec || null, manager_phone: f.mgr || null })}>Save stay info</button>
+    </Card>
+  );
+}
+
+/** For hotels whose Wi-Fi gives every guest a login: paste the list from the Wi-Fi system once; each guest gets the next unused one. */
+function WifiVouchersCard({ flash }: { flash: (ok: boolean, text: string) => void }) {
+  const [text, setText] = useState('');
+  const [st, setSt] = useState<{ free: number; given: number } | null>(null);
+  const [busy, setBusy] = useState(false);
+  const load = useCallback(async () => { try { setSt(await apiGet('/api/padharosaa/v1/staff/wifi-vouchers')); } catch { /* the card simply shows no count */ } }, []);
+  useEffect(() => { void load(); }, [load]);
+  const add = async () => {
+    const { ok, bad } = parseVoucherLines(text);
+    if (ok.length === 0) { flash(false, bad.length ? `No login found. Each line needs a username and a password, like "70012 JHWS". Check: ${bad[0]}` : 'Paste the list first.'); return; }
+    setBusy(true);
+    try {
+      const r = await apiPost<{ added: number; skipped: number }>('/api/padharosaa/v1/staff/wifi-vouchers', { items: ok });
+      flash(true, `${r.added} login${r.added === 1 ? '' : 's'} added${r.skipped ? `, ${r.skipped} already in the list` : ''}${bad.length ? `. ${bad.length} line${bad.length === 1 ? '' : 's'} skipped (not a username and a password)` : ''}.`);
+      setText(''); await load();
+    } catch (e) { flash(false, `The list could not be saved${e instanceof ApiFailure ? ` (${e.status} ${e.key})` : ''}. Please try again.`); }
+    setBusy(false);
+  };
+  return (
+    <Card title="Wi-Fi login for each guest" hint="Only if your Wi-Fi gives every guest their own login (a username and a password). Paste the list from your Wi-Fi system: one login per line, the username and the password separated by a space or a comma. Each guest gets the next unused one on the Stay & Wi-Fi screen. Leave this empty to show the single Wi-Fi name and password above.">
+      {st && (st.free + st.given > 0) && <p className={`text-sm font-semibold ${st.free < 10 ? 'text-red-800' : 'text-stone-800'}`} data-testid="wifi-stock">{st.free} unused · {st.given} given to guests{st.free < 10 ? '. Running low: add more.' : ''}</p>}
+      <Field label="Logins (one per line)"><textarea className={`${inputCls} min-h-28 py-2 font-mono`} rows={5} value={text} onChange={(e) => setText(e.target.value)} placeholder={'70012 JHWS\n70013 KPLM'} /></Field>
+      <button type="button" className={btnCls} disabled={busy} onClick={() => void add()}>Add these logins</button>
     </Card>
   );
 }

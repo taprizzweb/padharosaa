@@ -14,7 +14,7 @@ export async function GET(req: Request) {
 }
 export async function POST(req: Request) {
   return staffRoute(req, { method: 'POST', schema: routingBody }, async (ctx, b) => {
-    await limit(`ps:${ctx.userId}`, 60, 60);
+    await limit(`psr:${ctx.userId}`, 60, 60);
     return jsonOk(await staffRpc(ctx.db, 'padh_routing_set', { p_team: b.team, p_user: b.user }), ctx.requestId);
   });
 }

@@ -207,3 +207,4 @@ export const autoBillBody = z.object({ on: z.boolean() }).strict();
 export const assignBody = z.object({ version: z.number().int().min(1), user: z.string().uuid().nullable() }).strict();
 export const routingBody = z.object({ team: z.enum(['concierge', 'front_desk', 'housekeeping', 'kitchen', 'maintenance', 'manager']), user: z.string().uuid().nullable() }).strict();
 export const demoBody = z.object({ on: z.boolean() }).strict();
+export const wifiVouchersBody = z.object({ items: z.array(z.object({ username: z.string().min(1).max(64), password: z.string().min(1).max(64) }).strict()).min(1).max(2000) }).strict();
