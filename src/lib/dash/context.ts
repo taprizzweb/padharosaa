@@ -13,8 +13,12 @@ export async function dashContext() {
   const m = me as StaffMe | null;
   if (!m || (m.role !== 'owner' && m.role !== 'manager')) redirect('/staff');
   const env = publicEnv();
+  // in a Padharosaa hotel the menu is changed only by the Taprizz admin on a visit (migration 0053)
+  const { data: al } = await db.rpc('padh_my_alerts');
+  const menuLocked = !!al && m.display_name !== 'Taprizz admin (support)';
   return {
     me: m,
+    menuLocked,
     supabase: { url: env.NEXT_PUBLIC_SUPABASE_URL, anonKey: env.NEXT_PUBLIC_SUPABASE_ANON_KEY },
     imageBase: `${env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/menu-images/`,
     appOrigin: env.NEXT_PUBLIC_APP_ORIGIN,

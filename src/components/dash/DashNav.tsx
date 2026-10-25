@@ -14,7 +14,7 @@ const LINKS = [
   { href: '/dash/audit', label: 'Activity log' },
 ];
 
-export function DashNav({ name, role, slug, support = false }: { name: string; role: string; slug: string; support?: boolean }) {
+export function DashNav({ name, role, slug, support = false, menuLocked = false }: { name: string; role: string; slug: string; support?: boolean; menuLocked?: boolean }) {
   const path = usePathname();
   const [busy, setBusy] = useState(false);
   return (
@@ -46,7 +46,7 @@ export function DashNav({ name, role, slug, support = false }: { name: string; r
         </button>
       </div>
       <nav aria-label="Dashboard" className="mx-auto flex max-w-5xl gap-1 overflow-x-auto px-3 pb-2">
-        {LINKS.map((l) => {
+        {LINKS.filter((l) => !(menuLocked && l.href === '/dash/menu')).map((l) => {
           const active = path === l.href || path.startsWith(`${l.href}/`);
           return (
             <Link

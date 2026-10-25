@@ -17,6 +17,9 @@ export default async function DashLayout({ children }: { children: React.ReactNo
   // Waiters and kitchen staff only use the live screen.
   if (m.role !== 'owner' && m.role !== 'manager') redirect('/staff');
   // Warn in time: the plan end date is set by the platform admin; nothing here changes it.
+  const { data: al } = await db.rpc('padh_my_alerts');
+  const support = m.display_name === 'Taprizz admin (support)';
+  const menuLocked = !!al && !support; // a Padharosaa hotel's menu is edited by the Taprizz admin only
   const { data: st } = await db.rpc('mgr_get_settings');
   const plan = st as { paid_until: string | null; auto_pause: boolean; grace_days: number } | null;
   const ex = plan ? expiryOf(plan.paid_until, plan.auto_pause, plan.grace_days) : ({ kind: 'none' } as const);
@@ -26,7 +29,7 @@ export default async function DashLayout({ children }: { children: React.ReactNo
       : null;
   return (
     <div data-accent={m.restaurant.accent} className="min-h-dvh bg-stone-50">
-      <DashNav name={m.restaurant.name} role={m.role} slug={m.restaurant.slug} support={m.display_name === 'Taprizz admin (support)'} />
+      <DashNav name={m.restaurant.name} role={m.role} slug={m.restaurant.slug} support={support} menuLocked={menuLocked} />
       {m.restaurant.status !== 'active' && (
         <p role="status" className="bg-amber-100 px-4 py-3 text-center text-sm font-semibold text-amber-900">This restaurant is paused, so changes are switched off. Please contact support.</p>
       )}

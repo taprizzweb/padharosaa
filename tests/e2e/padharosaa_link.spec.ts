@@ -177,15 +177,48 @@ test('reception can set the buffet from the desk', async ({ page }) => {
   expect((await q<{ n: number }>(`select count(*)::int n from public.buffets where restaurant_id = ${RID} and name = 'Rajasthani thali night'`))[0]!.n).toBe(1);
 });
 
-test('the owner opens Menu from the console and clears old dishes: select all, delete selected, then delete a category with its dishes', async ({ page }) => {
+test('every guest is told about today\'s buffet on the home screen, with a New mark until they look', async ({ browser }) => {
+  await q(`insert into public.rooms (restaurant_id, number) values (${RID}, '204') on conflict do nothing`);
+  const ctx = await browser.newContext({ viewport: { width: 375, height: 800 } });
+  const g = await ctx.newPage();
+  try {
+    await g.goto(second);
+    await g.getByLabel('Your name').fill('Buffet Guest');
+    await g.getByRole('button', { name: 'Accept cookies' }).click();
+    await g.getByLabel('Mobile number').fill('9866666666');
+    await g.getByLabel('Room number').fill('204');
+    await g.getByRole('button', { name: 'Enter' }).click();
+    const notice = g.getByTestId('buffet-notice');
+    await expect(notice).toContainText('Rajasthani thali night');
+    await expect(notice).toContainText('New');
+    await notice.click();
+    await expect(g.getByRole('heading', { name: "Today's buffet" })).toBeVisible();
+    await g.getByRole('button', { name: 'Back' }).click();
+    await expect(g.getByTestId('buffet-notice')).not.toContainText('New');
+  } finally {
+    await ctx.close();
+  }
+});
+
+test('in a hotel only the Taprizz admin edits the menu: the owner has no edit option; the admin clears old dishes (select all, delete selected, category with its dishes)', async ({ page }) => {
   const c1 = (await q<{ id: string }>(`insert into public.categories (restaurant_id, name_en) values (${RID}, 'Zz Old starters') returning id`))[0]!.id;
   const c2 = (await q<{ id: string }>(`insert into public.categories (restaurant_id, name_en) values (${RID}, 'Zz Old drinks') returning id`))[0]!.id;
   for (const [c, n] of [[c1, 'Zz Dish 1'], [c1, 'Zz Dish 2'], [c2, 'Zz Dish 3']] as const) {
     await q(`insert into public.items (restaurant_id, category_id, name_en, price_paise) values (${RID}, $1, $2, 10000)`, [c, n]);
   }
   try {
+    // the owner has no way to edit the menu: no link, the address sends them away, and the database refuses anyway
     await signIn(page, 'owner@spice-garden.demo', /\/padharosaa\/owner$/, '/padharosaa/owner');
-    await page.getByRole('navigation', { name: 'Screens' }).getByRole('link', { name: 'Menu (add or delete dishes)' }).click();
+    const nav = page.getByRole('navigation', { name: 'Screens' });
+    await expect(nav.getByRole('link', { name: /add or delete dishes/ })).toHaveCount(0);
+    await expect(nav.getByRole('link', { name: 'Menu (sold-out switches)' })).toBeVisible();
+    await page.goto('/dash/menu');
+    await expect(page).toHaveURL(/\/dash\/settings$/);
+    await expect(page.getByRole('link', { name: 'Menu', exact: true })).toHaveCount(0);
+    await page.getByRole('button', { name: 'Sign out' }).click();
+    // the Taprizz admin edits it from the admin panel
+    await signIn(page, 'admin@gotomenu.demo', /\/admin$/, '/admin');
+    await page.getByRole('button', { name: 'Edit the menu of Spice Garden' }).click();
     await expect(page).toHaveURL(/\/dash\/menu$/);
     const section = page.getByRole('region', { name: 'Zz Old starters' });
     await section.getByRole('button', { name: 'Select all' }).click();
@@ -198,7 +231,10 @@ test('the owner opens Menu from the console and clears old dishes: select all, d
     await page.getByRole('button', { name: 'Yes, delete' }).click();
     await expect(page.getByText('Zz Old drinks')).toHaveCount(0);
     expect((await q<{ n: number }>(`select count(*)::int n from public.items where restaurant_id = ${RID} and name_en like 'Zz Dish%'`))[0]!.n).toBe(0);
+    await page.getByRole('button', { name: 'Leave and go back to the admin panel' }).click();
+    await expect(page).toHaveURL(/\/admin$/);
   } finally {
+    await q(`delete from public.staff where display_name = 'Taprizz admin (support)'`);
     await q(`delete from public.items where restaurant_id = ${RID} and name_en like 'Zz Dish%'`);
     await q(`delete from public.categories where restaurant_id = ${RID} and name_en like 'Zz Old%'`);
   }

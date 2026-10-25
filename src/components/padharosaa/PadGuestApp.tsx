@@ -17,6 +17,19 @@ interface Home {
 }
 const clock12 = (hhmm: string) => { const [h, m] = hhmm.split(':').map(Number); return `${((h! + 11) % 12) + 1}:${String(m).padStart(2, '0')} ${h! < 12 ? 'AM' : 'PM'}`; };
 function ClosedBanner({ text }: { text: string | null }) { return text ? <p role="status" className="rounded-2xl p-3 text-sm font-semibold" style={{ background: '#FDF1D6', color: '#6b4308' }}>{text}</p> : null; }
+/** The buffet is announced to every guest on the home screen the moment the desk or the manager sets it, with a "New" mark until the guest has looked. */
+function BuffetNotice({ b, c, onOpen }: { b: Home['buffet']; c: Copy; onOpen: () => void }) {
+  const sig = `${new Date().toDateString()}|${b.name ?? ''}|${b.start ?? ''}|${b.end ?? ''}|${b.venue ?? ''}`;
+  const [fresh, setFresh] = useState(false);
+  useEffect(() => { try { setFresh(localStorage.getItem('padh-buffet-seen') !== sig); } catch { setFresh(true); } }, [sig]);
+  const open = () => { try { localStorage.setItem('padh-buffet-seen', sig); } catch { /* private mode */ } setFresh(false); onOpen(); };
+  return (
+    <button type="button" onClick={open} data-testid="buffet-notice" className="w-full rounded-[22px] p-4 text-left shadow-md" style={{ background: 'linear-gradient(135deg,#2f5d3a 0%,#3f7a4b 100%)', color: '#fff' }}>
+      <span className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[.16em]">● {c.buffet}{fresh && <span className="rounded-full bg-white px-2 py-0.5 text-[10px] text-green-900">{c.newTag}</span>}</span>
+      <span className="mt-1.5 block text-base font-semibold leading-snug">{[b.name, b.start && b.end ? `${b.start}–${b.end}` : null, b.venue].filter(Boolean).join(' · ')}</span>
+    </button>
+  );
+}
 interface Me { name: string; room: string; language: string; hotel_name: string; slug?: string }
 interface ReqView {
   request: { id: string; label: string; status: string; dismissed_reason: string | null; created_at: string; accepted_at: string | null; completed_at: string | null; version: number; resolution: string | null; followup_asked: boolean };
@@ -173,6 +186,7 @@ function HomeScreen({ me, home, c, closed, dine, planCount, go, imageBase, lang,
             <p className="mt-1.5 whitespace-pre-line text-base font-semibold leading-snug">{home.offer}</p>
           </div>
         )}
+        {b.set && b.mode !== 'none' && <BuffetNotice b={b} c={c} onOpen={() => go({ s: 'buffet' })} />}
         {home.info && (
           <div className="rounded-[22px] p-4 shadow-md" style={{ background: 'linear-gradient(140deg,#fff1b0 0%,#fcd34d 55%,#f0a020 135%)', color: '#3a2704' }}>
             <span className="text-[11px] font-bold uppercase tracking-[.16em]" style={{ color: 'rgba(88,56,4,.85)' }}>{c.infoTag}</span>

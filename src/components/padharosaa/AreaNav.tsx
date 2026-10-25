@@ -15,7 +15,7 @@ export function AreaNav({ role, current, kitchenDisplay = false }: { role: strin
   const items: [NavCurrent, string, string][] = role !== 'owner' && role !== 'manager' ? (role === 'waiter' ? staffItems : []) : [
     [role as NavCurrent, role === 'owner' ? 'Owner console' : 'Manager console', to(role)],
     ['desk', 'Reception desk (everything)', to('desk')],
-    ['menu' as NavCurrent, 'Menu (add or delete dishes)', '/dash/menu'],
+    ['menu', 'Menu (sold-out switches)', to('menu')],
     ...(kitchenDisplay ? ([['kitchen', 'Kitchen display', to('kitchen')]] as [NavCurrent, string, string][]) : []),
   ];
   if (items.length === 0) return null;

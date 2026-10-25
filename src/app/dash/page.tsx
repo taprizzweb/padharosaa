@@ -1,5 +1,7 @@
 import { redirect } from 'next/navigation';
+import { dashContext } from '@/lib/dash/context';
 
-export default function DashHome() {
-  redirect('/dash/menu');
+export default async function DashHome() {
+  const c = await dashContext();
+  redirect(c.menuLocked ? '/dash/settings' : '/dash/menu');
 }
