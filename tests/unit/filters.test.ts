@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { barItemIds, categoryHasMatch, isBarCategory, markFor, parseDietParam, passesFilters, toggleFilter, type Filter } from '@/lib/guest/filters';
+import { barItemIds, categoryHasMatch, isBarCategory, markFor, parseDietParam, passesFilters, summarise, summaryHasMatch, toggleFilter, type Filter } from '@/lib/guest/filters';
 import type { Diet, MenuCategory, MenuItem } from '@/lib/guest/types';
 
 const item = (id: string, diet: Diet, extra: Partial<MenuItem> = {}): MenuItem => ({ id, name_en: id, description_en: null, price_paise: 100, diet, spice: 0, image_path: null, is_available: true, is_bestseller: false, is_chef_pick: false, ...extra });
@@ -52,5 +52,18 @@ describe('menu filter chips', () => {
     expect(markFor(item('chickensoup', 'nonveg'), bar)).toBe('nonveg');
     expect(markFor(item('lager', 'veg'), bar)).toBeNull();
   });
-  it('a page address can ask for veg, nonveg and jain only', () => expect(parseDietParam('veg,bar,nonveg,x,jain')).toEqual(['veg', 'nonveg', 'jain']));
+  it('a page address can ask for the five chips and nothing else', () => expect(parseDietParam('veg,bar,nonveg,x,jain,bestseller,<b>')).toEqual(['veg', 'bar', 'nonveg', 'jain', 'bestseller']));
+  it('the pick-what-you-feel-like page decides from a summary exactly as the menu does from the dishes', () => {
+    const sums = cats.map((c) => ({ name: c.name_en, s: summarise(c) }));
+    expect(sums.find((x) => x.name === 'Bar - Beer')!.s).toEqual({ bar: true, combos: [{ diet: 'veg', best: true }] });
+    for (const f of [[], ['veg'], ['nonveg'], ['bar'], ['veg', 'bestseller'], ['bar', 'veg'], ['jain'], ['nonveg', 'bestseller']] as Filter[][]) {
+      const set = new Set(f);
+      expect(cats.map((c) => summaryHasMatch(summarise(c), set)), f.join('+')).toEqual(cats.map((c) => categoryHasMatch(c, set)));
+    }
+  });
+  it('a sold-out dish does not make its category show up in the summary', () => {
+    const c: MenuCategory = { id: 'x', name_en: 'Soup - Non-Veg', items: [item('a', 'nonveg', { is_available: false })] };
+    expect(summarise(c).combos).toEqual([]);
+    expect(summaryHasMatch(summarise(c), new Set<Filter>(['nonveg']))).toBe(false);
+  });
 });

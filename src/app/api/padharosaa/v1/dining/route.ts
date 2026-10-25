@@ -1,12 +1,14 @@
 import { jsonOk } from '@/lib/api/route';
 import { publicEnv } from '@/env';
 import { limit, rpc } from '@/lib/guest/rpc';
+import { summarise } from '@/lib/guest/filters';
+import type { MenuCategory } from '@/lib/guest/types';
 import { padGuestRoute } from '@/lib/padharosaa/guest';
 
 export const dynamic = 'force-dynamic';
 
 interface Dining { room: string; room_dining: boolean; menu_url: string | null; own_slug: string; own_room_token: string | null; hotel_slug: string }
-interface Menu { status: string; categories?: { id: string; name_en: string; items: { is_available: boolean }[] }[] }
+interface Menu { status: string; categories?: MenuCategory[] }
 
 const SLUG = /^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/;
 
@@ -34,10 +36,10 @@ export async function GET(req: Request) {
     base.searchParams.set('room', d.room);
     base.searchParams.set('rd', d.room_dining ? '1' : '0');
     base.searchParams.set('back', `${origin}/padharosaa/${d.hotel_slug}`);
-    let chips: { id: string; name: string }[] = [];
+    let chips: { id: string; name: string; bar: boolean; combos: { diet: string; best: boolean }[] }[] = [];
     try {
       const m = await rpc<Menu>('guest_get_menu', { p_slug: slug, p_token: null });
-      chips = (m.categories ?? []).filter((c) => c.items.some((i) => i.is_available)).map((c) => ({ id: c.id, name: c.name_en }));
+      chips = (m.categories ?? []).filter((c) => c.items.some((i) => i.is_available)).map((c) => ({ id: c.id, name: c.name_en, ...summarise(c) }));
     } catch { /* chips are a convenience: the full menu still opens */ }
     return jsonOk({ available: true, room_dining: d.room_dining, base: base.toString(), chips }, ctx.requestId);
   });

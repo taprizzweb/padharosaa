@@ -129,6 +129,8 @@ describe('dining link and chips', () => {
     expect(u.searchParams.get('back')).toBe(`${APP}/padharosaa/${w.A.slug}`);
     expect(own.chips.map((c: any) => c.id)).toContain(cat);
     expect(own.chips.map((c: any) => c.name)).not.toContain('Empty one');
+    // every chip says whether it is a bar category and which (diet, bestseller) dishes it holds, so the page can hide categories with no match
+    expect(own.chips.every((c: any) => typeof c.bar === 'boolean' && c.combos.length > 0 && c.combos.every((x: any) => typeof x.best === 'boolean' && typeof x.diet === 'string'))).toBe(true);
     // a separate cafe link pasted by the manager wins; a link that is not https is ignored
     await db.admin(`update public.hotel_settings set menu_url = 'https://menu.taprizz.in/${w.A.slug}?k=${token}' where restaurant_id = $1`, [w.A.rid]);
     expect(new URL(((await (await diningGET(mk('/d', { cookie }))).json()) as any).base).host).toBe('menu.taprizz.in');

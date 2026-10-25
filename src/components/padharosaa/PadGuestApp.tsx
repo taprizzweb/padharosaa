@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { POWERED_BY, instagramUrl } from '@/lib/brand';
+import { FILTERS, summaryHasMatch, toggleFilter, type CategorySummary, type Filter } from '@/lib/guest/filters';
 import { buildTheme, themeVars } from '@/lib/padharosaa/theme';
 import { COPY, fill, type Copy, type Lang } from './copy';
 import { BuffetScreen, GuideScreen, PlanScreen } from './GuideScreens';
@@ -404,16 +405,19 @@ function HelpDialog({ c, closed, onClosed, close, done }: { c: Copy; closed: str
   );
 }
 
-interface DiningData { available: boolean; room_dining: boolean; base?: string; chips?: { id: string; name: string }[] }
+interface DiningData { available: boolean; room_dining: boolean; base?: string; chips?: ({ id: string; name: string } & CategorySummary)[] }
 
 /** Dining: pick what you feel like (several categories, Veg / Jain), then the restaurant's own menu opens already filtered, with your room filled in. */
 function DiningScreen({ c, back }: { c: Copy; back: () => void }) {
   const [d, setD] = useState<DiningData | null>(null);
   const [failed, setFailed] = useState(false);
   const [cats, setCats] = useState<Set<string>>(new Set());
-  const [diet, setDiet] = useState<Set<string>>(new Set());
+  const [diet, setDiet] = useState<Set<Filter>>(new Set());
   useEffect(() => { void api<DiningData>('dining').then((r) => { if (r.ok) setD(r.data); else setFailed(true); }); }, []);
   const flip = (set: Set<string>, k: string, put: (s: Set<string>) => void) => { const n = new Set(set); if (n.has(k)) n.delete(k); else n.add(k); put(n); };
+  // Veg and Non-Veg are never on together; a category with no matching dish is hidden while Veg, Non-Veg or Bar is on (same rule as the menu itself)
+  const shownChips = (d?.chips ?? []).filter((k) => summaryHasMatch(k, diet));
+  const pickDiet = (k: Filter) => { const next = toggleFilter(diet, k); setDiet(next); setCats((cur) => new Set([...cur].filter((id) => (d?.chips ?? []).some((x) => x.id === id && summaryHasMatch(x, next))))); };
   const go = (filtered: boolean) => {
     if (!d?.base) return;
     const u = new URL(d.base);
@@ -430,11 +434,11 @@ function DiningScreen({ c, back }: { c: Copy; back: () => void }) {
           <>
             <p>{c.dineSub}</p>
             <fieldset><legend className="text-sm font-bold">{c.dineDiet}</legend>
-              <div className="mt-2 flex flex-wrap gap-2">{(['veg', 'jain'] as const).map((k) => <button key={k} type="button" aria-pressed={diet.has(k)} onClick={() => flip(diet, k, setDiet)} className="min-h-12 rounded-full border-2 px-4 text-base font-semibold" style={chip(diet.has(k))}>{diet.has(k) ? '✓ ' : ''}{c[k]}</button>)}</div>
+              <div className="mt-2 flex flex-wrap gap-2">{FILTERS.map((k) => <button key={k} type="button" aria-pressed={diet.has(k)} onClick={() => pickDiet(k)} className="min-h-12 rounded-full border-2 px-4 text-base font-semibold" style={chip(diet.has(k))}>{diet.has(k) ? '✓ ' : ''}{c[k]}</button>)}</div>
             </fieldset>
-            {(d.chips?.length ?? 0) > 0 && (
+            {shownChips.length > 0 && (
               <div className="flex flex-wrap gap-2" role="group" aria-label={c.dineTitle}>
-                {d.chips!.map((k) => <button key={k.id} type="button" aria-pressed={cats.has(k.id)} onClick={() => flip(cats, k.id, setCats)} className="min-h-12 rounded-full border-2 px-4 text-base font-semibold" style={chip(cats.has(k.id))}>{cats.has(k.id) ? '✓ ' : ''}{k.name}</button>)}
+                {shownChips.map((k) => <button key={k.id} type="button" aria-pressed={cats.has(k.id)} onClick={() => flip(cats, k.id, setCats)} className="min-h-12 rounded-full border-2 px-4 text-base font-semibold" style={chip(cats.has(k.id))}>{cats.has(k.id) ? '✓ ' : ''}{k.name}</button>)}
               </div>
             )}
             <p className="text-sm" style={{ opacity: 0.85 }}>{d.room_dining ? c.dineHow : c.dineTakeaway}</p>

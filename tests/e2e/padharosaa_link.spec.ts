@@ -249,3 +249,49 @@ test('reception sees only the desk, the menu (sold-out switches) and settings, a
   await page.goto('/padharosaa/owner');
   await expect(page).toHaveURL(/\/padharosaa\/desk$/);
 });
+
+test('Dining: "What do you feel like?" has Veg, Non-Veg, Jain, Bar and Bestsellers, and hides categories that have nothing for the chosen chips', async ({ browser }) => {
+  await q(`insert into public.rooms (restaurant_id, number) values (${RID}, '204') on conflict do nothing`);
+  const mk = async (name: string, item: string, diet: string) => {
+    const id = (await q<{ id: string }>(`insert into public.categories (restaurant_id, name_en) values (${RID}, $1) returning id`, [name]))[0]!.id;
+    await q(`insert into public.items (restaurant_id, category_id, name_en, price_paise, diet) values (${RID}, $1, $2, 10000, $3)`, [id, item, diet]);
+  };
+  await mk('Zz Soup - Non-Veg', 'Zz Chicken Soup', 'nonveg');
+  await mk('Zz Salads - Veg', 'Zz Green Salad', 'veg');
+  await mk('Bar - Zz Wine', 'Zz Red Wine', 'veg');
+  const ctx = await browser.newContext({ viewport: { width: 375, height: 800 } });
+  const g = await ctx.newPage();
+  try {
+    await g.goto(second);
+    await g.getByLabel('Your name').fill('Dina Guest');
+    await g.getByRole('button', { name: 'Accept cookies' }).click(); // on a small screen the cookie notice would cover the Enter button
+    await g.getByLabel('Mobile number').fill('9833333333');
+    await g.getByLabel('Room number').fill('204');
+    await g.getByRole('button', { name: 'Enter' }).click();
+    await expect(g.getByText('Namaste, Dina')).toBeVisible();
+    await g.getByText('Dining', { exact: true }).click();
+    await expect(g.getByRole('button', { name: /^(✓ )?(Veg|Non-Veg|Jain|Bar|Bestsellers)$/ })).toHaveText(['Veg', 'Non-Veg', 'Jain', 'Bar', 'Bestsellers']);
+    const chip = (n: string) => g.getByRole('button', { name: new RegExp(`^(✓ )?${n}$`) });
+    await expect(chip('Zz Soup - Non-Veg')).toBeVisible();
+    await expect(chip('Zz Salads - Veg')).toBeVisible();
+    await expect(chip('Bar - Zz Wine')).toBeVisible();
+    await g.getByRole('button', { name: 'Non-Veg', exact: true }).click(); // Non-Veg: only categories with a non-veg dish
+    await expect(chip('Zz Soup - Non-Veg')).toBeVisible();
+    await expect(chip('Zz Salads - Veg')).toHaveCount(0);
+    await expect(chip('Bar - Zz Wine')).toHaveCount(0); // a bar dish is stored as veg but is no Non-Veg dish
+    await g.getByRole('button', { name: /^(✓ )?Veg$/ }).click(); // Veg turns Non-Veg off
+    await expect(g.getByRole('button', { name: /Non-Veg$/ }).first()).toHaveAttribute('aria-pressed', 'false');
+    await expect(chip('Zz Salads - Veg')).toBeVisible();
+    await expect(chip('Zz Soup - Non-Veg')).toHaveCount(0);
+    await expect(chip('Bar - Zz Wine')).toHaveCount(0);
+    await g.getByRole('button', { name: /^(✓ )?Veg$/ }).click();
+    await g.getByRole('button', { name: 'Bar', exact: true }).click(); // Bar: only bar categories
+    await expect(chip('Bar - Zz Wine')).toBeVisible();
+    await expect(chip('Zz Salads - Veg')).toHaveCount(0);
+    expect(await g.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  } finally {
+    await ctx.close();
+    await q(`delete from public.items where restaurant_id = ${RID} and name_en like 'Zz %'`);
+    await q(`delete from public.categories where restaurant_id = ${RID} and (name_en like 'Zz %' or name_en like 'Bar - Zz %')`);
+  }
+});

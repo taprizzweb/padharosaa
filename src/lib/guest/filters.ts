@@ -51,5 +51,21 @@ export function categoryHasMatch(category: MenuCategory, filters: ReadonlySet<Fi
   return category.items.some((i) => passesFilters(i, bar, filters));
 }
 
-/** The chips a page address can ask for (?diet=veg,jain,nonveg). */
-export const parseDietParam = (raw: string | null): Filter[] => (raw ?? '').split(',').filter((x): x is 'veg' | 'nonveg' | 'jain' => x === 'veg' || x === 'nonveg' || x === 'jain');
+/** The chips a page address can ask for (?diet=veg,nonveg,jain,bar,bestseller). */
+export const parseDietParam = (raw: string | null): Filter[] => (raw ?? '').split(',').filter((x): x is Filter => (FILTERS as readonly string[]).includes(x));
+
+/** What a category holds, as the pick-what-you-feel-like page knows it: whether it is a bar category and every (diet, bestseller) pair among its dishes. */
+export interface CategorySummary { bar: boolean; combos: { diet: Diet; best: boolean }[] }
+
+/** Same rule as categoryHasMatch, for the summary the Dining page gets (it does not receive the dishes themselves). */
+export function summaryHasMatch(c: CategorySummary, filters: ReadonlySet<Filter>): boolean {
+  if (!(filters.has('veg') || filters.has('nonveg') || filters.has('bar'))) return true;
+  return c.combos.some((x) => passesFilters({ diet: x.diet, is_bestseller: x.best }, c.bar, filters));
+}
+
+/** Boil a category down to its summary (only dishes that can be ordered). */
+export function summarise(c: MenuCategory): CategorySummary {
+  const seen = new Set<string>(); const combos: CategorySummary['combos'] = [];
+  for (const i of c.items) { if (!i.is_available) continue; const k = `${i.diet}:${i.is_bestseller}`; if (!seen.has(k)) { seen.add(k); combos.push({ diet: i.diet, best: !!i.is_bestseller }); } }
+  return { bar: isBarCategory(c.name_en), combos };
+}
