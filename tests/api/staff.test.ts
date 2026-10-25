@@ -261,13 +261,17 @@ describe('POST /api/auth/login', () => {
     expect(await json(r)).toMatchObject({ ok: true, next: '/staff' });
     expect(authState.userId).toBe(w.A.waiter);
   });
-  it('staff of a Padharosaa hotel land on their own page by default; an explicit next still wins', async () => {
+  it('staff of a Padharosaa hotel land on their own page by default; a next to a page of their own still wins; a leftover next to someone else\'s page does not', async () => {
     await db.admin(`insert into public.hotel_settings (restaurant_id) values ($1) on conflict do nothing`, [w.A.rid]);
     try {
       for (const [who, page] of [[w.A.kitchen, 'kitchen'], [w.A.owner, 'owner'], [w.A.manager, 'manager'], [w.A.waiter, 'desk']] as const)
         expect((await json(await call({ email: await emailOf(who), password: PASSWORD }))).next, page).toBe(`/padharosaa/${page}`);
       expect((await json(await call({ email: await emailOf(w.A.owner), password: PASSWORD, next: '/padharosaa/manage' }))).next).toBe('/padharosaa/manage');
-      expect((await json(await call({ email: await emailOf(w.A.owner), password: PASSWORD, next: '/staff' }))).next).toBe('/staff');
+      // an old "?next=" from the expired desk or the menu screen must not put the owner or the kitchen on someone else's page
+      expect((await json(await call({ email: await emailOf(w.A.owner), password: PASSWORD, next: '/staff' }))).next).toBe('/padharosaa/owner');
+      expect((await json(await call({ email: await emailOf(w.A.owner), password: PASSWORD, next: '/padharosaa/desk' }))).next).toBe('/padharosaa/owner');
+      expect((await json(await call({ email: await emailOf(w.A.kitchen), password: PASSWORD, next: '/padharosaa/desk' }))).next).toBe('/padharosaa/kitchen');
+      expect((await json(await call({ email: await emailOf(w.A.waiter), password: PASSWORD, next: '/padharosaa/desk' }))).next).toBe('/padharosaa/desk');
       expect((await json(await call({ email: await emailOf(w.B.waiter), password: PASSWORD }))).next).toBe('/staff'); // a Menu Lite cafe is unchanged
     } finally {
       await db.admin(`delete from public.hotel_settings where restaurant_id = $1`, [w.A.rid]);

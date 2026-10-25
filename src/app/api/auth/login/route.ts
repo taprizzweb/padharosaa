@@ -41,7 +41,7 @@ export async function POST(req: Request) {
     const onPadHost = isPadHost(req.headers.get('x-forwarded-host') ?? req.headers.get('host'));
     let home = isAdmin ? '/admin' : '/staff';
     let isHotelStaff = false;
-    if (me && !isAdmin && !body.next) {
+    if (me && !isAdmin) {
       // padh_my_alerts only answers for staff of an enabled Padharosaa hotel, so a good answer also means "this is a hotel".
       const alerts = await staffRpc<{ teams?: string[] | null }>(db, 'padh_my_alerts').catch(() => null);
       if (alerts || onPadHost) {
