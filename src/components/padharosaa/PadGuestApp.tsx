@@ -17,6 +17,21 @@ interface Home {
   contacts: { reception: string | null; manager: string | null };
 }
 const clock12 = (hhmm: string) => { const [h, m] = hhmm.split(':').map(Number); return `${((h! + 11) % 12) + 1}:${String(m).padStart(2, '0')} ${h! < 12 ? 'AM' : 'PM'}`; };
+interface Farewell { name: string; hotel_name: string; slug: string; language: string; brand_color: string | null; google_review_url: string | null; tripadvisor_url: string | null }
+/** Shown on the guest's phone once reception has checked the room out: a thank-you and the hotel's own review link. */
+function FarewellScreen({ f, c, again }: { f: Farewell; c: Copy; again: () => void }) {
+  const g = safeUrl(f.google_review_url), t = safeUrl(f.tripadvisor_url);
+  return (
+    <main className="flex flex-1 flex-col justify-center gap-4 px-6 py-10" data-testid="farewell">
+      <h1 className="text-4xl font-semibold leading-tight">{fill(c.fwTitle, { name: f.name })}</h1>
+      <p className="text-base">{fill(c.fwBody, { hotel: f.hotel_name })}</p>
+      {g && <a href={g} target="_blank" rel="noopener noreferrer" className="flex min-h-14 items-center justify-center gap-2 rounded-2xl px-5 text-lg font-extrabold shadow-md" style={{ background: 'var(--button)', color: 'var(--on-button)' }}>★ {c.fwBtn}</a>}
+      {t && <a href={t} target="_blank" rel="noopener noreferrer" className="flex min-h-12 items-center justify-center rounded-2xl border-2 px-5 text-base font-bold" style={{ borderColor: 'var(--accent-text)', color: 'var(--accent-text)' }}>{c.trip}</a>}
+      <p className="text-sm" style={{ opacity: 0.8 }}>{c.fwBye}</p>
+      <button type="button" onClick={again} className="min-h-11 self-start text-sm font-semibold underline">{c.fwAgain}</button>
+    </main>
+  );
+}
 function ClosedBanner({ text }: { text: string | null }) { return text ? <p role="status" className="rounded-2xl p-3 text-sm font-semibold" style={{ background: '#FDF1D6', color: '#6b4308' }}>{text}</p> : null; }
 /** The buffet is announced to every guest on the home screen the moment the desk or the manager sets it, with a "New" mark until the guest has looked. */
 function BuffetNotice({ b, c, onOpen }: { b: Home['buffet']; c: Copy; onOpen: () => void }) {
@@ -53,6 +68,13 @@ export function PadGuestApp({ slug, qrKey, imageBase }: { slug: string; qrKey: s
 
   const loadHours = useCallback(async () => { const r = await api<{ open: boolean; start: string | null; end: string | null }>('hours'); if (r.ok) setHours(r.data); }, []);
   useEffect(() => { void loadHours(); const t = setInterval(() => { if (!document.hidden) void loadHours(); }, 60_000); return () => clearInterval(t); }, [loadHours]);
+  // after check-out the phone shows a thank-you with the review link instead of the sign-in page
+  const [farewell, setFarewell] = useState<Farewell | null>(null);
+  const signedOut = useCallback(async () => {
+    setMe(null);
+    const f = await api<Farewell & { ok: boolean }>('farewell');
+    if (f.ok && f.data.ok) { setFarewell(f.data); const l = LANGS.find((x) => x.code === f.data.language)?.code; if (l) setLang(l); }
+  }, []);
   const loadHome = useCallback(async () => {
     const r = await api<Home>('home');
     if (r.ok) {
@@ -60,18 +82,18 @@ export function PadGuestApp({ slug, qrKey, imageBase }: { slug: string; qrKey: s
       void api<{ room_dining: boolean }>('dining').then((d) => { if (d.ok) setDine({ room_dining: d.data.room_dining }); });
       void api<{ items: unknown[] }>('plan').then((p) => { if (p.ok) setPlanCount(p.data.items.length); });
     }
-    else if (r.status === 401 || r.status === 403) setMe(null);
-  }, [loadHours]);
+    else if (r.status === 401 || r.status === 403) void signedOut();
+  }, [loadHours, signedOut]);
 
   useEffect(() => {
     void (async () => {
       const r = await api<Me>('sessions/me');
       // a login cookie left over from ANOTHER hotel must not open this hotel's page: show this hotel's own login instead
-      if (r.ok && (!r.data.slug || r.data.slug === slug)) { setMe(r.data); setLang((LANGS.find((x) => x.code === r.data.language)?.code ?? 'en')); await loadHome(); } else setMe(null);
+      if (r.ok && (!r.data.slug || r.data.slug === slug)) { setMe(r.data); setLang((LANGS.find((x) => x.code === r.data.language)?.code ?? 'en')); await loadHome(); } else void signedOut();
     })();
-  }, [loadHome, slug]);
+  }, [loadHome, slug, signedOut]);
 
-  const brand = home?.look.brand_color ?? null;
+  const brand = home?.look.brand_color ?? farewell?.brand_color ?? null;
   const theme = useMemo(() => buildTheme(brand), [brand]);
   const style = themeVars(theme) as CSSProperties;
 
@@ -79,7 +101,8 @@ export function PadGuestApp({ slug, qrKey, imageBase }: { slug: string; qrKey: s
     <div style={{ ...style, background: 'var(--paper)', color: 'var(--ink)' }} className="min-h-dvh" lang={lang}>
       <div className="mx-auto flex min-h-dvh max-w-md flex-col">
         {me === undefined && <p className="p-8 text-center" role="status">…</p>}
-        {me === null && <Login slug={slug} qrKey={qrKey} c={c} lang={lang} setLang={setLang} imageBase={imageBase} onDone={async () => { const r = await api<Me>('sessions/me'); if (r.ok) { setMe(r.data); await loadHome(); } }} />}
+        {me === null && farewell && <FarewellScreen f={farewell} c={c} again={() => setFarewell(null)} />}
+        {me === null && !farewell && <Login slug={slug} qrKey={qrKey} c={c} lang={lang} setLang={setLang} imageBase={imageBase} onDone={async () => { const r = await api<Me>('sessions/me'); if (r.ok) { setMe(r.data); await loadHome(); } }} />}
         {me && home && (
           <>
             {screen.s === 'home' && <HomeScreen me={me} home={home} c={c} closed={closed} dine={dine} planCount={planCount} go={setScreen} imageBase={imageBase} lang={lang} setLang={setLang} />}

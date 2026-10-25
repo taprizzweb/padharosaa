@@ -427,9 +427,14 @@ test('reception checks a room out and the guest is signed out at once', async ({
     await page.getByRole('button', { name: 'Check out Room 204' }).click();
     await expect(page.getByText('Room 204 checked out. The guest is signed out.')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Check out Room 204' })).toHaveCount(0);
+    await q(`update public.hotel_settings set review_link = 'https://g.page/r/spice-garden/review' where restaurant_id = ${RID}`);
     await g.reload();
-    await expect(g.getByLabel('Your name')).toBeVisible(); // the guest is back at the sign-in page
+    // the guest gets a thank-you with the hotel's Google review link, not a sign-in page
+    await expect(g.getByRole('heading', { name: 'Thank you, Checkout' })).toBeVisible();
+    await expect(g.getByRole('link', { name: /Review us on Google/ })).toHaveAttribute('href', 'https://g.page/r/spice-garden/review');
     await expect(g.getByText('Namaste, Checkout')).toHaveCount(0);
+    await g.getByRole('button', { name: 'Sign in again' }).click();
+    await expect(g.getByLabel('Your name')).toBeVisible();
   } finally {
     await ctx.close();
   }
