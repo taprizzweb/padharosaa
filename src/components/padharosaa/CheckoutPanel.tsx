@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { apiGet, apiPost } from '@/components/staff/hooks';
 import { formatPaise } from '@/lib/money';
 
-interface Room { id: string; number: string; active: boolean; guests: number; guest_name?: string | null; open_requests?: number; open_orders?: number; unpaid_paise?: number }
+interface Room { id: string; number: string; active: boolean; guests: number; guest_name?: string | null; mobile?: string | null; open_requests?: number; open_orders?: number; unpaid_paise?: number }
 
 /** "Room 102 has checked out": sign the guest out of the hotel app at once. Reception, manager and owner all have it. */
 export function CheckoutPanel({ flash }: { flash: (ok: boolean, text: string) => void }) {
@@ -35,7 +35,7 @@ export function CheckoutPanel({ flash }: { flash: (ok: boolean, text: string) =>
       <ul className="mt-2 grid gap-2 sm:grid-cols-2" data-testid="live-rooms">
         {staying.slice(0, 60).map((r) => (
           <li key={r.id} className="rounded-xl border-2 border-stone-200 p-2">
-            {r.guest_name && <p className="text-sm font-semibold">Room {r.number} · {r.guest_name}{r.guests > 1 ? ` +${r.guests - 1}` : ''}</p>}
+            {r.guest_name && <p className="text-sm font-semibold">Room {r.number} · {r.guest_name}{r.guests > 1 ? ` +${r.guests - 1}` : ''}{r.mobile && <> · <a href={`tel:${r.mobile.replace(/[^+\d]/g, '')}`} className="underline">{r.mobile}</a></>}</p>}
             {(r.open_requests || r.open_orders || r.unpaid_paise) ? (
               <p className="mb-1 flex flex-wrap gap-1 text-xs font-bold">
                 {!!r.open_requests && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-amber-950">{r.open_requests} open request{r.open_requests === 1 ? '' : 's'}</span>}

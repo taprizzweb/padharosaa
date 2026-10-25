@@ -116,7 +116,7 @@ describe('live rooms', () => {
     const r = rooms.find((x: any) => x.number === '301');
     expect(r).toMatchObject({ guest_name: 'Anita', guests: 1 });
     expect(r.open_requests).toBeGreaterThan(0);
-    expect(r).toMatchObject({ open_orders: 1, unpaid_paise: 45000 });
+    expect(r).toMatchObject({ open_orders: 1, unpaid_paise: 45000, mobile_enc: '01' }); // the number comes back encrypted; the app decrypts it for reception only
     expect((await staffErr(hk1, 'padh_live_rooms'))?.code).toBe('GM011');
     expect((await staffErr(w.A.kitchen, 'padh_live_rooms'))?.code).toBe('GM011');
   });
