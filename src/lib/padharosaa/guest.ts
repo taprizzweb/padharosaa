@@ -38,6 +38,7 @@ export interface PadSession {
   theme: string;
   verification_level: string;
   timezone: string;
+  is_demo?: boolean;
 }
 export interface PadCtx extends Ctx {
   me: PadSession;
@@ -53,6 +54,7 @@ export function padGuestRoute<B = undefined>(
     const token = requireWellFormedToken(readPadToken(req.headers));
     const me = await rpc<{ ok: boolean } & PadSession>('padh_guest_resolve_session', { p_token_hash: toBytea(tokenHash(token)) });
     if (!me.ok) throw new ApiError(401, 'session_closed');
+    if (me.is_demo) await rpc('padh_demo_tick', { p_session: me.session_id }).catch(() => undefined); // a public demo answers itself
     return run({ ...ctx, me }, body);
   });
 }

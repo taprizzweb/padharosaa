@@ -489,6 +489,31 @@ test('reception hands a request to a person; it lands on that person\'s own disp
   }
 });
 
+test('a public demo hotel: one link, no sign-in, and the demo answers itself; a normal hotel has no demo link', async ({ browser }) => {
+  const ctx = await browser.newContext({ viewport: { width: 375, height: 800 } });
+  const g = await ctx.newPage();
+  try {
+    // not switched on: nothing to see
+    const closed = await g.goto('/padharosaa/try/spice-garden');
+    expect(closed?.status()).toBe(404);
+    await q(`update public.hotel_settings set is_demo = true where restaurant_id = ${RID}`);
+    await q(`insert into public.rooms (restaurant_id, number) select ${RID}, 'D' || n from generate_series(1, 8) n on conflict do nothing`);
+    await g.goto('/padharosaa/try/spice-garden');
+    await expect(g.getByRole('heading', { name: /Spice Garden/ })).toBeVisible();
+    await g.getByRole('button', { name: 'Try it on this phone' }).click();
+    await expect(g.getByText('Namaste, Demo guest')).toBeVisible();
+    await g.getByText('Services', { exact: true }).click();
+    await g.getByLabel('Extra towels').check();
+    await g.getByRole('button', { name: 'Send request' }).click();
+    await expect(g.getByRole('heading', { name: 'Sent' })).toBeVisible();
+    // nobody is at a desk: the demo accepts it, then completes it
+    await expect(g.getByRole('heading', { name: 'Done' })).toBeVisible({ timeout: 60_000 });
+  } finally {
+    await q(`update public.hotel_settings set is_demo = false where restaurant_id = ${RID}`);
+    await ctx.close();
+  }
+});
+
 test('guest services ask for what the team needs; a declined request is not left hanging; AC problems cannot be declined; French works', async ({ page, browser }) => {
   await q(`insert into public.rooms (restaurant_id, number) values (${RID}, '204') on conflict do nothing`);
   await q(`update public.hotel_settings set reception_phone = '9828114008' where restaurant_id = ${RID}`);

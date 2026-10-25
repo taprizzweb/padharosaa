@@ -343,6 +343,7 @@ export function AdminApp() {
                 <button type="button" className={btnPrimary} onClick={async () => { try { await apiPost(`/api/padharosaa/v1/platform/hotels/${pad.row.id}/enable`, { timezone: 'Asia/Kolkata' }); setPad({ row: pad.row, enabled: true }); setPadMsg({ ok: true, text: 'Padharosaa is on for this hotel. The guest link is below.' }); } catch { setPadMsg({ ok: false, text: 'Padharosaa could not be enabled. Please try again.' }); } }}>Enable Padharosaa</button>
               </div>
             )}
+            {pad.enabled && <DemoCard hotelId={pad.row.id} slug={pad.row.slug} flash={(ok, text) => setPadMsg({ ok, text })} />}
             {pad.enabled && <GuestLinkPanel bare slug={pad.row.slug} flash={(ok, text) => setPadMsg({ ok, text })} load={() => apiGet<LinkState>(`/api/padharosaa/v1/platform/hotels/${pad.row.id}/qr`)} create={(password) => apiPost<{ link: string }>(`/api/padharosaa/v1/platform/hotels/${pad.row.id}/qr`, { password })} />}
           </div>
         )}
@@ -362,5 +363,25 @@ export function AdminApp() {
         </form>
       </Sheet>
     </div>
+  );
+}
+
+/** The public demo link of a hotel: anyone with it tries the guest app on their phone, no sign-in. Only for demo or pitch hotels, never a real one. */
+function DemoCard({ hotelId, slug, flash }: { hotelId: string; slug: string; flash: (ok: boolean, text: string) => void }) {
+  const [on, setOn] = useState<boolean | null>(null);
+  useEffect(() => { void apiGet<{ is_demo?: boolean }>(`/api/padharosaa/v1/platform/hotels/${hotelId}/qr`).then((r) => setOn(!!r.is_demo)).catch(() => setOn(false)); }, [hotelId]);
+  const link = typeof window === 'undefined' ? '' : `${window.location.origin}${window.location.host.startsWith('padharosaa.') ? '/try/' : '/padharosaa/try/'}${slug}`;
+  const set = async (next: boolean) => {
+    try { await apiPost(`/api/padharosaa/v1/platform/hotels/${hotelId}/demo`, { on: next }); setOn(next); flash(true, next ? 'The public demo is on. Share the link below.' : 'The public demo is off. The link no longer works.'); }
+    catch { flash(false, 'That could not be changed. Please try again.'); }
+  };
+  if (on === null) return null;
+  return (
+    <section className="rounded-2xl border border-stone-300 p-4" aria-label="Public demo">
+      <h3 className="text-base font-extrabold">Public demo link</h3>
+      <p className="mt-1 text-sm text-stone-800">For a pitch or a demo hotel only. Anyone with the link can try the guest app with no sign-in, in a demo room, and their requests answer themselves. Never switch this on for a hotel with real guests.</p>
+      <label className="mt-2 flex min-h-11 items-center gap-3 text-base font-semibold"><input type="checkbox" className="size-5" checked={on} onChange={(e) => void set(e.target.checked)} />Public demo is on</label>
+      {on && <p className="mt-2 break-all rounded-xl bg-stone-100 p-3 text-sm font-semibold" data-testid="demo-link">{link}</p>}
+    </section>
   );
 }

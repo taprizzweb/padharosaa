@@ -48,7 +48,9 @@ export async function middleware(request: NextRequest) {
       to.pathname = '/desk';
       return decorate(NextResponse.redirect(to));
     }
-    const target = PAD_ROUTES[path];
+    const demo = /^\/try\/([a-z0-9-]{1,60})$/.exec(path);
+    if (demo) { rewriteTo = `/padharosaa/try/${demo[1]}`; path = rewriteTo; }
+    const target = demo ? undefined : PAD_ROUTES[path];
     if (target) {
       rewriteTo = target;
       path = target;
