@@ -203,3 +203,4 @@ export const roomsBody = z.object({ numbers: z.array(z.string().max(12)).min(1).
 export const roomActiveBody = z.object({ active: z.boolean() }).strict();
 
 export const buffetNotifyBody = z.object({ time: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/).or(z.literal('')).nullish(), onSave: z.boolean() });
+export const autoBillBody = z.object({ on: z.boolean() }).strict();

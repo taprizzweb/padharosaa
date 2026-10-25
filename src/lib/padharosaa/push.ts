@@ -1,4 +1,5 @@
 import 'server-only';
+import { after } from 'next/server';
 import webpush from 'web-push';
 import { serverEnv } from '@/env';
 import { rpc } from '@/lib/guest/rpc';
@@ -48,4 +49,9 @@ export async function runBuffetReminders(): Promise<number> {
     for (const b of due) if (b.restaurant_id) await pushToHotel(b.restaurant_id, buffetMessage(b, 'reminder'));
     return due.length;
   } catch { return 0; }
+}
+
+/** Runs work after the response has been sent. Outside a request (tests, scripts) the work is simply skipped: it is only ever a courtesy message. */
+export function later(work: () => Promise<unknown>): void {
+  try { after(work); } catch { /* not inside a request */ }
 }

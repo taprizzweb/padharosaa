@@ -19,7 +19,7 @@ const TEAMS: [Team, string][] = [['front_desk', 'Front desk'], ['concierge', 'Co
 interface Settings {
   brand_color: string | null; logo_path: string | null; hero_path: string | null; tripadvisor_url: string | null; menu_url: string | null; review_link: string | null;
   offer_text: string | null; offer_until: string | null; info_text: string | null; wifi_name: string | null; checkout_time: string | null; breakfast_text: string | null;
-  reception_phone: string | null; manager_phone: string | null; room_dining: boolean; kitchen_display?: boolean; server_ready?: boolean; service_start?: string | null; service_end?: string | null; pay_qr_path?: string | null;
+  reception_phone: string | null; manager_phone: string | null; room_dining: boolean; kitchen_display?: boolean; server_ready?: boolean; service_start?: string | null; service_end?: string | null; pay_qr_path?: string | null; auto_room_bill?: boolean;
 }
 interface Person { user_id: string; email: string; name: string; role: string; active: boolean; department: Team | null; whatsapp: string | null; is_head: boolean }
 interface ImportResult { email: string; ok: boolean; error?: 'exists' | 'invalid' | 'failed' | string; temporary_password?: string }
@@ -72,6 +72,7 @@ export function ManageApp({ role, restaurant, supabase }: { role: string; restau
         <p className="text-sm text-stone-700">Everything always arrives at the reception desk first (every request and every food order). With a kitchen display, the kitchen also gets its own screen with the food orders.</p>
       </Card>
       <PayQrCard s={s} save={save} restaurantId={restaurant.id} sb={sb} />
+      <AutoBillCard s={s} save={save} />
       <HoursCard s={s} save={save} />
       <BuffetManager flash={flash} />
       <GuideManager flash={flash} />
@@ -123,6 +124,15 @@ function PayQrCard({ s, save, restaurantId, sb }: { s: Settings; save: Save; res
       <input type="file" accept="image/jpeg,image/png,image/webp" aria-label="Choose the payment QR photo" disabled={busy} className="block min-h-11 w-full text-base" onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) void upload(f); }} />
       {bad && <p role="alert" className="text-sm font-semibold text-red-900">The photo could not be uploaded. Please try a smaller JPG or PNG.</p>}
       {url && <button type="button" className="min-h-11 text-sm font-semibold underline" onClick={() => void save('pay-qr', { path: null }, 'Payment QR removed.')}>Remove the QR</button>}
+    </Card>
+  );
+}
+
+/** Room food orders go on the room receipt by themselves; the guest can still switch an order to Pay now. */
+function AutoBillCard({ s, save }: { s: Settings; save: Save }) {
+  return (
+    <Card title="Bill room orders to the room automatically" hint="When this is on, every food order from a room is added to that room's receipt as soon as it is placed. The guest is not asked, and can still choose Pay now on the order screen if you have a payment QR. Amounts are shown without GST and service charges.">
+      <label className="flex min-h-11 items-center gap-3 text-base font-semibold"><input type="checkbox" className="size-5" checked={!!s.auto_room_bill} onChange={(e) => void save('auto-bill', { on: e.target.checked }, e.target.checked ? 'Room orders are now billed to the room automatically.' : 'Guests will be asked how to pay.')} />Bill to the room automatically</label>
     </Card>
   );
 }
