@@ -29,7 +29,7 @@ const inputCls = 'mt-1 min-h-11 w-full rounded-xl border-2 border-stone-300 bg-w
 const btnCls = 'min-h-11 rounded-xl bg-stone-900 px-5 text-sm font-bold text-white disabled:opacity-50';
 
 function Card({ title, hint, children }: { title: string; hint?: string; children: ReactNode }) {
-  return <section className="mt-4 rounded-2xl bg-white p-4 shadow-sm"><h2 className="text-lg font-extrabold">{title}</h2>{hint && <p className="text-sm text-stone-700">{hint}</p>}<div className="mt-3 space-y-3">{children}</div></section>;
+  return <section className="mt-4 rounded-xl border border-stone-200 bg-white p-5"><h2 className="text-base font-semibold tracking-tight">{title}</h2>{hint && <p className="text-sm text-stone-700">{hint}</p>}<div className="mt-3 space-y-3">{children}</div></section>;
 }
 const Field = ({ label, children }: { label: string; children: ReactNode }) => <label className="block text-sm font-semibold">{label}{children}</label>;
 
@@ -40,6 +40,7 @@ export function ManageApp({ role, restaurant, supabase }: { role: string; restau
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const flash = (ok: boolean, text: string) => { setMsg({ ok, text }); window.scrollTo({ top: 0, behavior: 'smooth' }); };
 
+  const [tab, setTab] = useState<'start' | 'hotel' | 'ops' | 'content' | 'team'>('start');
   const [loadErr, setLoadErr] = useState<false | 'forbidden' | 'failed'>(false);
   const load = useCallback(async () => {
     try {
@@ -59,17 +60,32 @@ export function ManageApp({ role, restaurant, supabase }: { role: string; restau
   if (!s) return <main className="p-8 text-center">{loadErr === 'forbidden' ? <p role="alert" className="mx-auto max-w-md font-semibold">This restaurant is not a Padharosaa hotel yet. Please ask Taprizz to switch Padharosaa on for it, then reload this page.</p> : loadErr ? <><p role="alert" className="font-semibold">The settings could not be loaded.</p><button type="button" className={btnCls + ' mt-3'} onClick={() => void load()}>Try again</button></> : 'Loading…'}</main>;
   return (
     <div className="mx-auto min-h-dvh max-w-2xl bg-stone-50 px-4 pb-24 pt-4 text-stone-900">
-      <header><h1 className="text-xl font-extrabold">Manage Padharosaa</h1><p className="text-sm text-stone-700">{restaurant.name}</p></header>
+      <header className="border-b border-stone-200 pb-4"><p className="text-[11px] font-semibold uppercase tracking-[.16em] text-stone-500">{restaurant.name}</p><h1 className="mt-1 text-2xl font-semibold tracking-tight">Manage Padharosaa</h1></header>
       <AreaNav role={role} current={role === 'owner' ? 'owner' : 'manager'} kitchenDisplay={!!s.kitchen_display} />
       {msg && <p role={msg.ok ? 'status' : 'alert'} className={`mt-3 rounded-xl p-3 text-sm font-semibold ${msg.ok ? 'bg-emerald-50 text-emerald-950' : 'bg-red-50 text-red-900'}`}>{msg.text}</p>}
       {s.server_ready === false && <p role="alert" className="mt-3 rounded-xl bg-red-50 p-3 text-sm font-semibold text-red-900">Guest sign-in is switched off: the setting PADHAROSAA_DATA_KEY is missing on the server. Add it in your hosting settings (Vercel → Environment Variables) and redeploy. Until then guests cannot enter.</p>}
+      <div role="tablist" aria-label="Console sections" className="-mx-4 mt-4 flex gap-6 overflow-x-auto border-b border-stone-200 px-4">
+        {([['start', 'Start'], ['hotel', 'Hotel'], ['ops', 'Orders & payment'], ['content', 'Buffet & guide'], ['team', 'Team']] as const).map(([k, label]) => (
+          <button key={k} type="button" role="tab" aria-selected={tab === k} onClick={() => setTab(k)} className={`-mb-px min-h-11 shrink-0 border-b-2 px-0.5 text-sm font-semibold ${tab === k ? 'border-indigo-900 text-indigo-950' : 'border-transparent text-stone-500'}`}>{label}</button>
+        ))}
+      </div>
+      {tab === 'start' && (
+        <>
       <Checklist s={s} insta={insta} />
       <RoomsCard flash={flash} />
       <CheckoutPanel flash={flash} />
       <GuestLinkPanel slug={restaurant.slug} flash={flash} load={() => apiGet<LinkState>('/api/padharosaa/v1/staff/qr')} create={(password) => apiPost<{ link: string }>('/api/padharosaa/v1/staff/qr/rotate', { password })} />
+        </>
+      )}
+      {tab === 'hotel' && (
+        <>
       <HomeCard s={s} save={save} />
       <StayCard s={s} save={save} />
       <LookCard s={s} insta={insta} restaurantId={restaurant.id} sb={sb} save={save} />
+        </>
+      )}
+      {tab === 'ops' && (
+        <>
       <Card title="Room dining" hint="Switch off if your hotel does not serve food to rooms. Then 'Room delivery' is never offered, and the desk can only choose Takeaway.">
         <label className="flex min-h-11 items-center gap-3 font-semibold"><input type="checkbox" className="h-5 w-5" checked={s.room_dining} onChange={(e) => void save('dining', { room_dining: e.target.checked })} />Our hotel serves food to rooms</label>
         <label className="flex min-h-11 items-center gap-3 font-semibold"><input type="checkbox" className="h-5 w-5" checked={!!s.kitchen_display} onChange={(e) => void save('kitchen-display', { kitchen_display: e.target.checked })} />We have a separate kitchen display</label>
@@ -78,10 +94,16 @@ export function ManageApp({ role, restaurant, supabase }: { role: string; restau
       <PayQrCard s={s} save={save} restaurantId={restaurant.id} sb={sb} />
       <AutoBillCard s={s} save={save} />
       <HoursCard s={s} save={save} />
+      <RoutingCard flash={flash} />
+        </>
+      )}
+      {tab === 'content' && (
+        <>
       <BuffetManager flash={flash} />
       <GuideManager flash={flash} />
-      <TeamCard canImport={role === 'owner'} flash={flash} />
-      <RoutingCard flash={flash} />
+        </>
+      )}
+      {tab === 'team' && <><TeamCard canImport={role === 'owner'} flash={flash} /></>}
     </div>
   );
 }

@@ -89,7 +89,7 @@ test('the manager can see the link but cannot make a new one', async ({ page }) 
   await expect(nav.getByRole('link', { name: 'Kitchen display' })).toHaveCount(0); // only when the hotel says it has one
   await nav.getByRole('link', { name: 'Reception desk (everything)' }).click();
   await expect(page).toHaveURL(/\/padharosaa\/desk$/);
-  await expect(page.getByRole('button', { name: /^All \(\d+\)$/ })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByRole('button', { name: /^All\s*\d+$/ })).toHaveAttribute('aria-pressed', 'true');
   // old addresses land on the desk too
   await page.goto('/padharosaa/housekeeping');
   await expect(page).toHaveURL(/\/padharosaa\/desk$/);
@@ -136,6 +136,7 @@ test('a guest login left over from one hotel never opens another hotel\'s page',
 
 test('the owner adds many guide places from a CSV; sending the same list again adds nothing twice', async ({ page }) => {
   await signIn(page, 'owner@spice-garden.demo', /\/padharosaa\/owner$/, '/padharosaa/owner');
+  await page.getByRole('tab', { name: 'Buffet & guide' }).click();
   const rows = 'Amer Fort, place, "Hilltop fort, mirror hall", Early morning, Amer\nLaxmi Misthan Bhandar, food, Famous for ghewar';
   await page.getByLabel('Places CSV', { exact: true }).fill(rows);
   await page.getByRole('button', { name: 'Add these places' }).click();
@@ -256,6 +257,7 @@ test('the owner sets opening and closing time; after closing a guest sees it and
   await q(`insert into public.rooms (restaurant_id, number) values (${RID}, '204') on conflict do nothing`);
   const t = async (plus: string) => (await q<{ t: string }>(`select to_char((now() at time zone 'Asia/Kolkata')::time + interval '${plus}', 'HH24:MI') as t`))[0]!.t;
   await signIn(page, 'owner@spice-garden.demo', /\/padharosaa\/owner$/, '/padharosaa/owner');
+  await page.getByRole('tab', { name: 'Orders & payment' }).click();
   const card = page.getByRole('heading', { name: 'Opening and closing time for requests' }).locator('..');
   await card.getByLabel('Starts at').fill(await t('+2 hours'));
   await card.getByLabel('Closes at').fill(await t('+3 hours'));

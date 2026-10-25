@@ -141,37 +141,22 @@ export function DeskApp({ role, hotel, title = 'Reception desk', current = 'desk
 
   return (
     <div className="mx-auto min-h-dvh max-w-3xl bg-stone-50 px-4 pb-24 pt-4 text-stone-900">
-      <header className="flex flex-wrap items-center justify-between gap-2">
-        <div><h1 className="text-xl font-extrabold">{title}</h1><p className="text-sm text-stone-700">{hotel}</p></div>
-        <div className="flex gap-2">
-          <button type="button" className="min-h-11 rounded-full border-2 border-stone-800 px-4 text-sm font-bold" onClick={async () => setSoundOn(await sound.current.enable())} aria-pressed={soundOn}>{soundOn ? 'Alarm sound is ON' : 'Turn alarm sound on'}</button>
-        </div>
+      <header className="flex items-start justify-between gap-3 border-b border-stone-200 pb-4">
+        <div><p className="text-[11px] font-semibold uppercase tracking-[.16em] text-stone-500">{hotel}</p><h1 className="mt-1 text-2xl font-semibold tracking-tight">{title}</h1></div>
+        <button type="button" className={`min-h-11 shrink-0 rounded-lg border px-3 text-sm font-semibold ${soundOn ? 'border-indigo-900 bg-indigo-900 text-white' : 'border-stone-300 bg-white text-stone-900'}`} onClick={async () => setSoundOn(await sound.current.enable())} aria-pressed={soundOn}>{soundOn ? 'Alarm sound is ON' : 'Turn alarm sound on'}</button>
       </header>
       <AreaNav role={role} current={current} kitchenDisplay={!!alerts?.kitchen_display} />
       {privileged && (
-        <div role="group" aria-label="Show requests of" className="mt-3 flex flex-wrap gap-2">
+        <div role="group" aria-label="Show requests of" className="mt-4 flex gap-6 overflow-x-auto border-b border-stone-200">
           {(Object.keys(GROUP_LABEL) as Group[]).map((g) => {
             const t = GROUP_TEAMS[g];
             const n = (t ? allOpen.filter((r) => t.includes(r.team)).length : allOpen.length) + (g === 'all' || g === 'kitchen' ? orders.length : 0) + (g === 'all' || g === 'reception' ? calls.length : 0);
-            return <button key={g} type="button" aria-pressed={group === g} onClick={() => setGroup(g)} className={`min-h-11 rounded-full border-2 px-4 text-sm font-bold ${group === g ? 'border-stone-900 bg-stone-900 text-white' : 'border-stone-400 text-stone-900'}`}>{GROUP_LABEL[g]} ({n})</button>;
+            return <button key={g} type="button" aria-pressed={group === g} onClick={() => setGroup(g)} className={`-mb-px min-h-11 shrink-0 border-b-2 px-0.5 text-sm font-semibold ${group === g ? 'border-indigo-900 text-indigo-950' : 'border-transparent text-stone-500'}`}>{GROUP_LABEL[g]} <span className={`ml-0.5 rounded-md px-1.5 py-0.5 text-xs ${group === g ? 'bg-indigo-900 text-white' : 'bg-stone-100 text-stone-700'}`}>{n}</span></button>;
           })}
         </div>
       )}
       {(mineCount > 0 || mineOnly) && (
-        <div className="mt-3"><button type="button" aria-pressed={mineOnly} onClick={() => setMineOnly(!mineOnly)} className={`min-h-11 rounded-full border-2 px-4 text-sm font-bold ${mineOnly ? 'border-violet-900 bg-violet-900 text-white' : 'border-violet-900 text-violet-950'}`}>Only mine ({mineCount})</button></div>
-      )}
-      <CheckoutPanel flash={flash} />
-      {alerts && (
-        <section aria-label="My alerts" className="mt-3 rounded-2xl bg-white p-3 shadow-sm">
-          <h2 className="text-sm font-bold">My alerts (only for me)</h2>
-          <div className="mt-2 flex flex-wrap gap-2">
-            {alerts.teams.map((t) => <button key={t} type="button" aria-pressed={!muted.has(t)} onClick={() => void toggleMute(t)} className={`min-h-11 rounded-full border-2 px-3 text-sm font-semibold ${muted.has(t) ? 'border-stone-400 text-stone-700' : 'border-emerald-800 bg-emerald-50 text-emerald-950'}`}>{TEAM_NAME[t]}: {muted.has(t) ? 'muted' : 'on'}</button>)}
-          </div>
-          <p className="mt-3 text-xs font-bold uppercase tracking-wide text-stone-700">Hear each alarm (turn the sound on first)</p>
-          <div className="mt-1 flex flex-wrap gap-2">
-            {([['urgent', 'Urgent'], ['order', 'Food order'], ['help', 'Help'], ['housekeeping', 'Housekeeping'], ['waiter', 'Waiter call'], ['bill', 'Bill']] as const).map(([k, label]) => <button key={k} type="button" onClick={() => sound.current.play(k)} className="min-h-11 rounded-full border-2 border-stone-400 px-3 text-sm font-semibold text-stone-900">▶ {label}</button>)}
-          </div>
-        </section>
+        <div className="mt-3"><button type="button" aria-pressed={mineOnly} onClick={() => setMineOnly(!mineOnly)} className={`min-h-11 rounded-lg border px-3 text-sm font-semibold ${mineOnly ? 'border-indigo-900 bg-indigo-900 text-white' : 'border-stone-300 bg-white text-stone-900'}`}>Only mine ({mineCount})</button></div>
       )}
       {note && <p role={note.ok ? 'status' : 'alert'} className={`mt-3 rounded-xl p-3 text-sm font-semibold ${note.ok ? 'bg-emerald-50 text-emerald-950' : 'bg-red-50 text-red-900'}`}>{note.text}</p>}
       {err && <p role="alert" className="mt-3 rounded-xl bg-red-50 p-3 text-sm font-semibold text-red-900">{err}</p>}
@@ -186,15 +171,28 @@ export function DeskApp({ role, hotel, title = 'Reception desk', current = 'desk
         ].sort((x, y) => Number(y.urgent) - Number(x.urgent) || new Date(x.at).getTime() - new Date(y.at).getTime());
         return (
           <>
-            <h2 className="mt-5 text-sm font-bold uppercase tracking-wide text-stone-700">Open ({items.length})</h2>
-            {reqs && items.length === 0 && <p className="mt-2 rounded-2xl bg-white p-6 text-center text-stone-700">All clear. New requests and food orders appear here by themselves.</p>}
+            <h2 className="mt-6 text-[11px] font-semibold uppercase tracking-[.16em] text-stone-500">Open · {items.length}</h2>
+            {reqs && items.length === 0 && <p className="mt-2 rounded-xl border border-dashed border-stone-300 bg-white p-8 text-center text-stone-600">All clear. New requests and food orders appear here by themselves.</p>}
             <ul className="mt-2 space-y-3">{items.map((x) => x.node)}</ul>
           </>
         );
       })()}
+      <CheckoutPanel flash={flash} />
+      {alerts && (
+        <details aria-label="My alerts" className="mt-4 rounded-xl border border-stone-200 bg-white p-4">
+          <summary className="min-h-11 cursor-pointer py-2 text-base font-semibold">My alerts and alarm sounds <span className="text-sm font-normal text-stone-500">(only for me)</span></summary>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {alerts.teams.map((t) => <button key={t} type="button" aria-pressed={!muted.has(t)} onClick={() => void toggleMute(t)} className={`min-h-11 rounded-full border-2 px-3 text-sm font-semibold ${muted.has(t) ? 'border-stone-400 text-stone-700' : 'border-emerald-800 bg-emerald-50 text-emerald-950'}`}>{TEAM_NAME[t]}: {muted.has(t) ? 'muted' : 'on'}</button>)}
+          </div>
+          <p className="mt-3 text-xs font-bold uppercase tracking-wide text-stone-700">Hear each alarm (turn the sound on first)</p>
+          <div className="mt-1 flex flex-wrap gap-2">
+            {([['urgent', 'Urgent'], ['order', 'Food order'], ['help', 'Help'], ['housekeeping', 'Housekeeping'], ['waiter', 'Waiter call'], ['bill', 'Bill']] as const).map(([k, label]) => <button key={k} type="button" onClick={() => sound.current.play(k)} className="min-h-11 rounded-full border-2 border-stone-400 px-3 text-sm font-semibold text-stone-900">▶ {label}</button>)}
+          </div>
+        </details>
+      )}
       {doneToday.length > 0 && (
-        <details className="mt-6 rounded-2xl bg-white p-3 shadow-sm" data-testid="done-today">
-          <summary className="min-h-11 cursor-pointer py-2 text-base font-extrabold">Done today <span className="text-sm font-semibold text-stone-700">({doneToday.length}, last 12 hours)</span></summary>
+        <details className="mt-4 rounded-xl border border-stone-200 bg-white p-4" data-testid="done-today">
+          <summary className="min-h-11 cursor-pointer py-2 text-base font-semibold">Done today <span className="text-sm font-semibold text-stone-700">({doneToday.length}, last 12 hours)</span></summary>
           <ul className="mt-1 divide-y divide-stone-200">
             {doneToday.map((r) => (
               <li key={r.id} className="py-2 text-sm"><b>Room {r.room}</b> · {r.label}
@@ -204,8 +202,8 @@ export function DeskApp({ role, hotel, title = 'Reception desk', current = 'desk
         </details>
       )}
       {(privileged || alerts?.teams.includes('front_desk') || alerts?.teams.includes('concierge')) && (
-        <details className="mt-6 rounded-2xl bg-white p-3 shadow-sm">
-          <summary className="min-h-11 cursor-pointer py-2 text-base font-extrabold">Buffet and guest phone alerts</summary>
+        <details className="mt-4 rounded-xl border border-stone-200 bg-white p-4">
+          <summary className="min-h-11 cursor-pointer py-2 text-base font-semibold">Buffet and guest phone alerts</summary>
           <BuffetManager flash={flash} bare />
         </details>
       )}
@@ -217,13 +215,13 @@ function Card({ r, role, me, people, refreshPeople, roomDining, muted, act }: { 
   const [mode, setMode] = useState<null | 'decline' | 'pass' | 'resolve' | 'assign'>(null);
   const [reason, setReason] = useState('');
   const age = mins(r.created_at);
-  const urgentCls = r.urgent ? 'border-red-700' : r.status === 'received' ? 'border-amber-600' : 'border-stone-300';
-  const btn = 'min-h-11 rounded-xl px-4 text-sm font-bold';
+  const urgentCls = r.urgent ? '!border-l-red-700' : r.status === 'received' ? '!border-l-amber-500' : '!border-l-stone-300';
+  const btn = 'min-h-11 rounded-lg px-4 text-sm font-semibold';
   return (
-    <li className={`rounded-2xl border-l-8 bg-white p-4 shadow-sm ${urgentCls}`}>
+    <li className={`rounded-xl border border-l-4 border-stone-200 bg-white p-4 ${urgentCls}`}>
       <div className="flex items-start justify-between gap-2">
-        <div><p className="text-lg font-extrabold">Room {r.room} <span className="font-semibold text-stone-700">· {r.guest_name}</span></p>{r.mobile && <a href={`tel:${dialNumber(r.mobile)}`} className="text-sm font-semibold underline">{r.mobile}</a>}</div>
-        <span className="rounded-full bg-stone-100 px-3 py-1 text-sm font-bold">{age} min</span>
+        <div><p className="text-lg font-semibold tracking-tight">Room {r.room} <span className="font-semibold text-stone-700">· {r.guest_name}</span></p>{r.mobile && <a href={`tel:${dialNumber(r.mobile)}`} className="text-sm font-semibold underline">{r.mobile}</a>}</div>
+        <span className="rounded-md bg-stone-100 px-2 py-1 text-xs font-semibold text-stone-700">{age} min</span>
       </div>
       <div className="mt-2 flex flex-wrap gap-1 text-xs font-bold">
         {r.urgent && <span className="rounded-full bg-red-800 px-2 py-1 text-white">URGENT</span>}
@@ -243,12 +241,12 @@ function Card({ r, role, me, people, refreshPeople, roomDining, muted, act }: { 
         </div>
       )}
       <div className="mt-3 flex flex-wrap gap-2">
-        {r.status === 'received' && <button type="button" className={`${btn} bg-emerald-800 text-white`} onClick={() => void act(r, 'accept')}>Accept</button>}
-        {r.status !== 'received' && r.type !== 'help' && <button type="button" className={`${btn} bg-emerald-800 text-white`} onClick={() => void act(r, 'complete')}>Mark done</button>}
-        {r.type === 'help' && <button type="button" className={`${btn} bg-emerald-800 text-white`} onClick={() => setMode(mode === 'resolve' ? null : 'resolve')}>Resolved…</button>}
-        {people && r.type !== 'food' && <button type="button" className={`${btn} border-2 border-violet-900 text-violet-950`} onClick={() => { setMode(mode === 'assign' ? null : 'assign'); void refreshPeople(); }}>{r.assigned_to ? 'Change person…' : 'Assign to…'}</button>}
-        {role !== 'kitchen' && r.type !== 'food' && <button type="button" className={`${btn} border-2 border-stone-700`} onClick={() => setMode(mode === 'pass' ? null : 'pass')}>Pass to team</button>}
-        {r.status !== 'preparing' && r.status !== 'ready' && !mustFix(r) && <button type="button" className={`${btn} border-2 border-red-800 text-red-900`} onClick={() => setMode(mode === 'decline' ? null : 'decline')}>Decline…</button>}
+        {r.status === 'received' && <button type="button" className={`${btn} bg-indigo-900 text-white`} onClick={() => void act(r, 'accept')}>Accept</button>}
+        {r.status !== 'received' && r.type !== 'help' && <button type="button" className={`${btn} bg-indigo-900 text-white`} onClick={() => void act(r, 'complete')}>Mark done</button>}
+        {r.type === 'help' && <button type="button" className={`${btn} bg-indigo-900 text-white`} onClick={() => setMode(mode === 'resolve' ? null : 'resolve')}>Resolved…</button>}
+        {people && r.type !== 'food' && <button type="button" className={`${btn} border border-stone-300 text-stone-900`} onClick={() => { setMode(mode === 'assign' ? null : 'assign'); void refreshPeople(); }}>{r.assigned_to ? 'Change person…' : 'Assign to…'}</button>}
+        {role !== 'kitchen' && r.type !== 'food' && <button type="button" className={`${btn} border border-stone-300 text-stone-900`} onClick={() => setMode(mode === 'pass' ? null : 'pass')}>Pass to team</button>}
+        {r.status !== 'preparing' && r.status !== 'ready' && !mustFix(r) && <button type="button" className={`${btn} border border-red-300 text-red-800`} onClick={() => setMode(mode === 'decline' ? null : 'decline')}>Decline…</button>}
       </div>
       {mode === 'decline' && (
         <form className="mt-3 space-y-2" onSubmit={(e) => { e.preventDefault(); if (reason.trim().length >= 3) void act(r, 'dismiss', { reason: reason.trim() }); }}>
@@ -263,7 +261,7 @@ function Card({ r, role, me, people, refreshPeople, roomDining, muted, act }: { 
         <div className="mt-3" role="group" aria-label="Assign to a person">
           <div className="flex flex-wrap gap-2">
             {people.map((p) => <button key={p.user_id} type="button" aria-pressed={r.assigned_to === p.user_id} className={`${btn} ${r.assigned_to === p.user_id ? 'bg-violet-900 text-white' : 'bg-stone-100'}`} onClick={() => void act(r, 'assign', { user: p.user_id })}>{p.name}{p.department ? ` · ${TEAM_NAME[p.department as Team] ?? p.department}` : ''}</button>)}
-            {r.assigned_to && <button type="button" className={`${btn} border-2 border-stone-700`} onClick={() => void act(r, 'assign', { user: null })}>Back to the team</button>}
+            {r.assigned_to && <button type="button" className={`${btn} border border-stone-300 text-stone-900`} onClick={() => void act(r, 'assign', { user: null })}>Back to the team</button>}
           </div>
           {people.length === 0 && <p className="mt-2 text-sm text-stone-700">No team members yet. The owner or manager adds them in Manage → Team.</p>}
         </div>

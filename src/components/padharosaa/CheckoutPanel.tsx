@@ -28,8 +28,8 @@ export function CheckoutPanel({ flash }: { flash: (ok: boolean, text: string) =>
     setBusy(null);
   };
   return (
-    <details className="mt-3 rounded-2xl bg-white p-3 shadow-sm">
-      <summary className="min-h-11 cursor-pointer py-2 text-base font-extrabold">Check out a room · live rooms {rooms && <span className="text-sm font-semibold text-stone-700">({rooms.filter((r) => r.guests > 0).length} with guests)</span>}</summary>
+    <details className="mt-4 rounded-xl border border-stone-200 bg-white p-4">
+      <summary className="min-h-11 cursor-pointer py-2 text-base font-semibold">Check out a room · live rooms {rooms && <span className="text-sm font-semibold text-stone-700">({rooms.filter((r) => r.guests > 0).length} with guests)</span>}</summary>
       <p className="text-sm text-stone-700">When a guest leaves, tap their room. They are signed out of the hotel app straight away, so no one can send requests or orders from that room afterwards.</p>
       <label className="mt-2 block text-sm font-semibold">Room number<input value={q} onChange={(e) => setQ(e.target.value)} inputMode="text" autoComplete="off" maxLength={10} className="mt-1 min-h-11 w-full rounded-xl border-2 border-stone-300 bg-white px-3 text-base text-stone-900" /></label>
       {rooms && staying.length === 0 && <p className="mt-2 text-sm text-stone-700">{q.trim() ? 'No room with a guest matches that number.' : 'No room has a guest signed in right now.'}</p>}
