@@ -22,10 +22,10 @@ const PERIOD: Record<string, string> = { monthly: 'per month', yearly: 'per year
 
 export function AdminApp() {
   // on padharosaa.* the same panel speaks of hotels
-  const [pad, setPad] = useState(false);
-  useEffect(() => { setPad(isPadHost(window.location.host)); }, []);
-  const noun = pad ? 'hotel' : 'restaurant';
-  const Noun = pad ? 'Hotels' : 'Restaurants';
+  const [hotelHost, setHotelHost] = useState(false);
+  useEffect(() => { setHotelHost(isPadHost(window.location.host)); }, []);
+  const noun = hotelHost ? 'hotel' : 'restaurant';
+  const Noun = hotelHost ? 'Hotels' : 'Restaurants';
   const [rows, setRows] = useState<Row[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
@@ -99,7 +99,7 @@ export function AdminApp() {
     <div>
       <div className="flex flex-wrap items-center gap-2">
         <h1 className="mr-auto text-2xl font-extrabold">{Noun}</h1>
-        <button type="button" className={btnPrimary} onClick={() => { setErr(null); setF({ slug: '', name: '', owner_email: '', owner_name: '', plan: 'pilot', paid: '' }); setCreating(true); }}>{pad ? 'Create hotel' : 'Create restaurant'}</button>
+        <button type="button" className={btnPrimary} onClick={() => { setErr(null); setF({ slug: '', name: '', owner_email: '', owner_name: '', plan: 'pilot', paid: '' }); setCreating(true); }}>{hotelHost ? 'Create hotel' : 'Create restaurant'}</button>
       </div>
       <label className="mt-3 block text-sm font-semibold">Search
         <input value={q} onChange={(e) => setQ(e.target.value)} className={inputCls} />
@@ -139,7 +139,7 @@ export function AdminApp() {
       </ul>
       {rows && shown.length === 0 && <p className="mt-6 text-stone-800">No {noun}s found.</p>}
 
-      <Sheet open={creating} onClose={() => setCreating(false)} title={pad ? 'Create hotel' : 'Create restaurant'} closeLabel="Close">
+      <Sheet open={creating} onClose={() => setCreating(false)} title={hotelHost ? 'Create hotel' : 'Create restaurant'} closeLabel="Close">
         <form className="space-y-4" onSubmit={async (e) => {
           e.preventDefault();
           const r = await run(() => adminPost<{ owner_email: string; slug: string; temporary_password: string }>('create-restaurant', { slug: f.slug, name: f.name, owner_email: f.owner_email, owner_name: f.owner_name, plan: f.plan, paid_until: endOfDayIst(f.paid) }));
