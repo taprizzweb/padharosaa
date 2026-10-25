@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { apiGet, apiPost } from '@/components/staff/hooks';
+import { ApiFailure } from '@/lib/guest/client';
 
 interface Day { date: string; set: boolean; mode: 'in_house' | 'outdoor' | 'none' | null; name: string | null; start: string | null; end: string | null; venue: string | null; highlights: string | null; mood: string | null }
 const inputCls = 'mt-1 min-h-11 w-full rounded-xl border-2 border-stone-300 bg-white px-3 text-base text-stone-900';
@@ -64,7 +65,7 @@ function NotifyCard({ time, onSave, flash }: { time: string; onSave: boolean; fl
   const [t, setT] = useState(time);
   const [on, setOn] = useState(onSave);
   const save = async (nt: string, ns: boolean) => {
-    try { await apiPost('/api/padharosaa/v1/staff/buffet/notify', { time: nt, onSave: ns }); flash(true, 'Alert settings saved.'); } catch { flash(false, 'The alert settings could not be saved.'); }
+    try { await apiPost('/api/padharosaa/v1/staff/buffet/notify', { time: nt, onSave: ns }); flash(true, 'Alert settings saved.'); } catch (e) { flash(false, `The alert settings could not be saved${e instanceof ApiFailure ? ` (${e.status} ${e.key}${e.requestId ? `, ref ${e.requestId.slice(0, 8)}` : ''})` : ''}.`); }
   };
   return (
     <div className="mt-3 rounded-xl border-2 border-stone-200 p-3" data-testid="buffet-notify">
