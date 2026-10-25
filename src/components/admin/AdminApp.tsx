@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Alert, Notice, Sheet, btnPrimary, btnSecondary } from '@/components/guest/ui';
 import { errText, fmtDateTime, inputCls } from '@/components/dash/api';
 import { ApiFailure } from '@/lib/guest/client';
+import { isPadHost } from '@/lib/padharosaa/areas';
 import { addMonths, describeExpiry, endOfDayIst, expiryOf, istDate, paiseToRupees, rupeesToPaise, startOfDayIst } from '@/lib/billing';
 import { formatPaise } from '@/lib/money';
 import { adminGet, adminPost, type Plan } from './AdminApi';
@@ -20,6 +21,11 @@ const smallBtn = 'inline-flex min-h-11 items-center justify-center rounded-lg bo
 const PERIOD: Record<string, string> = { monthly: 'per month', yearly: 'per year', one_time: 'one time' };
 
 export function AdminApp() {
+  // on padharosaa.* the same panel speaks of hotels
+  const [pad, setPad] = useState(false);
+  useEffect(() => { setPad(isPadHost(window.location.host)); }, []);
+  const noun = pad ? 'hotel' : 'restaurant';
+  const Noun = pad ? 'Hotels' : 'Restaurants';
   const [rows, setRows] = useState<Row[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
@@ -92,8 +98,8 @@ export function AdminApp() {
   return (
     <div>
       <div className="flex flex-wrap items-center gap-2">
-        <h1 className="mr-auto text-2xl font-extrabold">Restaurants</h1>
-        <button type="button" className={btnPrimary} onClick={() => { setErr(null); setF({ slug: '', name: '', owner_email: '', owner_name: '', plan: 'pilot', paid: '' }); setCreating(true); }}>Create restaurant</button>
+        <h1 className="mr-auto text-2xl font-extrabold">{Noun}</h1>
+        <button type="button" className={btnPrimary} onClick={() => { setErr(null); setF({ slug: '', name: '', owner_email: '', owner_name: '', plan: 'pilot', paid: '' }); setCreating(true); }}>{pad ? 'Create hotel' : 'Create restaurant'}</button>
       </div>
       <label className="mt-3 block text-sm font-semibold">Search
         <input value={q} onChange={(e) => setQ(e.target.value)} className={inputCls} />
@@ -131,9 +137,9 @@ export function AdminApp() {
           </li>
         ))}
       </ul>
-      {rows && shown.length === 0 && <p className="mt-6 text-stone-800">No restaurants found.</p>}
+      {rows && shown.length === 0 && <p className="mt-6 text-stone-800">No {noun}s found.</p>}
 
-      <Sheet open={creating} onClose={() => setCreating(false)} title="Create restaurant" closeLabel="Close">
+      <Sheet open={creating} onClose={() => setCreating(false)} title={pad ? 'Create hotel' : 'Create restaurant'} closeLabel="Close">
         <form className="space-y-4" onSubmit={async (e) => {
           e.preventDefault();
           const r = await run(() => adminPost<{ owner_email: string; slug: string; temporary_password: string }>('create-restaurant', { slug: f.slug, name: f.name, owner_email: f.owner_email, owner_name: f.owner_name, plan: f.plan, paid_until: endOfDayIst(f.paid) }));
