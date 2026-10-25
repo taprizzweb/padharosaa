@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { discoverLabel, haversineMeters, mapsDirectionsUrl } from '@/lib/padharosaa/places';
+import { discoverLabel, haversineMeters, mapsDirectionsUrl, tidyPlaceName } from '@/lib/padharosaa/places';
 import { fill, type Copy } from './copy';
 import { Btn, Header, api } from './shared';
 
@@ -13,6 +13,12 @@ interface PlanItem { id: string; name: string; when_label: string | null; maps_q
 interface Plan { requested_at: string | null; items: PlanItem[] }
 
 const num = (v: number | null | undefined): v is number => typeof v === 'number';
+/** Names imported from a map can start with a stray ":" or "-" and appear twice: show each place once, with a clean name. */
+const tidyName = tidyPlaceName;
+function tidyItems(items: Item[]): Item[] {
+  const seen = new Set<string>();
+  return items.map((i) => ({ ...i, name: tidyName(i.name) })).filter((i) => i.name && !seen.has(`${i.category}:${i.name.toLowerCase()}`) && !!seen.add(`${i.category}:${i.name.toLowerCase()}`));
+}
 const linkCls = 'inline-flex min-h-11 items-center rounded-xl border-2 px-3 text-sm font-bold';
 
 export function GuideScreen({ c, back, goPlan }: { c: Copy; back: () => void; goPlan: () => void }) {
@@ -30,8 +36,10 @@ export function GuideScreen({ c, back, goPlan }: { c: Copy; back: () => void; go
     if (r.ok) setPlan(r.data);
   };
   const use = async (id: string) => { const r = await api<Plan>('plan/use', { method: 'POST', body: JSON.stringify({ itinerary: id }) }); if (r.ok) { setPlan(r.data); goPlan(); } };
-  const tabs = [['place', c.tabPlace], ['food', c.tabFood], ['craft', c.tabCraft], ['tip', c.tabTip], ['plans', c.tabPlans]] as const;
-  const shown = (g?.items ?? []).filter((i) => i.category === tab);
+  const items = useMemo(() => tidyItems(g?.items ?? []), [g]);
+  // a tab with nothing in it is not shown at all
+  const tabs = ([['place', c.tabPlace], ['food', c.tabFood], ['craft', c.tabCraft], ['tip', c.tabTip], ['plans', c.tabPlans]] as const).filter(([k]) => (k === 'plans' ? (g?.itineraries.length ?? 0) > 0 : items.some((i) => i.category === k)));
+  const shown = items.filter((i) => i.category === tab);
   const empty = g && g.items.length === 0 && g.itineraries.length === 0;
   return (
     <main className="flex-1 pb-4">
@@ -42,7 +50,7 @@ export function GuideScreen({ c, back, goPlan }: { c: Copy; back: () => void; go
         {empty && <p className="rounded-2xl bg-white p-4 text-stone-900 shadow-sm">{c.guideEmpty}</p>}
         {g && !empty && (
           <>
-            <div className="-mx-5 flex gap-2 overflow-x-auto px-5 pb-2" role="tablist" aria-label={c.guideTitle}>
+            <div className="no-scrollbar -mx-5 flex gap-2 overflow-x-auto px-5 pb-2" role="tablist" aria-label={c.guideTitle}>
               {tabs.map(([k, label]) => (
                 <button key={k} type="button" role="tab" aria-selected={tab === k} onClick={() => setTab(k)} className="min-h-11 shrink-0 rounded-full border-2 px-4 text-sm font-bold"
                   style={tab === k ? { background: 'var(--button)', color: 'var(--on-button)', borderColor: 'var(--ink)' } : { background: '#fff', color: '#10131a', borderColor: 'var(--accent-text)' }}>{label}</button>

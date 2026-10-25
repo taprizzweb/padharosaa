@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { barItemIds, categoryHasMatch, isBarCategory, markFor, parseDietParam, passesFilters, summarise, summaryHasMatch, toggleFilter, type Filter } from '@/lib/guest/filters';
+import { groupOf, pickGroups, sectionOf, barItemIds, categoryHasMatch, isBarCategory, markFor, parseDietParam, passesFilters, summarise, summaryHasMatch, toggleFilter, type Filter } from '@/lib/guest/filters';
 import type { Diet, MenuCategory, MenuItem } from '@/lib/guest/types';
 
 const item = (id: string, diet: Diet, extra: Partial<MenuItem> = {}): MenuItem => ({ id, name_en: id, description_en: null, price_paise: 100, diet, spice: 0, image_path: null, is_available: true, is_bestseller: false, is_chef_pick: false, ...extra });
@@ -65,5 +65,11 @@ describe('menu filter chips', () => {
     const c: MenuCategory = { id: 'x', name_en: 'Soup - Non-Veg', items: [item('a', 'nonveg', { is_available: false })] };
     expect(summarise(c).combos).toEqual([]);
     expect(summaryHasMatch(summarise(c), new Set<Filter>(['nonveg']))).toBe(false);
+  });
+  it('categories group into sections and families so the guest never faces 45 chips', () => {
+    expect(['Starters - Veg', 'Shakes & Iced Tea', 'Bar - Wine - Red', 'Desserts', 'Coffee & Hot Chocolate & Tea', 'Biryani / Rice / Raita - Veg', 'Tapas - Non-Veg'].map(sectionOf)).toEqual(['food', 'drinks', 'bar', 'dessert', 'drinks', 'food', 'food']);
+    expect(['Starters - Veg', 'Starters - Non-Veg', 'Bar - Wine - Red', 'Bar - Beer', 'Indian Mains - Veg', 'Breads'].map(groupOf)).toEqual(['Starters', 'Starters', 'Wine', 'Beer', 'Indian Mains', 'Breads']);
+    const g = pickGroups([{ id: '1', name: 'Starters - Veg' }, { id: '2', name: 'Starters - Non-Veg' }, { id: '3', name: 'Bar - Beer' }, { id: '4', name: 'Soup - Veg' }]);
+    expect(g.map((x) => [x.section, x.label, x.ids])).toEqual([['food', 'Starters', ['1', '2']], ['bar', 'Beer', ['3']], ['food', 'Soup', ['4']]]);
   });
 });

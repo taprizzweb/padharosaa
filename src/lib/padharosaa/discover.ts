@@ -44,7 +44,7 @@ export function parseOverpass(json: unknown, origin: { lat: number; lng: number 
   const out: Candidate[] = [];
   for (const e of els) {
     const t = e.tags ?? {};
-    const name = (t['name:en'] ?? t.name ?? '').replace(/\s+/g, ' ').trim().slice(0, 100);
+    const name = (t['name:en'] ?? t.name ?? '').replace(/^[\s:;,.\-–—|]+/, '').replace(/\s+/g, ' ').trim().slice(0, 100);
     const c = classify(t);
     const lat = e.lat ?? e.center?.lat, lng = e.lon ?? e.center?.lon;
     if (!c || SKIP_NAME.test(name) || typeof lat !== 'number' || typeof lng !== 'number') continue;

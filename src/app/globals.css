@@ -28,6 +28,10 @@ dialog.sheet[open] > .sheet-panel { animation: sheet-up 220ms ease-out; }
 /* Staff "larger text" mode: every rem-based size scales up. */
 html.staff-large { font-size: 125%; }
 
+/* A guest who comes from the hotel app sees the menu in the same narrow, phone-style column as every other hotel page. */
+[data-narrow='true'] .max-w-5xl, [data-narrow='true'] .max-w-2xl { max-width: 28rem; }
+[data-narrow='true'] ul.grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
 .no-scrollbar { scrollbar-width: none; }
 .no-scrollbar::-webkit-scrollbar { display: none; }
 

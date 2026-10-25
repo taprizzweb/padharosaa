@@ -270,24 +270,29 @@ test('Dining: "What do you feel like?" has Veg, Non-Veg, Jain, Bar and Bestselle
     await g.getByRole('button', { name: 'Enter' }).click();
     await expect(g.getByText('Namaste, Dina')).toBeVisible();
     await g.getByText('Dining', { exact: true }).click();
-    await expect(g.getByRole('button', { name: /^(✓ )?(Veg|Non-Veg|Jain|Bar|Bestsellers)$/ })).toHaveText(['Veg', 'Non-Veg', 'Jain', 'Bar', 'Bestsellers']);
+    await expect(g.getByRole('group').filter({ hasText: 'Food type' }).getByRole('button')).toHaveText(['Veg', 'Non-Veg', 'Jain', 'Bar', 'Bestsellers']);
     const chip = (n: string) => g.getByRole('button', { name: new RegExp(`^(✓ )?${n}$`) });
-    await expect(chip('Zz Soup - Non-Veg')).toBeVisible();
-    await expect(chip('Zz Salads - Veg')).toBeVisible();
-    await expect(chip('Bar - Zz Wine')).toBeVisible();
-    await g.getByRole('button', { name: 'Non-Veg', exact: true }).click(); // Non-Veg: only categories with a non-veg dish
-    await expect(chip('Zz Soup - Non-Veg')).toBeVisible();
-    await expect(chip('Zz Salads - Veg')).toHaveCount(0);
-    await expect(chip('Bar - Zz Wine')).toHaveCount(0); // a bar dish is stored as veg but is no Non-Veg dish
-    await g.getByRole('button', { name: /^(✓ )?Veg$/ }).click(); // Veg turns Non-Veg off
-    await expect(g.getByRole('button', { name: /Non-Veg$/ }).first()).toHaveAttribute('aria-pressed', 'false');
-    await expect(chip('Zz Salads - Veg')).toBeVisible();
-    await expect(chip('Zz Soup - Non-Veg')).toHaveCount(0);
-    await expect(chip('Bar - Zz Wine')).toHaveCount(0);
-    await g.getByRole('button', { name: /^(✓ )?Veg$/ }).click();
-    await g.getByRole('button', { name: 'Bar', exact: true }).click(); // Bar: only bar categories
-    await expect(chip('Bar - Zz Wine')).toBeVisible();
-    await expect(chip('Zz Salads - Veg')).toHaveCount(0);
+    const foodType = g.getByRole('group').filter({ hasText: 'Food type' });
+    // the long list of categories is never shown at once: first a section, then the type of dish inside it
+    await expect(chip('Zz Soup')).toHaveCount(0);
+    await expect(chip('Food')).toBeVisible();
+    await expect(chip('Bar')).toHaveCount(2); // the Bar food type and the Bar section
+    await chip('Food').click();
+    await expect(chip('Zz Soup')).toBeVisible();
+    await expect(chip('Zz Salads')).toBeVisible();
+    await foodType.getByRole('button', { name: 'Non-Veg', exact: true }).click(); // Non-Veg: only types with a non-veg dish
+    await expect(chip('Zz Soup')).toBeVisible();
+    await expect(chip('Zz Salads')).toHaveCount(0);
+    await expect(g.getByRole('group').filter({ hasText: 'What are you in the mood for?' }).getByRole('button', { name: 'Bar' })).toHaveCount(0); // a bar dish is stored as veg: no Bar section under Non-Veg
+    await foodType.getByRole('button', { name: /^(✓ )?Veg$/ }).click(); // Veg turns Non-Veg off
+    await expect(foodType.getByRole('button', { name: /Non-Veg$/ })).toHaveAttribute('aria-pressed', 'false');
+    await expect(chip('Zz Salads')).toBeVisible();
+    await expect(chip('Zz Soup')).toHaveCount(0);
+    await foodType.getByRole('button', { name: /^(✓ )?Veg$/ }).click();
+    await foodType.getByRole('button', { name: 'Bar', exact: true }).click(); // Bar: only the bar section is left
+    await expect(g.getByText('What are you in the mood for?')).toHaveCount(0); // one section only: no need to choose it, its types show at once
+    await expect(chip('Zz Wine')).toBeVisible();
+    await expect(chip('Zz Salads')).toHaveCount(0);
     expect(await g.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   } finally {
     await ctx.close();
@@ -372,5 +377,79 @@ test('reception checks a room out and the guest is signed out at once', async ({
     await expect(g.getByText('Namaste, Checkout')).toHaveCount(0);
   } finally {
     await ctx.close();
+  }
+});
+
+test('guest services ask for what the team needs; a declined request is not left hanging; AC problems cannot be declined; French works', async ({ page, browser }) => {
+  await q(`insert into public.rooms (restaurant_id, number) values (${RID}, '204') on conflict do nothing`);
+  await q(`update public.hotel_settings set reception_phone = '9828114008' where restaurant_id = ${RID}`);
+  await q(`delete from public.buffets where restaurant_id = ${RID}`); // an earlier test set one: this guest must see no empty or filled-in buffet tile
+  const ctx = await browser.newContext({ viewport: { width: 375, height: 800 } });
+  const g = await ctx.newPage();
+  try {
+    await g.goto(second);
+    await g.getByLabel('Your name').fill('Services Guest');
+    await g.getByRole('button', { name: 'Accept cookies' }).click();
+    await g.getByLabel('Mobile number').fill('9855555555');
+    await g.getByLabel('Room number').fill('204');
+    await g.getByRole('button', { name: 'Enter' }).click();
+    await expect(g.getByText('Namaste, Services')).toBeVisible();
+    // no empty tiles: nothing is set for the buffet and no plan is saved
+    await expect(g.getByText("Today's buffet")).toHaveCount(0);
+    await expect(g.getByText('My plan')).toHaveCount(0);
+    // Services: each kind asks for what it needs
+    await g.getByText('Services', { exact: true }).click();
+    await expect(g.getByText(/Step 1 of 2/)).toHaveCount(0);
+    await g.getByRole('button', { name: 'Wake-up call', exact: true }).click();
+    await g.getByRole('button', { name: 'Send request' }).click();
+    await expect(g.getByText('Please choose a time.')).toBeVisible();
+    await g.getByLabel('Wake-up time').fill('06:30');
+    await g.getByRole('button', { name: 'Send request' }).click();
+    await expect(g.getByRole('heading', { name: 'Sent' })).toBeVisible();
+    expect((await q<{ detail: string }>(`select detail from public.requests where restaurant_id = ${RID} and type = 'wake' order by created_at desc limit 1`))[0]!.detail).toBe('Wake-up call at 6:30 AM');
+    await g.getByRole('button', { name: 'Back to home' }).click();
+    await g.getByText('Services', { exact: true }).click();
+    await g.getByRole('button', { name: 'Cab', exact: true }).click();
+    await g.getByLabel('Pickup time').fill('09:15');
+    await g.getByRole('button', { name: 'Send request' }).click();
+    await expect(g.getByText('Please say where you want to go.')).toBeVisible();
+    await g.getByLabel('Where do you want to go?').fill('Jaipur airport');
+    await g.getByLabel('Car type').selectOption('SUV');
+    await g.getByRole('button', { name: 'Send request' }).click();
+    await expect(g.getByRole('heading', { name: 'Sent' })).toBeVisible();
+    expect((await q<{ detail: string }>(`select detail from public.requests where restaurant_id = ${RID} and type = 'cab' order by created_at desc limit 1`))[0]!.detail).toBe('To: Jaipur airport · Pickup at 9:15 AM · Car: SUV');
+    // a problem the team must fix: AC
+    await g.getByRole('button', { name: 'Back to home' }).click();
+    await g.getByText('Help / problem').first().click();
+    await g.getByRole('button', { name: 'AC or electrical' }).click();
+    await g.getByRole('button', { name: 'Send to reception' }).click();
+    await expect(g.getByRole('heading', { name: 'Sent' })).toBeVisible();
+    // reception: the cab can be declined with cab-shaped reasons; the AC problem cannot be declined at all
+    await signIn(page, 'waiter@spice-garden.demo', /\/padharosaa\/desk$/, '/padharosaa/desk');
+    const ac = page.locator('li', { hasText: 'AC or electrical' }).first();
+    await expect(ac).toBeVisible();
+    await expect(ac.getByRole('button', { name: /Decline/ })).toHaveCount(0);
+    const cab = page.locator('li', { hasText: 'To: Jaipur airport' }).first();
+    await cab.getByRole('button', { name: /Decline/ }).click();
+    await expect(cab.getByRole('button', { name: 'Fully booked, please choose another time' })).toHaveCount(0);
+    await cab.getByRole('button', { name: 'We will call you' }).click();
+    await cab.getByRole('button', { name: 'Send to guest' }).click();
+    // the guest is not left hanging: Try again and Call reception, and no "Done" step waiting
+    await g.reload();
+    await g.getByText('Cab', { exact: false }).first().click();
+    const actions = g.getByTestId('declined-actions');
+    await expect(actions.getByRole('button', { name: 'Try again' })).toBeVisible();
+    await expect(actions.getByRole('link', { name: 'Call reception' })).toBeVisible();
+    await expect(g.getByRole('listitem').filter({ hasText: /^Done/ })).toHaveCount(0);
+    await actions.getByRole('button', { name: 'Try again' }).click();
+    await expect(g.getByRole('heading', { name: 'Services' })).toBeVisible();
+    // French
+    await g.getByRole('button', { name: 'Back' }).click();
+    await g.getByLabel('Language').selectOption('fr');
+    await expect(g.getByText('Bonjour, Services')).toBeVisible();
+    expect(await g.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  } finally {
+    await ctx.close();
+    await q(`update public.hotel_settings set reception_phone = null where restaurant_id = ${RID}`);
   }
 });

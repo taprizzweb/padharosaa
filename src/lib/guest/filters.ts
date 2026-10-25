@@ -69,3 +69,31 @@ export function summarise(c: MenuCategory): CategorySummary {
   for (const i of c.items) { if (!i.is_available) continue; const k = `${i.diet}:${i.is_bestseller}`; if (!seen.has(k)) { seen.add(k); combos.push({ diet: i.diet, best: !!i.is_bestseller }); } }
   return { bar: isBarCategory(c.name_en), combos };
 }
+
+/** The few big sections a guest first chooses from (Food, Drinks, Bar, Desserts), so a menu of 40 categories is never one long list. */
+export const SECTIONS = ['food', 'drinks', 'bar', 'dessert'] as const;
+export type Section = (typeof SECTIONS)[number];
+export function sectionOf(name: string): Section {
+  const n = name.trim();
+  if (isBarCategory(n)) return 'bar';
+  if (/^(shakes?|coffee|tea|beverages?|juices?|mocktails?|smoothies?|drinks?|lassi)\b/i.test(n)) return 'drinks';
+  if (/^(desserts?|sweets?|ice ?creams?)\b/i.test(n)) return 'dessert';
+  return 'food';
+}
+/** The family a category belongs to: "Starters - Veg" and "Starters - Non-Veg" are both "Starters"; "Bar - Wine - Red" is "Wine". */
+export function groupOf(name: string): string {
+  const parts = name.split(/\s+[-–—]\s+/).map((x) => x.trim()).filter(Boolean);
+  if (parts.length === 0) return name.trim();
+  if (isBarCategory(name) && parts.length > 1) return parts[1]!;
+  return parts[0]!;
+}
+export interface PickGroup { key: string; label: string; section: Section; ids: string[] }
+/** Group the categories of a menu into sections and families (the same family under one chip). */
+export function pickGroups(cats: { id: string; name: string }[]): PickGroup[] {
+  const map = new Map<string, PickGroup>();
+  for (const c of cats) {
+    const section = sectionOf(c.name); const label = groupOf(c.name); const key = `${section}:${label.toLowerCase()}`;
+    const g = map.get(key); if (g) g.ids.push(c.id); else map.set(key, { key, label, section, ids: [c.id] });
+  }
+  return [...map.values()];
+}

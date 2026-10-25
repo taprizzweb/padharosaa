@@ -3,6 +3,7 @@ import { serverEnv } from '@/env';
 import { ApiError } from '@/lib/errors';
 import { limit } from '@/lib/guest/rpc';
 import { discoverNearby, describeWithAi } from '@/lib/padharosaa/discover';
+import { tidyPlaceName } from '@/lib/padharosaa/places';
 import { describeBody, discoverBody, guideCsvBody, guideSaveBody, idBody, importBody, itineraryBody, locationBody } from '@/lib/padharosaa/schemas';
 import { staffRpc } from '@/lib/staff/rpc';
 
@@ -46,25 +47,30 @@ export async function POST(req: Request, { params }: { params: Promise<{ action:
       }
       case 'import': {
         const b = importBody.parse(raw);
-        let saved = 0;
+        // clean names, and a place already in the guide (or listed twice) is added only once
+        const g = await staffRpc<Manage>(ctx.db, 'padh_guide_manage');
+        const have = new Set(g.items.map((i) => `${i.category}:${tidyPlaceName(i.name).toLowerCase()}`));
+        let saved = 0, skipped = 0;
         for (const it of b.items) {
-          await staffRpc(ctx.db, 'padh_guide_save', { p: { category: it.category, name: it.name, lat: it.lat, lng: it.lng, address: it.address ?? null, source: 'osm' } });
-          saved++;
+          const name = tidyPlaceName(it.name); const key = `${it.category}:${name.toLowerCase()}`;
+          if (!name || have.has(key)) { skipped++; continue; }
+          await staffRpc(ctx.db, 'padh_guide_save', { p: { category: it.category, name, lat: it.lat, lng: it.lng, address: it.address ?? null, source: 'osm' } });
+          have.add(key); saved++;
         }
-        return jsonOk({ saved }, ctx.requestId);
+        return jsonOk({ saved, skipped }, ctx.requestId);
       }
       case 'csv': {
         // the manager's own list (parsed in the browser): saved as manual items, shown to guests at once or kept hidden; a name already in the guide is skipped, so the same file can be sent twice
         const b = guideCsvBody.parse(raw);
         await limit(`psc:${ctx.userId}`, 20, 3600);
         const g = await staffRpc<Manage>(ctx.db, 'padh_guide_manage');
-        const have = new Set(g.items.map((i) => `${i.category}:${i.name.toLowerCase()}`));
+        const have = new Set(g.items.map((i) => `${i.category}:${tidyPlaceName(i.name).toLowerCase()}`));
         let saved = 0, skipped = 0, failed = 0;
         for (const it of b.items) {
-          const key = `${it.category}:${it.name.toLowerCase()}`;
-          if (have.has(key)) { skipped++; continue; }
+          const name = tidyPlaceName(it.name); const key = `${it.category}:${name.toLowerCase()}`;
+          if (!name || have.has(key)) { skipped++; continue; }
           try {
-            await staffRpc(ctx.db, 'padh_guide_save', { p: { ...it, link_url: it.link_url ?? null, source: 'manual', publish: b.publish } });
+            await staffRpc(ctx.db, 'padh_guide_save', { p: { ...it, name, link_url: it.link_url ?? null, source: 'manual', publish: b.publish } });
             have.add(key); saved++;
           } catch { failed++; }
         }

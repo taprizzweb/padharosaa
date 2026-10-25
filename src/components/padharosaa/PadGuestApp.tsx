@@ -2,9 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { POWERED_BY, instagramUrl } from '@/lib/brand';
-import { FILTERS, summaryHasMatch, toggleFilter, type CategorySummary, type Filter } from '@/lib/guest/filters';
+import { FILTERS, SECTIONS, pickGroups, summaryHasMatch, toggleFilter, type CategorySummary, type Filter, type Section } from '@/lib/guest/filters';
 import { buildTheme, themeVars } from '@/lib/padharosaa/theme';
-import { COPY, fill, type Copy, type Lang } from './copy';
+import { COPY, LANGS, fill, isHelpLabel, localLabel, type Copy, type Lang } from './copy';
 import { BuffetScreen, GuideScreen, PlanScreen } from './GuideScreens';
 import { Btn, BrandPill, CookieNotice, Header, Hero, Icon, IconBox, PoweredPill, api, safeUrl, telHref, time, type IconName } from './shared';
 
@@ -32,13 +32,20 @@ export function PadGuestApp({ slug, qrKey, imageBase }: { slug: string; qrKey: s
   const [screen, setScreen] = useState<Screen>({ s: 'home' });
   const [hours, setHours] = useState<{ open: boolean; start: string | null; end: string | null } | null>(null);
   const c = COPY[lang];
+  const [dine, setDine] = useState<{ room_dining: boolean } | null>(null);
+  const [planCount, setPlanCount] = useState(0);
+  useEffect(() => { if (screen.s === 'home') void api<{ items: unknown[] }>('plan').then((p) => { if (p.ok) setPlanCount(p.data.items.length); }); }, [screen.s]);
   const closed = hours && !hours.open ? (hours.start ? fill(c.closedNow, { at: clock12(hours.start) }) : c.closedNoTime) : null;
 
   const loadHours = useCallback(async () => { const r = await api<{ open: boolean; start: string | null; end: string | null }>('hours'); if (r.ok) setHours(r.data); }, []);
   useEffect(() => { void loadHours(); const t = setInterval(() => { if (!document.hidden) void loadHours(); }, 60_000); return () => clearInterval(t); }, [loadHours]);
   const loadHome = useCallback(async () => {
     const r = await api<Home>('home');
-    if (r.ok) { setHome(r.data); void loadHours(); }
+    if (r.ok) {
+      setHome(r.data); void loadHours();
+      void api<{ room_dining: boolean }>('dining').then((d) => { if (d.ok) setDine({ room_dining: d.data.room_dining }); });
+      void api<{ items: unknown[] }>('plan').then((p) => { if (p.ok) setPlanCount(p.data.items.length); });
+    }
     else if (r.status === 401 || r.status === 403) setMe(null);
   }, [loadHours]);
 
@@ -46,7 +53,7 @@ export function PadGuestApp({ slug, qrKey, imageBase }: { slug: string; qrKey: s
     void (async () => {
       const r = await api<Me>('sessions/me');
       // a login cookie left over from ANOTHER hotel must not open this hotel's page: show this hotel's own login instead
-      if (r.ok && (!r.data.slug || r.data.slug === slug)) { setMe(r.data); setLang(r.data.language === 'hi' ? 'hi' : 'en'); await loadHome(); } else setMe(null);
+      if (r.ok && (!r.data.slug || r.data.slug === slug)) { setMe(r.data); setLang((LANGS.find((x) => x.code === r.data.language)?.code ?? 'en')); await loadHome(); } else setMe(null);
     })();
   }, [loadHome, slug]);
 
@@ -61,7 +68,7 @@ export function PadGuestApp({ slug, qrKey, imageBase }: { slug: string; qrKey: s
         {me === null && <Login slug={slug} qrKey={qrKey} c={c} lang={lang} setLang={setLang} imageBase={imageBase} onDone={async () => { const r = await api<Me>('sessions/me'); if (r.ok) { setMe(r.data); await loadHome(); } }} />}
         {me && home && (
           <>
-            {screen.s === 'home' && <HomeScreen me={me} home={home} c={c} closed={closed} go={setScreen} imageBase={imageBase} lang={lang} setLang={setLang} />}
+            {screen.s === 'home' && <HomeScreen me={me} home={home} c={c} closed={closed} dine={dine} planCount={planCount} go={setScreen} imageBase={imageBase} lang={lang} setLang={setLang} />}
             {screen.s === 'services' && <Services c={c} closed={closed} onClosed={() => void loadHours()} back={() => setScreen({ s: 'home' })} done={(id) => { void loadHome(); setScreen({ s: 'track', id }); }} />}
             {screen.s === 'guide' && <GuideScreen c={c} back={() => setScreen({ s: 'home' })} goPlan={() => setScreen({ s: 'plan' })} />}
             {screen.s === 'plan' && <PlanScreen c={c} back={() => setScreen({ s: 'home' })} goGuide={() => setScreen({ s: 'guide' })} />}
@@ -69,7 +76,7 @@ export function PadGuestApp({ slug, qrKey, imageBase }: { slug: string; qrKey: s
             {screen.s === 'dining' && <DiningScreen c={c} back={() => setScreen({ s: 'home' })} />}
             {screen.s === 'help' && <HelpDialog c={c} closed={closed} onClosed={() => void loadHours()} close={() => setScreen({ s: 'home' })} done={(id) => { void loadHome(); setScreen({ s: 'track', id }); }} />}
             {screen.s === 'stay' && <Stay c={c} back={() => setScreen({ s: 'home' })} />}
-            {screen.s === 'track' && <Track id={screen.id} c={c} links={home.links} back={() => { void loadHome(); setScreen({ s: 'home' }); }} />}
+            {screen.s === 'track' && <Track id={screen.id} c={c} links={home.links} phone={home.contacts.reception} retry={(label) => setScreen({ s: isHelpLabel(label) ? 'help' : 'services' })} back={() => { void loadHome(); setScreen({ s: 'home' }); }} />}
             <Footer home={home} c={c} />
           </>
         )}
@@ -108,16 +115,16 @@ function Login({ slug, qrKey, c, lang, setLang, onDone, imageBase }: { slug: str
     </label>
   );
   return (
-    <main className="relative flex-1 pb-6" style={{ background: `linear-gradient(${t.gradient[0]}, ${t.gradient[1]} 18rem, var(--paper) 30rem)` }}>
+    <main className="relative flex-1 pb-44" style={{ background: `linear-gradient(${t.gradient[0]}, ${t.gradient[1]} 18rem, var(--paper) 30rem)` }}>
       <Hero photo={hotel?.hero_path ? `${imageBase}${hotel.hero_path}` : null} />
       <div className="relative z-10 px-5 pb-4 pt-6" style={{ color: t.onHero }}>
         <BrandPill name={hotel?.name ?? ''} logo={hotel?.logo_path ? `${imageBase}${hotel.logo_path}` : null} />
         <h1 className="mt-6 text-3xl font-semibold leading-tight tracking-tight" style={{ fontFamily: "Marcellus, 'Iowan Old Style', Georgia, serif", textShadow: '0 1px 12px rgba(60,20,12,.25)' }}>{hotel?.name || c.loginTitle}</h1>
         <p className="mt-1.5" style={{ color: t.onHeroSoft }}>{c.loginTitle}. {c.loginSub}</p>
-        <div className="mt-3 flex gap-2" role="group" aria-label={c.language}>
-          {(['en', 'hi'] as const).map((l) => (
-            <button key={l} type="button" aria-pressed={lang === l} onClick={() => setLang(l)} className="min-h-11 rounded-full border px-4 text-sm font-semibold"
-              style={lang === l ? { background: '#fff', color: '#5b4a40', borderColor: '#fff' } : { background: 'rgba(60,20,12,.32)', color: '#fff', borderColor: 'rgba(255,255,255,.55)' }}>{l === 'en' ? 'English' : 'हिन्दी'}</button>
+        <div className="mt-3 flex flex-wrap gap-2" role="group" aria-label={c.language}>
+          {LANGS.map(({ code, label }) => (
+            <button key={code} type="button" aria-pressed={lang === code} onClick={() => setLang(code)} className="min-h-11 rounded-full border px-4 text-sm font-semibold"
+              style={lang === code ? { background: '#fff', color: '#5b4a40', borderColor: '#fff' } : { background: 'rgba(60,20,12,.32)', color: '#fff', borderColor: 'rgba(255,255,255,.55)' }}>{label}</button>
           ))}
         </div>
       </div>
@@ -142,7 +149,7 @@ function Tile({ icon, title, sub, onClick, big, wide }: { icon: IconName; title:
   );
 }
 
-function HomeScreen({ me, home, c, closed, go, imageBase, lang, setLang }: { me: Me; home: Home; c: Copy; closed: string | null; go: (s: Screen) => void; imageBase: string; lang: Lang; setLang: (l: Lang) => void }) {
+function HomeScreen({ me, home, c, closed, dine, planCount, go, imageBase, lang, setLang }: { me: Me; home: Home; c: Copy; closed: string | null; dine: { room_dining: boolean } | null; planCount: number; go: (s: Screen) => void; imageBase: string; lang: Lang; setLang: (l: Lang) => void }) {
   const b = home.buffet;
   const buffetSub = !b.set ? c.buffetNotSet : b.mode === 'none' ? c.buffetNone : `${b.name ?? ''} ${b.start ?? ''}–${b.end ?? ''}`.trim();
   const logo = home.look.logo_path ? `${imageBase}${home.look.logo_path}` : null;
@@ -153,7 +160,7 @@ function HomeScreen({ me, home, c, closed, go, imageBase, lang, setLang }: { me:
       <div className="relative z-10 space-y-3 px-5 pb-1 pt-6">
         <div className="flex items-center justify-between gap-3">
           <BrandPill name={home.look.name} logo={logo} />
-          <button type="button" className="min-h-11 rounded-full border px-3.5 text-sm font-semibold" style={{ borderColor: 'rgba(255,255,255,.55)', background: 'rgba(60,20,12,.32)', color: '#fff' }} onClick={() => setLang(lang === 'en' ? 'hi' : 'en')}>{lang === 'en' ? 'हिन्दी' : 'English'}</button>
+          <select aria-label={c.language} value={lang} onChange={(e) => setLang(e.target.value as Lang)} className="min-h-11 rounded-full border px-3 text-sm font-semibold" style={{ borderColor: 'rgba(255,255,255,.55)', background: 'rgba(60,20,12,.55)', color: '#fff' }}>{LANGS.map(({ code, label }) => <option key={code} value={code} style={{ color: '#10131a' }}>{label}</option>)}</select>
         </div>
         <div className="pb-1 pt-5" style={{ color: 'var(--on-hero)' }}>
           <h1 className="text-4xl font-semibold leading-[1.06] tracking-tight" style={{ textShadow: '0 1px 12px rgba(60,20,12,.25)' }}>{fill(c.hello, { name: me.name })}</h1>
@@ -175,10 +182,11 @@ function HomeScreen({ me, home, c, closed, go, imageBase, lang, setLang }: { me:
       </div>
       <MyRequests c={c} open={(id) => go({ s: 'track', id })} />
       <div className="relative z-10 grid grid-cols-2 gap-3 px-5 pt-3">
-        <Tile big wide icon="dining" title={c.dining} sub={c.diningSub} onClick={() => go({ s: 'dining' })} />
+        <Tile big wide icon="dining" title={c.dining} sub={dine && !dine.room_dining ? c.diningSubTakeaway : c.diningSub} onClick={() => go({ s: 'dining' })} />
         <Tile icon="services" title={c.services} onClick={() => go({ s: 'services' })} />
         <Tile icon="wifi" title={c.stay} onClick={() => go({ s: 'stay' })} />
-        <Tile icon="buffet" title={c.buffet} sub={buffetSub} onClick={() => go({ s: 'buffet' })} />
+        {b.set && <Tile icon="buffet" title={c.buffet} sub={buffetSub} onClick={() => go({ s: 'buffet' })} />}
+        {planCount > 0 && <Tile icon="guide" title={c.planTile} sub={fill(c.planTileSub, { n: planCount })} onClick={() => go({ s: 'plan' })} />}
         <Tile icon="guide" title={c.guideTitle} sub={c.guideSub} onClick={() => go({ s: 'guide' })} />
       </div>
       <div className="relative z-10 px-5 pt-3">
@@ -208,7 +216,7 @@ function MyRequests({ c, open }: { c: Copy; open: (id: string) => void }) {
         {list.map((q) => (
           <li key={q.id}>
             <button type="button" onClick={() => open(q.id)} className="flex min-h-14 w-full items-center justify-between gap-3 rounded-2xl bg-white p-3 text-left text-stone-900 shadow-sm">
-              <span className="min-w-0"><span className="block truncate font-semibold">{q.label}</span><span className="block text-xs text-stone-600">{time(q.created_at)} · {c.seeAll}</span></span>
+              <span className="min-w-0"><span className="block truncate font-semibold">{localLabel(q.label, c)}</span><span className="block text-xs text-stone-600">{time(q.created_at)} · {c.seeAll}</span></span>
               <span className="shrink-0 rounded-full px-3 py-1 text-xs font-bold" style={{ background: 'var(--tint)', color: 'var(--on-tint)' }}>{word(q.status)}</span>
             </button>
           </li>
@@ -257,29 +265,47 @@ function Footer({ home, c }: { home: Home; c: Copy }) {
   );
 }
 
+/** A time of day the guest picks with the phone's own time picker (used for wake-up, cab pickup and late check-out). */
+function TimePick({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+  return <label className="block text-sm font-semibold">{label}<input type="time" value={value} onChange={(e) => onChange(e.target.value)} required className="mt-1 min-h-12 w-full rounded-xl border bg-white px-3 text-base text-stone-900" /></label>;
+}
+
 function Services({ c, closed, onClosed, back, done }: { c: Copy; closed: string | null; onClosed: () => void; back: () => void; done: (id: string) => void }) {
   const [kind, setKind] = useState<'housekeeping' | 'wake' | 'cab' | 'late_checkout'>('housekeeping');
   const [label, setLabel] = useState<string>(c.hk[0]!);
   const [detail, setDetail] = useState('');
-    const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState(false);
+  const [when, setWhen] = useState('');
+  const [dest, setDest] = useState('');
+  const [car, setCar] = useState<string>(c.carTypes[0]!);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<null | 'failed' | 'time' | 'where'>(null);
   const kinds = ['housekeeping', 'wake', 'cab', 'late_checkout'] as const;
+  const pick = (k: (typeof kinds)[number]) => { setKind(k); setErr(null); };
   const send = async () => {
-    setBusy(true); setErr(false);
-    const text = kind === 'housekeeping' ? `${c.types.housekeeping}: ${label}` : c.types[kind as 'wake'];
-    const r = await api<{ id?: string; request_id?: string }>('requests', { method: 'POST', idem: true, body: JSON.stringify({ type: kind, label: text, ...(detail.trim() ? { detail: detail.trim() } : {}), urgent: false }) });
+    // each service asks for what the team needs, so reception never has to call the guest back
+    if ((kind === 'wake' || kind === 'late_checkout' || kind === 'cab') && !when) { setErr('time'); return; }
+    if (kind === 'cab' && dest.trim().length < 2) { setErr('where'); return; }
+    const lines = kind === 'wake' ? [fill(c.wakeAt, { t: clock12(when) })]
+      : kind === 'late_checkout' ? [fill(c.lateUntil, { t: clock12(when) })]
+      : kind === 'cab' ? [fill(c.cabTo, { to: dest.trim() }), fill(c.cabAt, { t: clock12(when) }), fill(c.cabCar, { car })]
+      : [];
+    if (detail.trim()) lines.push(detail.trim());
+    setBusy(true); setErr(null);
+    const text = kind === 'housekeeping' ? `${c.types.housekeeping}: ${label}` : c.types[kind];
+    const r = await api<{ id?: string; request_id?: string }>('requests', { method: 'POST', idem: true, body: JSON.stringify({ type: kind, label: text, ...(lines.length ? { detail: lines.join(' · ').slice(0, 500) } : {}), urgent: false }) });
     setBusy(false);
     const id = r.ok ? (r.data.id ?? r.data.request_id) : null;
     if (!r.ok && r.key === 'service_closed') onClosed();
-    if (id) done(id); else setErr(true);
+    if (id) done(id); else setErr('failed');
   };
+  const field = 'mt-1 min-h-12 w-full rounded-xl border bg-white px-3 text-base text-stone-900';
   return (
     <main className="flex-1 pb-4">
-      <Header c={c} back={back} sub={c.step1} title={c.services} />
+      <Header c={c} back={back} title={c.services} />
       <div className="space-y-3 px-5">
         <div className="flex flex-wrap gap-2" role="group">
           {kinds.map((k) => (
-            <button key={k} type="button" aria-pressed={kind === k} onClick={() => setKind(k)} className="min-h-11 rounded-full border px-4 text-sm font-semibold"
+            <button key={k} type="button" aria-pressed={kind === k} onClick={() => pick(k)} className="min-h-11 rounded-full border px-4 text-sm font-semibold"
               style={kind === k ? { background: 'var(--button)', color: 'var(--on-button)', borderColor: 'var(--ink)' } : { borderColor: 'var(--accent-text)', color: 'var(--ink)' }}>{c.types[k]}</button>
           ))}
         </div>
@@ -288,9 +314,19 @@ function Services({ c, closed, onClosed, back, done }: { c: Copy; closed: string
             {c.hk.map((h) => <label key={h} className="flex min-h-11 items-center gap-3"><input type="radio" name="hk" checked={label === h} onChange={() => setLabel(h)} className="h-5 w-5" />{h}</label>)}
           </fieldset>
         )}
-        <label className="block text-sm font-semibold">{c.detail}<textarea maxLength={500} rows={3} value={detail} onChange={(e) => setDetail(e.target.value)} className="mt-1 w-full rounded-xl border bg-white p-3 text-base text-stone-900" /></label>
+        {kind === 'wake' && <TimePick label={c.wakeTime} value={when} onChange={setWhen} />}
+        {kind === 'late_checkout' && <TimePick label={c.lateTime} value={when} onChange={setWhen} />}
+        {kind === 'cab' && (
+          <>
+            <label className="block text-sm font-semibold">{c.cabWhere}<input value={dest} maxLength={120} onChange={(e) => setDest(e.target.value)} className={field} /></label>
+            <TimePick label={c.cabTime} value={when} onChange={setWhen} />
+            <label className="block text-sm font-semibold">{c.cabCarLabel}
+              <select value={car} onChange={(e) => setCar(e.target.value)} className={field}>{c.carTypes.map((x) => <option key={x} value={x}>{x}</option>)}</select></label>
+          </>
+        )}
+        <label className="block text-sm font-semibold">{c.detail}<textarea maxLength={300} rows={3} value={detail} onChange={(e) => setDetail(e.target.value)} className="mt-1 w-full rounded-xl border bg-white p-3 text-base text-stone-900" /></label>
         <ClosedBanner text={closed} />
-        {err && !closed && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm font-medium text-red-900">{c.failed}</p>}
+        {err && !closed && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm font-medium text-red-900">{err === 'time' ? c.needTime : err === 'where' ? c.needWhere : c.failed}</p>}
         <Btn onClick={() => void send()} disabled={busy || !!closed}>{busy ? c.sending : c.send}</Btn>
       </div>
     </main>
@@ -300,6 +336,14 @@ function Services({ c, closed, onClosed, back, done }: { c: Copy; closed: string
 function Stay({ c, back }: { c: Copy; back: () => void }) {
   const [s, setS] = useState<{ wifi_name: string | null; wifi_password: string | null; checkout_time: string | null; breakfast: string | null } | null>(null);
   const [copied, setCopied] = useState(false);
+  const [qr, setQr] = useState<string | null>(null);
+  useEffect(() => {
+    if (!s?.wifi_name) return;
+    // the standard Wi-Fi code: a phone camera offers to join the network by itself
+    const esc = (v: string) => v.replace(/([\\;,:"])/g, '\\$1');
+    const text = `WIFI:T:${s.wifi_password ? 'WPA' : 'nopass'};S:${esc(s.wifi_name)};${s.wifi_password ? `P:${esc(s.wifi_password)};` : ''};`;
+    void import('qrcode').then((m) => m.toDataURL(text, { margin: 1, width: 240 })).then(setQr).catch(() => setQr(null));
+  }, [s]);
   useEffect(() => { void api<NonNullable<typeof s>>('stay').then((r) => { if (r.ok) setS(r.data); }); }, []);
   const copy = async () => { try { await navigator.clipboard.writeText(s?.wifi_password ?? ''); setCopied(true); setTimeout(() => setCopied(false), 2000); } catch { /* the password is shown, select it by hand */ } };
   const row = (k: string, v: string | null | undefined) => v ? <div className="flex justify-between gap-4 border-t py-3 first:border-t-0" style={{ borderColor: 'var(--tint)' }}><dt className="text-sm font-semibold text-stone-600">{k}</dt><dd className="text-right font-bold">{v}</dd></div> : null;
@@ -315,29 +359,44 @@ function Stay({ c, back }: { c: Copy; back: () => void }) {
           {s.wifi_password && <button type="button" onClick={() => void copy()} className="min-h-11 rounded-full border-2 px-4 text-sm font-bold" style={{ borderColor: 'var(--accent-text)', color: 'var(--accent-text)' }}>{copied ? c.wifiCopied : c.wifiCopy}</button>}
         </div>
       )}
+      {qr && (
+        <div className="mx-5 rounded-3xl bg-white p-4 text-center text-stone-900 shadow-sm">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={qr} alt={c.wifiQr} width={200} height={200} className="mx-auto" />
+          <p className="mt-2 text-sm font-semibold">{c.wifiQr}</p>
+        </div>
+      )}
       <dl className="mx-5 rounded-3xl bg-white px-4 text-stone-900 shadow-sm">{row(c.checkout, s?.checkout_time)}{row(c.breakfast, s?.breakfast)}</dl>
       {s && !s.wifi_name && !s.wifi_password && !s.checkout_time && !s.breakfast && <p className="mx-5 rounded-3xl bg-white p-4 text-stone-900 shadow-sm">{c.buffetEmpty}</p>}
     </main>
   );
 }
 
-function Track({ id, c, back, links }: { id: string; c: Copy; back: () => void; links: Home['links'] }) {
+function Track({ id, c, back, links, phone, retry }: { id: string; c: Copy; back: () => void; links: Home['links']; phone: string | null; retry: (label: string) => void }) {
   const [v, setV] = useState<ReqView | null>(null);
   const load = useCallback(async () => { const r = await api<ReqView>(`requests/${id}`); if (r.ok) setV(r.data); }, [id]);
   useEffect(() => { void load(); const t = setInterval(() => { if (!document.hidden) void load(); }, 5000); return () => clearInterval(t); }, [load]);
   const q = v?.request;
   const declined = q?.status === 'dismissed', cancelled = q?.status === 'cancelled', finished = q?.status === 'completed';
   const headline = !q ? '…' : declined ? c.declined : cancelled ? c.cancelled : finished ? c.done : q.accepted_at ? c.accepted : c.sent;
-  const steps = [{ k: c.sent, at: q?.created_at ?? null, on: true }, { k: declined ? c.declined : c.accepted, at: q?.accepted_at ?? null, on: !!q?.accepted_at || declined }, { k: c.done, at: q?.completed_at ?? null, on: finished }];
+  // a request the team could not take ends there: no "Done" step is left waiting
+  const steps = declined ? [{ k: c.sent, at: q?.created_at ?? null, on: true }, { k: c.declined, at: null, on: true }] : [{ k: c.sent, at: q?.created_at ?? null, on: true }, { k: c.accepted, at: q?.accepted_at ?? null, on: !!q?.accepted_at }, { k: c.done, at: q?.completed_at ?? null, on: finished }];
   const confirm = async (ok: boolean) => { await api(`requests/${id}/confirm`, { method: 'POST', body: JSON.stringify({ ok }) }); await load(); };
   const cancel = async () => { await api(`requests/${id}/cancel`, { method: 'POST', body: '{}' }); await load(); };
   return (
     <main className="flex-1 pb-4">
-      <Header c={c} back={back} sub={c.step2} title={headline} />
+      <Header c={c} back={back} title={headline} />
       <ol className="mx-5 space-y-3 rounded-3xl bg-white p-4 text-stone-900 shadow-sm" aria-label={headline}>
         {steps.map((s) => <li key={s.k} className="flex items-center justify-between gap-3"><span className="flex items-center gap-3"><span aria-hidden className="h-4 w-4 rounded-full" style={{ background: s.on ? (declined && s.k === c.declined ? '#b3261e' : '#1f6f43') : '#e5d8c8' }} /><span className={s.on ? 'font-bold' : 'text-stone-600'}>{s.k}</span></span><span className="text-sm text-stone-600">{time(s.at)}</span></li>)}
       </ol>
       {declined && q?.dismissed_reason && <p className="mx-5 mt-3 rounded-2xl bg-white p-4 text-stone-900 shadow-sm"><span className="block text-xs font-bold uppercase tracking-wide text-stone-600">{c.fromTeam}</span>{q.dismissed_reason}</p>}
+      {declined && (
+        <div className="mx-5 mt-3 space-y-2" data-testid="declined-actions">
+          <p className="font-semibold">{c.declinedSorry}</p>
+          <Btn onClick={() => retry(q?.label ?? '')}>{c.tryAgain}</Btn>
+          {phone && <a href={telHref(phone)} className="flex min-h-12 items-center justify-center rounded-2xl border-2 text-base font-bold" style={{ borderColor: '#1F6B3E', color: '#1F6B3E', background: '#E2F1E7' }}>{c.call}</a>}
+        </div>
+      )}
       {v && v.updates.length > 0 && (
         <section className="mx-5 mt-3" aria-label={c.updates}>
           <h2 className="mb-1 text-xs font-bold uppercase tracking-wide" style={{ color: 'var(--accent-text)' }}>{c.updates}</h2>
@@ -407,25 +466,39 @@ function HelpDialog({ c, closed, onClosed, close, done }: { c: Copy; closed: str
 
 interface DiningData { available: boolean; room_dining: boolean; base?: string; chips?: ({ id: string; name: string } & CategorySummary)[] }
 
-/** Dining: pick what you feel like (several categories, Veg / Jain), then the restaurant's own menu opens already filtered, with your room filled in. */
+/** Dining: pick what you feel like (food type chips, then a section such as Food, Drinks or Bar, then the type of dish), and the restaurant's own menu opens already filtered, with your room filled in. */
 function DiningScreen({ c, back }: { c: Copy; back: () => void }) {
   const [d, setD] = useState<DiningData | null>(null);
   const [failed, setFailed] = useState(false);
-  const [cats, setCats] = useState<Set<string>>(new Set());
+  const [sec, setSec] = useState<Set<Section>>(new Set());
+  const [grp, setGrp] = useState<Set<string>>(new Set());
   const [diet, setDiet] = useState<Set<Filter>>(new Set());
   useEffect(() => { void api<DiningData>('dining').then((r) => { if (r.ok) setD(r.data); else setFailed(true); }); }, []);
-  const flip = (set: Set<string>, k: string, put: (s: Set<string>) => void) => { const n = new Set(set); if (n.has(k)) n.delete(k); else n.add(k); put(n); };
+  const flip = <T,>(set: Set<T>, k: T, put: (s: Set<T>) => void) => { const n = new Set(set); if (n.has(k)) n.delete(k); else n.add(k); put(n); };
   // Veg and Non-Veg are never on together; a category with no matching dish is hidden while Veg, Non-Veg or Bar is on (same rule as the menu itself)
-  const shownChips = (d?.chips ?? []).filter((k) => summaryHasMatch(k, diet));
-  const pickDiet = (k: Filter) => { const next = toggleFilter(diet, k); setDiet(next); setCats((cur) => new Set([...cur].filter((id) => (d?.chips ?? []).some((x) => x.id === id && summaryHasMatch(x, next))))); };
+  const chips = useMemo(() => (d?.chips ?? []).filter((k) => summaryHasMatch(k, diet)), [d, diet]);
+  const groups = useMemo(() => pickGroups(chips.map((k) => ({ id: k.id, name: k.name }))), [chips]);
+  const sections = SECTIONS.filter((x) => groups.some((g) => g.section === x));
+  // the dish types of the chosen sections; with a single section on offer they show straight away
+  const openSections = sections.length === 1 ? new Set<Section>(sections) : sec;
+  const shownGroups = groups.filter((g) => openSections.has(g.section));
+  const pickedIds = (): string[] => {
+    const live = new Set(groups.map((g) => g.key));
+    const chosen = [...grp].filter((k) => live.has(k));
+    const fromGroups = groups.filter((g) => chosen.includes(g.key)).flatMap((g) => g.ids);
+    if (fromGroups.length) return fromGroups;
+    return groups.filter((g) => openSections.has(g.section) && sec.size > 0).flatMap((g) => g.ids);
+  };
   const go = (filtered: boolean) => {
     if (!d?.base) return;
     const u = new URL(d.base);
-    if (filtered && cats.size) u.searchParams.set('cats', [...cats].join(','));
+    const ids = filtered ? pickedIds() : [];
+    if (ids.length) u.searchParams.set('cats', ids.join(','));
     if (filtered && diet.size) u.searchParams.set('diet', [...diet].join(','));
     window.location.assign(u.toString());
   };
   const chip = (on: boolean) => on ? { background: 'var(--button)', color: 'var(--on-button)', borderColor: 'var(--ink)' } : { background: '#fff', color: '#10131a', borderColor: 'var(--accent-text)' };
+  const pill = 'min-h-12 rounded-full border-2 px-4 text-base font-semibold';
   return (
     <main className="flex-1 pb-4">
       <Header c={c} back={back} title={c.dineTitle} />
@@ -434,16 +507,23 @@ function DiningScreen({ c, back }: { c: Copy; back: () => void }) {
           <>
             <p>{c.dineSub}</p>
             <fieldset><legend className="text-sm font-bold">{c.dineDiet}</legend>
-              <div className="mt-2 flex flex-wrap gap-2">{FILTERS.map((k) => <button key={k} type="button" aria-pressed={diet.has(k)} onClick={() => pickDiet(k)} className="min-h-12 rounded-full border-2 px-4 text-base font-semibold" style={chip(diet.has(k))}>{diet.has(k) ? '✓ ' : ''}{c[k]}</button>)}</div>
+              <div className="mt-2 flex flex-wrap gap-2">{FILTERS.map((k) => <button key={k} type="button" aria-pressed={diet.has(k)} onClick={() => setDiet(toggleFilter(diet, k))} className={pill} style={chip(diet.has(k))}>{diet.has(k) ? '✓ ' : ''}{c[k]}</button>)}</div>
             </fieldset>
-            {shownChips.length > 0 && (
-              <div className="flex flex-wrap gap-2" role="group" aria-label={c.dineTitle}>
-                {shownChips.map((k) => <button key={k.id} type="button" aria-pressed={cats.has(k.id)} onClick={() => flip(cats, k.id, setCats)} className="min-h-12 rounded-full border-2 px-4 text-base font-semibold" style={chip(cats.has(k.id))}>{cats.has(k.id) ? '✓ ' : ''}{k.name}</button>)}
-              </div>
+            {sections.length > 1 && (
+              <fieldset><legend className="text-sm font-bold">{c.dineSection}</legend>
+                <div className="mt-2 flex flex-wrap gap-2">{sections.map((k) => <button key={k} type="button" aria-pressed={sec.has(k)} onClick={() => flip(sec, k, setSec)} className={pill} style={chip(sec.has(k))}>{sec.has(k) ? '✓ ' : ''}{c.sections[k]}</button>)}</div>
+              </fieldset>
+            )}
+            {shownGroups.length > 0 && (
+              <fieldset><legend className="text-sm font-bold">{c.dineType}</legend>
+                <div className="mt-2 flex flex-wrap gap-2" role="group" aria-label={c.dineType}>
+                  {shownGroups.map((g) => <button key={g.key} type="button" aria-pressed={grp.has(g.key)} onClick={() => flip(grp, g.key, setGrp)} className={pill} style={chip(grp.has(g.key))}>{grp.has(g.key) ? '✓ ' : ''}{g.label}</button>)}
+                </div>
+              </fieldset>
             )}
             <p className="text-sm" style={{ opacity: 0.85 }}>{d.room_dining ? c.dineHow : c.dineTakeaway}</p>
             <Btn onClick={() => go(true)}>{c.showMenu}</Btn>
-            {(cats.size > 0 || diet.size > 0) && <Btn kind="soft" onClick={() => go(false)}>{c.fullMenu}</Btn>}
+            {(sec.size > 0 || grp.size > 0 || diet.size > 0) && <Btn kind="soft" onClick={() => go(false)}>{c.fullMenu}</Btn>}
           </>
         )}
       </div>

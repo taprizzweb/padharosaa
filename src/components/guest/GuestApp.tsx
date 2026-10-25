@@ -180,7 +180,7 @@ export function GuestApp({
   const showStatus = view === 'status';
 
   return (
-    <div data-accent={accent} className="min-h-dvh pb-44">
+    <div data-accent={accent} data-narrow={back ? 'true' : undefined} className="min-h-dvh pb-44">
       {back && <div className="mx-auto max-w-5xl px-4 pt-3"><a href={back} className="inline-flex min-h-11 items-center text-sm font-bold underline underline-offset-2">← {t('back.hotel')}</a></div>}
       <RestaurantHero r={menu.restaurant} imageBase={imageBase} tableLabel={menu.table_label} t={t} compact={showStatus} />
 

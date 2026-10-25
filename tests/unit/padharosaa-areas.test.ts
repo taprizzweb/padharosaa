@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { COPY, isHelpLabel, localLabel } from '@/components/padharosaa/copy';
 import { AREAS, GROUP_TEAMS, areaHref, canOpen, homeFor, isPadHost, soundForRequest, soundsFor } from '@/lib/padharosaa/areas';
 
 describe('padharosaa addresses: owner, manager, desk (and kitchen)', () => {
@@ -50,5 +51,25 @@ describe('desk alarm sounds', () => {
   it('several new requests play one sound of each kind, most important first', () => {
     expect(soundsFor([r('cab', 'concierge'), r('housekeeping', 'housekeeping'), r('help', 'front_desk', true), r('food', 'kitchen'), r('housekeeping', 'housekeeping')])).toEqual(['urgent', 'order', 'housekeeping', 'waiter']);
     expect(soundsFor([])).toEqual([]);
+  });
+});
+
+describe('request titles in the guest\'s language', () => {
+  it('known titles are translated, unknown ones are left as they are', () => {
+    expect(localLabel('Wake-up call', COPY.hi)).toBe(COPY.hi.types.wake);
+    expect(localLabel('Housekeeping: Extra towels', COPY.fr)).toBe(`${COPY.fr.types.housekeeping}: ${COPY.fr.hk[0]}`);
+    expect(localLabel('AC or electrical, Noise', COPY.de)).toBe(`${COPY.de.helpCats.ac_electrical}, ${COPY.de.helpCats.noise}`);
+    expect(localLabel('Something the hotel wrote', COPY.es)).toBe('Something the hotel wrote');
+    expect(localLabel('Wake-up call', COPY.en)).toBe('Wake-up call');
+  });
+  it('a problem report is told apart from a service', () => {
+    expect(isHelpLabel('AC or electrical, Noise')).toBe(true);
+    expect(isHelpLabel('Cab')).toBe(false);
+    expect(isHelpLabel('Housekeeping: Extra towels')).toBe(false);
+  });
+  it('every language has every line (no blank screen for a French or German guest)', () => {
+    const keys = (o: object): string[] => Object.entries(o).flatMap(([k, v]) => (v && typeof v === 'object' && !Array.isArray(v) ? keys(v).map((x) => `${k}.${x}`) : [k]));
+    const base = keys(COPY.en).sort();
+    for (const l of ['hi', 'fr', 'es', 'de'] as const) expect(keys(COPY[l]).sort(), l).toEqual(base);
   });
 });

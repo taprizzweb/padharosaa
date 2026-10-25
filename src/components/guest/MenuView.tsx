@@ -172,7 +172,6 @@ function DetailsSheet({ item, o, onClose }: { item: MenuItem | null; o: Ordering
   );
 }
 
-const initial = (s: string) => s.trim().charAt(0).toUpperCase();
 
 export function MenuView({ categories, t, canOrder, imageBase, qtyOf, onAdd, onSet, onCustomise, onTrack, initialCats = [], initialDiet = [] }: Omit<Ordering, 'barIds'> & { categories: MenuCategory[]; onTrack?: (e: MenuEvent, ids?: TrackIds) => void; initialCats?: string[]; initialDiet?: Filter[] }) {
   const barIds = useMemo(() => barItemIds(categories), [categories]);
@@ -313,16 +312,18 @@ export function MenuView({ categories, t, canOrder, imageBase, qtyOf, onAdd, onS
             const on = active === c.id;
             const th = thumbOf(c);
             return (
-              <button key={c.id} type="button" data-cat={c.id} onClick={() => jump(c.id)} aria-current={on ? 'true' : undefined} className="group flex min-h-16 min-w-16 shrink-0 flex-col items-center gap-1 rounded-xl px-2 py-1">
-                <span aria-hidden className={`relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-accent/10 font-serif text-base font-bold text-accent ring-2 ring-offset-2 ring-offset-stone-50 transition-shadow ${on ? 'ring-accent' : 'ring-transparent'}`}>
-                  {initial(c.name_en)}
-                  {th && (
-                    // eslint-disable-next-line @next/next/no-img-element -- small thumbnail from our own storage
+              th ? (
+                <button key={c.id} type="button" data-cat={c.id} onClick={() => jump(c.id)} aria-current={on ? 'true' : undefined} className="group flex min-h-16 min-w-16 shrink-0 flex-col items-center gap-1 rounded-xl px-2 py-1">
+                  <span aria-hidden className={`relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-accent/10 ring-2 ring-offset-2 ring-offset-stone-50 transition-shadow ${on ? 'ring-accent' : 'ring-transparent'}`}>
+                    {/* eslint-disable-next-line @next/next/no-img-element -- small thumbnail from our own storage */}
                     <img src={`${imageBase}${th}`} alt="" width={40} height={40} loading="lazy" decoding="async" className="absolute inset-0 h-full w-full object-cover" />
-                  )}
-                </span>
-                <span className={`max-w-24 truncate text-xs ${on ? 'font-bold text-stone-900' : 'font-medium text-stone-700'}`}>{c.name_en}</span>
-              </button>
+                  </span>
+                  <span className={`max-w-24 truncate text-xs ${on ? 'font-bold text-stone-900' : 'font-medium text-stone-700'}`}>{c.name_en}</span>
+                </button>
+              ) : (
+                // no photo: just the name, never a letter in a circle
+                <button key={c.id} type="button" data-cat={c.id} onClick={() => jump(c.id)} aria-current={on ? 'true' : undefined} className={`flex min-h-11 shrink-0 items-center rounded-full border px-3.5 text-sm ${on ? 'border-stone-900 bg-stone-900 font-bold text-white' : 'border-stone-300 bg-white font-medium text-stone-800'}`}>{c.name_en}</button>
+              )
             );
           })}
         </nav>

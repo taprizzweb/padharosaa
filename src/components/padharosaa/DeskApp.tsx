@@ -19,6 +19,20 @@ interface Req {
 interface Alerts { room_dining: boolean; kitchen_display?: boolean; muted: Team[]; teams: Team[] }
 const TEAM_NAME: Record<Team, string> = { concierge: 'Concierge', front_desk: 'Front desk', housekeeping: 'Housekeeping', kitchen: 'Kitchen', maintenance: 'Maintenance', manager: 'Manager' };
 const PRESETS = ['Not available right now', 'We do not offer this', 'Already on the way', 'Fully booked, please choose another time', 'We will call you'];
+/** Reasons that fit the kind of request: a cab is never "fully booked, choose another time" in the same way a table is. */
+const PRESETS_BY_TYPE: Record<string, string[]> = {
+  food: ['Not available right now', 'Kitchen is closed', 'Please choose something else', 'We will call you'],
+  reservation: ['Fully booked, please choose another time', 'We will call you'],
+  cab: ['No car is free at that time, please choose another time', 'Please tell us a different destination or time', 'We will call you'],
+  wake: ['We cannot take a wake-up call at that time', 'We will call you'],
+  late_checkout: ['Late check-out is not possible for your room today', 'Late check-out is possible until an earlier time, we will call you', 'We will call you'],
+  housekeeping: ['Already on the way', 'Housekeeping will come later, we will call you', 'We will call you'],
+  help: ['Already on the way', 'We will call you'],
+};
+const presetsFor = (type: string): string[] => PRESETS_BY_TYPE[type] ?? PRESETS;
+/** Water, electricity and AC problems are never turned down: the team fixes them, or passes them on. */
+const NEVER_DECLINE = /\b(ac|a\/c|electric\w*|power|water|plumb\w*|light|fan|geyser)\b/i;
+const mustFix = (r: { type: string; label: string }): boolean => r.type === 'help' && NEVER_DECLINE.test(r.label);
 const OUTCOMES = [['fixed', 'Fixed'], ['replacement_sent', 'Replacement sent'], ['room_changed', 'Room changed'], ['compensation_offered', 'Compensation offered']] as const;
 const OPEN = ['received', 'accepted', 'preparing', 'ready'];
 
@@ -206,14 +220,14 @@ function Card({ r, role, roomDining, muted, act }: { r: Req; role: string; roomD
         {r.status !== 'received' && r.type !== 'help' && <button type="button" className={`${btn} bg-emerald-800 text-white`} onClick={() => void act(r, 'complete')}>Mark done</button>}
         {r.type === 'help' && <button type="button" className={`${btn} bg-emerald-800 text-white`} onClick={() => setMode(mode === 'resolve' ? null : 'resolve')}>Resolved…</button>}
         {role !== 'kitchen' && r.type !== 'food' && <button type="button" className={`${btn} border-2 border-stone-700`} onClick={() => setMode(mode === 'pass' ? null : 'pass')}>Pass to team</button>}
-        {r.status !== 'preparing' && r.status !== 'ready' && <button type="button" className={`${btn} border-2 border-red-800 text-red-900`} onClick={() => setMode(mode === 'decline' ? null : 'decline')}>Decline…</button>}
+        {r.status !== 'preparing' && r.status !== 'ready' && !mustFix(r) && <button type="button" className={`${btn} border-2 border-red-800 text-red-900`} onClick={() => setMode(mode === 'decline' ? null : 'decline')}>Decline…</button>}
       </div>
       {mode === 'decline' && (
         <form className="mt-3 space-y-2" onSubmit={(e) => { e.preventDefault(); if (reason.trim().length >= 3) void act(r, 'dismiss', { reason: reason.trim() }); }}>
           <label className="block text-sm font-semibold">Reason or information for the guest (they will see this)
             <textarea required minLength={3} maxLength={140} rows={2} value={reason} onChange={(e) => setReason(e.target.value)} className="mt-1 w-full rounded-xl border-2 border-stone-300 p-2 text-base" />
           </label>
-          <div className="flex flex-wrap gap-2">{PRESETS.map((p) => <button key={p} type="button" className="min-h-11 rounded-full bg-stone-100 px-3 text-sm font-semibold" onClick={() => setReason(p)}>{p}</button>)}</div>
+          <div className="flex flex-wrap gap-2">{presetsFor(r.type).map((p) => <button key={p} type="button" className="min-h-11 rounded-full bg-stone-100 px-3 text-sm font-semibold" onClick={() => setReason(p)}>{p}</button>)}</div>
           <button type="submit" disabled={reason.trim().length < 3} className={`${btn} bg-red-800 text-white disabled:opacity-50`}>Send to guest</button>
         </form>
       )}
