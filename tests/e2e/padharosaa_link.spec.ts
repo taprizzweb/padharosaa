@@ -553,7 +553,7 @@ test('a public demo hotel: one link, no sign-in, and the demo answers itself; a 
     await g.goto('/padharosaa/try/spice-garden');
     await expect(g.getByRole('heading', { name: /Spice Garden/ })).toBeVisible();
     await g.getByRole('button', { name: 'Try it on this phone' }).click();
-    await expect(g.getByText('Namaste, Demo guest')).toBeVisible();
+    await expect(g.getByText('Namaste, Demo')).toBeVisible();
     await g.getByRole('button', { name: 'Accept cookies' }).click();
     await g.getByText('Services', { exact: true }).click();
     await g.getByLabel('Extra towels').check();

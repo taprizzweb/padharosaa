@@ -54,9 +54,9 @@ export function CookieNotice({ c }: { c: Copy }) {
   };
   return (
     <div role="dialog" aria-label="Cookies" className="fixed inset-x-0 bottom-0 z-50 mx-auto max-w-md p-3">
-      <div style={{ background: 'var(--paper)', color: 'var(--ink)', boxShadow: '0 -2px 18px rgba(0,0,0,.18), inset 0 0 0 1px var(--btn-edge)' }} className="rounded-2xl p-4">
-        <p className="mb-3 text-sm">{c.cookieText}</p>
-        <Btn onClick={accept}>{c.cookieOk}</Btn>
+      <div style={{ background: 'var(--paper)', color: 'var(--ink)', boxShadow: '0 -2px 18px rgba(0,0,0,.18), inset 0 0 0 1px var(--btn-edge)' }} className="flex items-center gap-3 rounded-2xl p-3">
+        <p className="flex-1 text-xs leading-snug">{c.cookieText}</p>
+        <button type="button" onClick={accept} className="min-h-11 shrink-0 rounded-xl px-4 text-sm font-bold" style={{ background: 'var(--button)', color: 'var(--on-button)' }}>{c.cookieOk}</button>
       </div>
     </div>
   );

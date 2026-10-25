@@ -159,9 +159,9 @@ function Login({ slug, qrKey, c, lang, setLang, onDone, imageBase }: { slug: str
         <BrandPill name={hotel?.name ?? ''} logo={hotel?.logo_path ? `${imageBase}${hotel.logo_path}` : null} />
         <h1 className="mt-6 text-3xl font-semibold leading-tight tracking-tight" style={{ fontFamily: "Marcellus, 'Iowan Old Style', Georgia, serif", textShadow: '0 1px 12px rgba(60,20,12,.25)' }}>{hotel?.name || c.loginTitle}</h1>
         <p className="mt-1.5" style={{ color: t.onHeroSoft }}>{c.loginTitle}. {c.loginSub}</p>
-        <div className="mt-3 flex flex-wrap gap-2" role="group" aria-label={c.language}>
+        <div className="-mx-6 mt-3 flex gap-2 overflow-x-auto px-6 pb-1" role="group" aria-label={c.language}>
           {LANGS.map(({ code, label }) => (
-            <button key={code} type="button" aria-pressed={lang === code} onClick={() => setLang(code)} className="min-h-11 rounded-full border px-4 text-sm font-semibold"
+            <button key={code} type="button" aria-pressed={lang === code} onClick={() => setLang(code)} className="min-h-11 shrink-0 rounded-full border px-4 text-sm font-semibold"
               style={lang === code ? { background: '#fff', color: '#5b4a40', borderColor: '#fff' } : { background: 'rgba(60,20,12,.32)', color: '#fff', borderColor: 'rgba(255,255,255,.55)' }}>{label}</button>
           ))}
         </div>
@@ -179,7 +179,7 @@ function Login({ slug, qrKey, c, lang, setLang, onDone, imageBase }: { slug: str
 
 function Tile({ icon, title, sub, onClick, big, wide }: { icon: IconName; title: string; sub?: string; onClick: () => void; big?: boolean; wide?: boolean }) {
   return (
-    <button type="button" onClick={onClick} className={`flex w-full flex-col items-center justify-center gap-2.5 rounded-3xl p-4 text-center shadow-sm transition active:scale-[0.97] ${big ? 'min-h-36' : 'min-h-28'} ${wide ? 'col-span-2' : ''}`}
+    <button type="button" onClick={onClick} className={`flex w-full flex-col items-center justify-start gap-2.5 rounded-3xl px-4 pb-4 pt-5 text-center shadow-sm transition active:scale-[0.97] ${big ? 'min-h-36' : 'min-h-28'} ${wide ? 'col-span-2' : ''}`}
       style={{ background: 'rgba(255,255,255,.94)', color: '#10131a' }}>
       <IconBox name={icon} />
       <span><span className={`block font-semibold ${big ? 'text-lg' : 'text-base'}`}>{title}</span>{sub && <span className="mt-0.5 block text-sm font-medium" style={{ color: '#4a4f5a' }}>{sub}</span>}</span>
@@ -201,7 +201,7 @@ function HomeScreen({ me, home, c, closed, dine, planCount, go, imageBase, lang,
           <select aria-label={c.language} value={lang} onChange={(e) => setLang(e.target.value as Lang)} className="min-h-11 rounded-full border px-3 text-sm font-semibold" style={{ borderColor: 'rgba(255,255,255,.55)', background: 'rgba(60,20,12,.55)', color: '#fff' }}>{LANGS.map(({ code, label }) => <option key={code} value={code} style={{ color: '#10131a' }}>{label}</option>)}</select>
         </div>
         <div className="pb-1 pt-5" style={{ color: 'var(--on-hero)' }}>
-          <h1 className="text-4xl font-semibold leading-[1.06] tracking-tight" style={{ textShadow: '0 1px 12px rgba(60,20,12,.25)' }}>{fill(c.hello, { name: me.name })}</h1>
+          <h1 className="text-4xl font-semibold leading-[1.06] tracking-tight" style={{ textShadow: '0 1px 12px rgba(60,20,12,.25)' }}>{fill(c.hello, { name: me.name.trim().split(/\s+/)[0] ?? me.name })}</h1>
           <p className="mt-2 text-base" style={{ color: 'var(--on-hero-soft)' }}>{fill(c.room, { room: me.room })}</p>
         </div>
         <ClosedBanner text={closed} />
