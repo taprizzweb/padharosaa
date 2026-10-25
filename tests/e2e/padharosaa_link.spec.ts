@@ -349,3 +349,28 @@ test('the platform admin edits any hotel\'s menu from the admin panel and then l
   await expect(page).toHaveURL(/\/admin$/);
   expect((await q<{ n: number }>(`select count(*)::int n from public.staff where display_name = 'Taprizz admin (support)'`))[0]!.n).toBe(0);
 });
+
+test('reception checks a room out and the guest is signed out at once', async ({ page, browser }) => {
+  await q(`insert into public.rooms (restaurant_id, number) values (${RID}, '204') on conflict do nothing`);
+  const ctx = await browser.newContext();
+  const g = await ctx.newPage();
+  try {
+    await g.goto(second);
+    await g.getByLabel('Your name').fill('Checkout Guest');
+    await g.getByLabel('Mobile number').fill('9844444444');
+    await g.getByLabel('Room number').fill('204');
+    await g.getByRole('button', { name: 'Enter' }).click();
+    await expect(g.getByText('Namaste, Checkout')).toBeVisible();
+    await signIn(page, 'waiter@spice-garden.demo', /\/padharosaa\/desk$/, '/padharosaa/desk');
+    await page.getByText(/^Check out a room/).click();
+    page.once('dialog', (d) => void d.accept());
+    await page.getByRole('button', { name: 'Check out Room 204' }).click();
+    await expect(page.getByText('Room 204 checked out. The guest is signed out.')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Check out Room 204' })).toHaveCount(0);
+    await g.reload();
+    await expect(g.getByLabel('Your name')).toBeVisible(); // the guest is back at the sign-in page
+    await expect(g.getByText('Namaste, Checkout')).toHaveCount(0);
+  } finally {
+    await ctx.close();
+  }
+});

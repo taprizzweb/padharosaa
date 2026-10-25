@@ -7,6 +7,7 @@ import { ApiFailure } from '@/lib/guest/client';
 import { GROUP_LABEL, GROUP_TEAMS, soundsFor, type Group } from '@/lib/padharosaa/areas';
 import { AreaNav, type NavCurrent } from './AreaNav';
 import { BuffetManager } from './BuffetManager';
+import { CheckoutPanel } from './CheckoutPanel';
 import { OrderCardDesk, TableCallDesk, type OrderDeskActions, type TableCallActions } from './DeskOrders';
 import type { BoardOrder, BoardRequest, BoardSession } from '@/lib/staff/logic';
 
@@ -130,6 +131,7 @@ export function DeskApp({ role, hotel, title = 'Reception desk', current = 'desk
           })}
         </div>
       )}
+      <CheckoutPanel flash={flash} />
       {alerts && (
         <section aria-label="My alerts" className="mt-3 rounded-2xl bg-white p-3 shadow-sm">
           <h2 className="text-sm font-bold">My alerts (only for me)</h2>

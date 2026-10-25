@@ -55,6 +55,10 @@ Everyone signs in at the same place, `padharosaa.taprizz.in/login`, and is sent 
 The guest picks Room delivery or Takeaway in the cart. If the hotel has no room dining, the guest is told so and can take the food from the desk.
 For takeaway, the **desk** taps "ready in N min". The guest sees that time and answers "I'm here now" or how many minutes they need. If the desk changes the time, the guest is asked again.
 
+## When a guest checks out
+
+On the desk (and in the owner or manager console) open **Check out a room**, type or tap the room number and confirm. The guest is signed out of the hotel app at once, and the room's old menu link stops working, so nobody can send requests or orders from that room afterwards. The next guest signs in normally.
+
 ## Guest link and printed QR codes
 
 * The link is always visible to the owner and manager on their page, and to the platform admin in `/admin` (Padharosaa button).

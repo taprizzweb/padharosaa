@@ -9,6 +9,7 @@ import { ApiFailure } from '@/lib/guest/client';
 import { AreaNav } from './AreaNav';
 import { BuffetManager } from './BuffetManager';
 import { GuideManager } from './GuideManager';
+import { CheckoutPanel } from './CheckoutPanel';
 import { GuestLinkPanel, RoomsCard, type LinkState } from './RoomsLink';
 import { parseStaffCsv } from '@/lib/padharosaa/csv';
 import { buildTheme, contrast, normaliseHex } from '@/lib/padharosaa/theme';
@@ -60,6 +61,7 @@ export function ManageApp({ role, restaurant, supabase }: { role: string; restau
       {s.server_ready === false && <p role="alert" className="mt-3 rounded-xl bg-red-50 p-3 text-sm font-semibold text-red-900">Guest sign-in is switched off: the setting PADHAROSAA_DATA_KEY is missing on the server. Add it in your hosting settings (Vercel → Environment Variables) and redeploy. Until then guests cannot enter.</p>}
       <Checklist s={s} insta={insta} />
       <RoomsCard flash={flash} />
+      <CheckoutPanel flash={flash} />
       <GuestLinkPanel slug={restaurant.slug} flash={flash} load={() => apiGet<LinkState>('/api/padharosaa/v1/staff/qr')} create={(password) => apiPost<{ link: string }>('/api/padharosaa/v1/staff/qr/rotate', { password })} />
       <HomeCard s={s} save={save} />
       <StayCard s={s} save={save} />
