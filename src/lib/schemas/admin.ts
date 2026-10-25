@@ -26,6 +26,8 @@ export const createRestaurant = z
   .strict();
 
 export const setStatus = z.object({ id: uuid, status: z.enum(['active', 'suspended']) }).strict();
+export const restaurantIdBody = z.object({ id: uuid }).strict();
+export const emptyBody = z.object({}).strict();
 export const restaurantQuery = z.object({ id: uuid });
 export const deleteRestaurant = z.object({ id: uuid, confirm_slug: z.string().min(1).max(60) }).strict();
 export const staffReset = z.object({ id: uuid, user_id: uuid }).strict();

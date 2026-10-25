@@ -31,7 +31,8 @@ export async function POST(req: Request) {
     // A valid login that is not (or no longer) an active staff member gets the same generic answer.
     const me = await staffRpc<unknown>(db, 'staff_me').catch(() => null);
     const { data: who } = await db.auth.getUser();
-    const isAdmin = !me && !!who.user && (await rpc<boolean>('admin_check', { p_user: who.user.id }).catch(() => false));
+    // a platform admin always lands on the admin panel, even while visiting a hotel's menu as its manager (migration 0051)
+    const isAdmin = !!who.user && (await rpc<boolean>('admin_check', { p_user: who.user.id }).catch(() => false));
     if (!me && !isAdmin) {
       await db.auth.signOut();
       return fail(401, 'invalid_credentials');
@@ -39,7 +40,7 @@ export async function POST(req: Request) {
     // A Padharosaa hotel's staff land on their own page (owner, manager, kitchen, reception or housekeeping); everyone else keeps the menu live screen.
     const onPadHost = isPadHost(req.headers.get('x-forwarded-host') ?? req.headers.get('host'));
     let home = isAdmin ? '/admin' : '/staff';
-    if (me && !body.next) {
+    if (me && !isAdmin && !body.next) {
       // padh_my_alerts only answers for staff of an enabled Padharosaa hotel, so a good answer also means "this is a hotel".
       const alerts = await staffRpc<{ teams?: string[] | null }>(db, 'padh_my_alerts').catch(() => null);
       if (alerts || onPadHost) {

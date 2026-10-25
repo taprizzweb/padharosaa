@@ -26,7 +26,7 @@ export default async function DashLayout({ children }: { children: React.ReactNo
       : null;
   return (
     <div data-accent={m.restaurant.accent} className="min-h-dvh bg-stone-50">
-      <DashNav name={m.restaurant.name} role={m.role} slug={m.restaurant.slug} />
+      <DashNav name={m.restaurant.name} role={m.role} slug={m.restaurant.slug} support={m.display_name === 'Taprizz admin (support)'} />
       {m.restaurant.status !== 'active' && (
         <p role="status" className="bg-amber-100 px-4 py-3 text-center text-sm font-semibold text-amber-900">This restaurant is paused, so changes are switched off. Please contact support.</p>
       )}

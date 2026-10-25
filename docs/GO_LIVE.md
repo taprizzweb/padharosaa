@@ -11,6 +11,10 @@ Everything below is done from the browser. Nothing needs a developer once the ap
 2. **Domains** on the Vercel project: `padharosaa.taprizz.in` (hotels) and `menu.taprizz.in` (menu app).
 3. **Supabase → Authentication → Providers → Email**: turn on *Leaked password protection*.
 
+## Editing a hotel's menu as the platform admin
+
+In `/admin` tap **Edit menu** on a hotel's card. You land in that hotel's menu manager as its manager (a banner says so) and can add, change or delete dishes. Tap **Leave and go back to the admin panel** when done. The visit is written in the hotel's activity log.
+
 ## For each new hotel
 
 1. Sign in at `padharosaa.taprizz.in/login` with the platform admin login and open `/admin`.

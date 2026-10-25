@@ -59,6 +59,24 @@ export const ADMIN_ACTIONS: Record<string, AdminAction> = {
     },
   },
 
+  // Support visit: open any hotel's menu manager as its manager (see migration 0051). Leaving ends it.
+  'menu-open': {
+    method: 'POST',
+    schema: S.restaurantIdBody,
+    run: async (ctx, b) => {
+      await rpc('admin_menu_access', { p_admin: ctx.userId, p_restaurant: b.id });
+      return jsonOk({ ok: true }, ctx.requestId);
+    },
+  },
+  'menu-leave': {
+    method: 'POST',
+    schema: S.emptyBody,
+    run: async (ctx) => {
+      await rpc('admin_menu_leave', { p_admin: ctx.userId });
+      return jsonOk({ ok: true }, ctx.requestId);
+    },
+  },
+
   // Plans the platform admin defines (name, bullet points, prices). Prices are in paise.
   plans: {
     method: 'GET',

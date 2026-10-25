@@ -326,3 +326,26 @@ test('after a room order the guest picks "Add to room receipt" or "Pay now" (the
     await q(`update public.hotel_settings set pay_qr_path = null where restaurant_id = ${RID}`);
   }
 });
+
+test('the platform admin edits any hotel\'s menu from the admin panel and then leaves', async ({ page, browser }) => {
+  await signIn(page, 'admin@gotomenu.demo', /\/admin$/, '/admin');
+  await page.getByRole('button', { name: 'Edit the menu of Spice Garden' }).click();
+  await expect(page).toHaveURL(/\/dash\/menu$/);
+  await expect(page.getByTestId('support-banner')).toContainText('You are editing Spice Garden as Taprizz admin');
+  await expect(page.getByRole('heading', { name: 'Menu', level: 1 })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Add category' })).toBeVisible();
+  await page.getByRole('button', { name: 'Leave and go back to the admin panel' }).click();
+  await expect(page).toHaveURL(/\/admin$/);
+  expect((await q<{ n: number }>(`select count(*)::int n from public.staff where display_name = 'Taprizz admin (support)'`))[0]!.n).toBe(0);
+  // a platform admin always signs in to the admin panel, never to a hotel page
+  await page.getByRole('button', { name: 'Edit the menu of Spice Garden' }).click();
+  await expect(page).toHaveURL(/\/dash\/menu$/);
+  // while the visit is on, signing in again (another device) still lands on the admin panel
+  const ctx = await browser.newContext();
+  const p2 = await ctx.newPage();
+  await signIn(p2, 'admin@gotomenu.demo', /\/admin$/, '/admin');
+  await ctx.close();
+  await page.getByRole('button', { name: 'Leave and go back to the admin panel' }).click();
+  await expect(page).toHaveURL(/\/admin$/);
+  expect((await q<{ n: number }>(`select count(*)::int n from public.staff where display_name = 'Taprizz admin (support)'`))[0]!.n).toBe(0);
+});

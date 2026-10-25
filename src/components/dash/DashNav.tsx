@@ -14,11 +14,17 @@ const LINKS = [
   { href: '/dash/audit', label: 'Activity log' },
 ];
 
-export function DashNav({ name, role, slug }: { name: string; role: string; slug: string }) {
+export function DashNav({ name, role, slug, support = false }: { name: string; role: string; slug: string; support?: boolean }) {
   const path = usePathname();
   const [busy, setBusy] = useState(false);
   return (
     <header className="sticky top-0 z-20 border-b border-stone-200 bg-white print:hidden">
+      {support && (
+        <div role="status" data-testid="support-banner" className="flex flex-wrap items-center justify-center gap-3 bg-indigo-900 px-4 py-2 text-sm font-semibold text-white">
+          <span>You are editing {name} as Taprizz admin.</span>
+          <button type="button" disabled={busy} onClick={async () => { setBusy(true); try { await fetch('/api/admin/menu-leave', { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' }); } finally { window.location.assign('/admin'); } }} className="min-h-11 rounded-xl bg-white px-4 font-bold text-indigo-950">Leave and go back to the admin panel</button>
+        </div>
+      )}
       <div className="mx-auto flex max-w-5xl flex-wrap items-center gap-x-4 gap-y-1 px-4 py-2">
         <div className="min-w-0 flex-1">
           <p className="truncate text-base font-extrabold">{name}</p>
