@@ -301,10 +301,12 @@ function Services({ c, closed, onClosed, back, done }: { c: Copy; closed: string
   const pick = (k: (typeof kinds)[number]) => { setKind(k); setErr(null); };
   const send = async () => {
     // each service asks for what the team needs, so reception never has to call the guest back
-    if ((kind === 'wake' || kind === 'late_checkout' || kind === 'cab') && !when) { setErr('time'); return; }
+    const laundry = kind === 'housekeeping' && label === c.hk[c.hk.length - 1];
+    if ((kind === 'wake' || kind === 'late_checkout' || kind === 'cab' || laundry) && !when) { setErr('time'); return; }
     if (kind === 'cab' && dest.trim().length < 2) { setErr('where'); return; }
     const lines = kind === 'wake' ? [fill(c.wakeAt, { t: clock12(when) })]
       : kind === 'late_checkout' ? [fill(c.lateUntil, { t: clock12(when) })]
+      : laundry ? [`${c.cabTime}: ${clock12(when)}`]
       : kind === 'cab' ? [fill(c.cabTo, { to: dest.trim() }), fill(c.cabAt, { t: clock12(when) }), fill(c.cabCar, { car })]
       : [];
     if (detail.trim()) lines.push(detail.trim());
@@ -330,6 +332,7 @@ function Services({ c, closed, onClosed, back, done }: { c: Copy; closed: string
         {kind === 'housekeeping' && (
           <fieldset><legend className="mb-1 text-sm font-semibold">{c.hkLabel}</legend>
             {c.hk.map((h) => <label key={h} className="flex min-h-11 items-center gap-3"><input type="radio" name="hk" checked={label === h} onChange={() => setLabel(h)} className="h-5 w-5" />{h}</label>)}
+            {label === c.hk[c.hk.length - 1] && <TimePick label={c.cabTime} value={when} onChange={setWhen} />}
           </fieldset>
         )}
         {kind === 'wake' && <TimePick label={c.wakeTime} value={when} onChange={setWhen} />}

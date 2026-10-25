@@ -473,6 +473,17 @@ test('guest services ask for what the team needs; a declined request is not left
     await g.getByRole('button', { name: 'Send request' }).click();
     await expect(g.getByRole('heading', { name: 'Sent' })).toBeVisible();
     expect((await q<{ detail: string }>(`select detail from public.requests where restaurant_id = ${RID} and type = 'cab' order by created_at desc limit 1`))[0]!.detail).toBe('To: Jaipur airport · Pickup at 9:15 AM · Car: SUV');
+    // laundry pick-up: housekeeping, with the time the guest wants it collected
+    await g.getByRole('button', { name: 'Back to home' }).click();
+    await g.getByText('Services', { exact: true }).click();
+    await g.getByLabel('Laundry pick-up').check();
+    await g.getByRole('button', { name: 'Send request' }).click();
+    await expect(g.getByText('Please choose a time.')).toBeVisible();
+    await g.getByLabel('Pickup time').fill('17:00');
+    await g.getByRole('button', { name: 'Send request' }).click();
+    await expect(g.getByRole('heading', { name: 'Sent' })).toBeVisible();
+    const lau = (await q<{ label: string; detail: string; team: string }>(`select label, detail, team from public.requests where restaurant_id = ${RID} and label like '%Laundry pick-up' order by created_at desc limit 1`))[0]!;
+    expect(lau).toEqual({ label: 'Housekeeping: Laundry pick-up', detail: 'Pickup time: 5:00 PM', team: 'housekeeping' });
     // a problem the team must fix: AC
     await g.getByRole('button', { name: 'Back to home' }).click();
     await g.getByText('Help / problem').first().click();
