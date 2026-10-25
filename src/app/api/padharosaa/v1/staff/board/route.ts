@@ -11,10 +11,10 @@ interface Row { mobile_enc: string | null; mobile_cc: string; [k: string]: unkno
 export async function GET(req: Request) {
   return staffRoute(req, { method: 'GET' }, async (ctx) => {
     await limit(`psb:${ctx.userId}`, 240, 60);
-    const board = await staffRpc<{ role: string; requests: Row[] }>(ctx.db, 'padh_staff_board');
+    const board = await staffRpc<{ role: string; me?: string; requests: Row[] }>(ctx.db, 'padh_staff_board');
     // one unreadable number (a damaged row, or an old key) must never take the whole desk down: that guest simply shows without a number
     const readable = (hex: string): string | null => { try { return decryptText(Buffer.from(hex, 'hex')); } catch { return null; } };
     const requests = board.requests.map(({ mobile_enc, mobile_cc: _cc, ...r }) => ({ ...r, mobile: mobile_enc ? readable(mobile_enc) : null }));
-    return jsonOk({ role: board.role, requests }, ctx.requestId);
+    return jsonOk({ role: board.role, me: board.me, requests }, ctx.requestId);
   });
 }
