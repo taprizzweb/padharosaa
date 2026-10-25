@@ -495,6 +495,7 @@ test('reception hands a request to a person; it lands on that person\'s own disp
 });
 
 test('a public demo hotel: one link, no sign-in, and the demo answers itself; a normal hotel has no demo link', async ({ browser }) => {
+  test.setTimeout(150_000); // the demo answers after about 20 seconds
   const ctx = await browser.newContext({ viewport: { width: 375, height: 800 } });
   const g = await ctx.newPage();
   try {
@@ -507,6 +508,7 @@ test('a public demo hotel: one link, no sign-in, and the demo answers itself; a 
     await expect(g.getByRole('heading', { name: /Spice Garden/ })).toBeVisible();
     await g.getByRole('button', { name: 'Try it on this phone' }).click();
     await expect(g.getByText('Namaste, Demo guest')).toBeVisible();
+    await g.getByRole('button', { name: 'Accept cookies' }).click();
     await g.getByText('Services', { exact: true }).click();
     await g.getByLabel('Extra towels').check();
     await g.getByRole('button', { name: 'Send request' }).click();
