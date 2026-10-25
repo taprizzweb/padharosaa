@@ -45,9 +45,10 @@ export function BuffetAlerts({ c }: { c: Copy }) {
     } catch { setState('off'); }
   };
   return (
-    <button type="button" onClick={() => void toggle()} data-testid="buffet-alerts" aria-pressed={state === 'on'} disabled={state === 'blocked'} className="flex min-h-11 w-full items-center justify-between gap-3 rounded-2xl border px-4 py-2 text-left text-sm font-semibold" style={{ background: 'rgba(255,255,255,.9)', borderColor: 'rgba(0,0,0,.12)', color: '#1f2937' }}>
-      <span>{state === 'on' ? c.alertsOn : state === 'blocked' ? c.alertsBlocked : c.alertsAsk}</span>
-      <span aria-hidden>{state === 'on' ? '🔔' : '🔕'}</span>
+    <button type="button" onClick={() => void toggle()} data-testid="buffet-alerts" aria-pressed={state === 'on'} disabled={state === 'blocked'} className="flex min-h-12 w-full items-center gap-3 rounded-2xl px-4 py-2 text-left text-sm font-semibold" style={{ background: 'rgba(255,255,255,.92)', color: '#1f2937', boxShadow: 'inset 0 0 0 1px rgba(0,0,0,.08)' }}>
+      <span aria-hidden className="grid h-8 w-8 shrink-0 place-items-center rounded-full" style={{ background: state === 'on' ? '#DDEFE2' : '#ECE9E4' }}>{state === 'on' ? '🔔' : '🔕'}</span>
+      <span className="flex-1">{state === 'on' ? c.alertsOn : state === 'blocked' ? c.alertsBlocked : c.alertsAsk}</span>
+      {state !== 'blocked' && <span aria-hidden className="relative h-6 w-11 shrink-0 rounded-full transition" style={{ background: state === 'on' ? '#1F6B3E' : '#c9c4bb' }}><span className="absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all" style={{ left: state === 'on' ? '1.4rem' : '0.15rem' }} /></span>}
     </button>
   );
 }

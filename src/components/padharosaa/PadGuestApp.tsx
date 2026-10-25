@@ -16,6 +16,8 @@ interface Home {
   links: { instagram_url: string | null; google_review_url: string | null; tripadvisor_url: string | null; menu_url: string | null };
   contacts: { reception: string | null; manager: string | null };
 }
+const nb = (hhmm: string) => clock12(hhmm).replace(' ', '\u00a0'); // a time never breaks between 10:30 and PM
+const cap = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
 const clock12 = (hhmm: string) => { const [h, m] = hhmm.split(':').map(Number); return `${((h! + 11) % 12) + 1}:${String(m).padStart(2, '0')} ${h! < 12 ? 'AM' : 'PM'}`; };
 interface Farewell { name: string; hotel_name: string; slug: string; language: string; brand_color: string | null; google_review_url: string | null; tripadvisor_url: string | null }
 /** Shown on the guest's phone once reception has checked the room out: a thank-you and the hotel's own review link. */
@@ -42,7 +44,7 @@ function BuffetNotice({ b, c, onOpen }: { b: Home['buffet']; c: Copy; onOpen: ()
   return (
     <button type="button" onClick={open} data-testid="buffet-notice" className="w-full rounded-[22px] p-4 text-left shadow-md" style={{ background: 'linear-gradient(135deg,#2f5d3a 0%,#3f7a4b 100%)', color: '#fff' }}>
       <span className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[.16em]">● {c.buffet}{fresh && <span className="rounded-full bg-white px-2 py-0.5 text-[10px] text-green-900">{c.newTag}</span>}</span>
-      <span className="mt-1.5 block text-base font-semibold leading-snug">{[b.name, b.start && b.end ? `${b.start}–${b.end}` : null, b.venue].filter(Boolean).join(' · ')}</span>
+      <span className="mt-1.5 block text-base font-semibold leading-snug">{[b.name ? cap(b.name) : null, b.start && b.end ? `${nb(b.start)} – ${nb(b.end)}` : null, b.venue].filter(Boolean).join(' · ')}</span>
     </button>
   );
 }
@@ -189,7 +191,7 @@ function Tile({ icon, title, sub, onClick, big, wide }: { icon: IconName; title:
 
 function HomeScreen({ me, home, c, closed, dine, planCount, go, imageBase, lang, setLang }: { me: Me; home: Home; c: Copy; closed: string | null; dine: { room_dining: boolean } | null; planCount: number; go: (s: Screen) => void; imageBase: string; lang: Lang; setLang: (l: Lang) => void }) {
   const b = home.buffet;
-  const buffetSub = !b.set ? c.buffetNotSet : b.mode === 'none' ? c.buffetNone : `${b.name ?? ''} ${b.start ?? ''}–${b.end ?? ''}`.trim();
+  const buffetSub = !b.set ? c.buffetNotSet : b.mode === 'none' ? c.buffetNone : [b.name ? cap(b.name) : '', b.start && b.end ? `${nb(b.start)} – ${nb(b.end)}` : ''].filter(Boolean).join(' · ');
   const logo = home.look.logo_path ? `${imageBase}${home.look.logo_path}` : null;
   const photo = home.look.hero_path ? `${imageBase}${home.look.hero_path}` : null;
   return (
@@ -214,20 +216,19 @@ function HomeScreen({ me, home, c, closed, dine, planCount, go, imageBase, lang,
         {b.set && b.mode !== 'none' && <BuffetNotice b={b} c={c} onOpen={() => go({ s: 'buffet' })} />}
         <BuffetAlerts c={c} />
         {home.info && (
-          <div className="rounded-[22px] p-4 shadow-md" style={{ background: 'linear-gradient(140deg,#fff1b0 0%,#fcd34d 55%,#f0a020 135%)', color: '#3a2704' }}>
-            <span className="text-[11px] font-bold uppercase tracking-[.16em]" style={{ color: 'rgba(88,56,4,.85)' }}>{c.infoTag}</span>
+          <div className="rounded-[22px] border-l-4 bg-white p-4 shadow-sm" style={{ borderColor: '#d9a21b', color: '#2a2113' }}>
+            <span className="text-[11px] font-bold uppercase tracking-[.16em]" style={{ color: '#8a6410' }}>{c.infoTag}</span>
             <p className="mt-1.5 whitespace-pre-line text-base font-semibold leading-snug">{home.info}</p>
           </div>
         )}
       </div>
-      <MyRequests c={c} open={(id) => go({ s: 'track', id })} />
       <div className="relative z-10 grid grid-cols-2 gap-3 px-5 pt-3">
         <Tile big wide icon="dining" title={c.dining} sub={dine && !dine.room_dining ? c.diningSubTakeaway : c.diningSub} onClick={() => go({ s: 'dining' })} />
         <Tile icon="services" title={c.services} onClick={() => go({ s: 'services' })} />
         <Tile icon="checkout" title={c.coTitle} onClick={() => go({ s: 'checkout' })} />
-        <Tile icon="wifi" title={c.stay} onClick={() => go({ s: 'stay' })} />
+        <Tile icon="wifi" title={c.stay} sub={c.staySub} onClick={() => go({ s: 'stay' })} />
         {b.set && <Tile icon="buffet" title={c.buffet} sub={buffetSub} onClick={() => go({ s: 'buffet' })} />}
-        {planCount > 0 && <Tile icon="guide" title={c.planTile} sub={fill(c.planTileSub, { n: planCount })} onClick={() => go({ s: 'plan' })} />}
+        {planCount > 0 && <Tile icon="plan" title={c.planTile} sub={fill(c.planTileSub, { n: planCount })} onClick={() => go({ s: 'plan' })} />}
         <Tile icon="guide" title={c.guideTitle} sub={c.guideSub} onClick={() => go({ s: 'guide' })} />
       </div>
       <div className="relative z-10 px-5 pt-3">
@@ -237,11 +238,13 @@ function HomeScreen({ me, home, c, closed, dine, planCount, go, imageBase, lang,
           <span aria-hidden className="text-xl">›</span>
         </button>
       </div>
+      <MyRequests c={c} open={(id) => go({ s: 'track', id })} />
       <Reviews home={home} c={c} />
     </main>
   );
 }
 
+const chip = (s: string) => (s === 'completed' ? { background: '#DDEFE2', color: '#1F5B34' } : s === 'dismissed' ? { background: '#F9DEDA', color: '#8B2318' } : s === 'cancelled' ? { background: '#ECE9E4', color: '#57534e' } : s === 'received' ? { background: '#FBEBC8', color: '#7a4e0a' } : { background: '#DCE7F7', color: '#1E3F7A' });
 interface MyReq { id: string; label: string; status: string; created_at: string }
 /** The guest's own requests with their live status, so a reply from the team is always one tap away from the home screen. */
 function MyRequests({ c, open }: { c: Copy; open: (id: string) => void }) {
@@ -258,7 +261,7 @@ function MyRequests({ c, open }: { c: Copy; open: (id: string) => void }) {
           <li key={q.id}>
             <button type="button" onClick={() => open(q.id)} className="flex min-h-14 w-full items-center justify-between gap-3 rounded-2xl bg-white p-3 text-left text-stone-900 shadow-sm">
               <span className="min-w-0"><span className="block truncate font-semibold">{localLabel(q.label, c)}</span><span className="block text-xs text-stone-600">{time(q.created_at)} · {c.seeAll}</span></span>
-              <span className="shrink-0 rounded-full px-3 py-1 text-xs font-bold" style={{ background: 'var(--tint)', color: 'var(--on-tint)' }}>{word(q.status)}</span>
+              <span className="shrink-0 rounded-full px-3 py-1 text-xs font-bold" style={chip(q.status)}>{word(q.status)}</span>
             </button>
           </li>
         ))}
