@@ -118,6 +118,7 @@ export const hoursBody = z
   .object({ start: hhmm.nullable(), end: hhmm.nullable() })
   .strict()
   .refine((b) => (b.start === null) === (b.end === null) && (b.start === null || b.start !== b.end), 'both times, and different');
+export const payQrBody = z.object({ path: z.string().regex(/^[0-9a-f-]{36}\/[A-Za-z0-9._-]{1,120}$/).nullable() }).strict();
 export const accountBody = z.discriminatedUnion('action', [
   z.object({ action: z.literal('reset') }).strict(),
   z.object({ action: z.literal('email'), email: z.string().trim().toLowerCase().email().max(120) }).strict(),

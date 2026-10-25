@@ -49,6 +49,9 @@ export const placeOrder = (input: PlaceOrderInput) =>
 export const sendOrderEta = (input: { slug: string; token: string; order_no: number; minutes: number }) =>
   post<{ guest_eta_minutes: number }>('/api/guest/order-eta', input);
 
+export const sendOrderPay = (input: { slug: string; token: string; order_no: number; method: 'room_bill' | 'pay_now' }) =>
+  post<{ pay_method: 'room_bill' | 'pay_now' }>('/api/guest/order-pay', input);
+
 export const openRoom = (slug: string, token: string, room: string) =>
   post<{ token: string; label: string }>('/api/guest/room', { slug, token, room });
 

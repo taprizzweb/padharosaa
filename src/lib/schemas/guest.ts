@@ -42,6 +42,8 @@ export type OrderBody = z.infer<typeof orderBody>;
 
 export const orderEtaBody = z.object({ slug, token, order_no: z.number().int().min(1), minutes: z.number().int().min(0).max(180) }).strict();
 
+export const orderPayBody = z.object({ slug, token, order_no: z.number().int().min(1), method: z.enum(['room_bill', 'pay_now']) }).strict();
+
 export const roomBody = z.object({ slug, token, room: text(10).pipe(z.string().min(1)) }).strict();
 
 export const tableLinkBody = z.object({ slug, token, table: text(20).pipe(z.string().min(1)) }).strict();

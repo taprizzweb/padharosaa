@@ -70,6 +70,8 @@ export interface StatusOrder {
   handover_minutes?: number | null;
   ready_in_at?: string | null;
   guest_eta_minutes?: number | null;
+  /** hotel room orders: 'room_bill' = added to the room receipt, 'pay_now' = the guest pays with the hotel's payment QR */
+  pay_method?: 'room_bill' | 'pay_now' | null;
   items: StatusOrderItem[];
 }
 export interface StatusRequest {
@@ -90,6 +92,9 @@ export interface StatusData {
   requests?: StatusRequest[];
   /** false when the hotel does not deliver to rooms */
   room_dining?: boolean;
+  /** a hotel room table, and the hotel's payment QR image (a storage path) when it has one */
+  is_room?: boolean;
+  pay_qr_path?: string | null;
 }
 
 export interface CartLine {

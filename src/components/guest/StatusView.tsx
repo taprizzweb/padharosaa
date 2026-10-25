@@ -28,6 +28,44 @@ function Stepper({ status, t }: { status: Exclude<OrderStatus, 'cancelled'>; t: 
   );
 }
 
+/** A hotel room order: add it to the room receipt, or pay now with the hotel's own payment QR (a photo of its scanner). */
+function PayChoice({ o, t, qrUrl, onPay }: { o: StatusOrder; t: Translator; qrUrl: string | null; onPay: (orderNo: number, method: 'room_bill' | 'pay_now') => Promise<void> }) {
+  const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState(false);
+  const [changing, setChanging] = useState(false);
+  const choose = async (m: 'room_bill' | 'pay_now') => { if (busy) return; setBusy(true); setFailed(false); try { await onPay(o.order_no, m); setChanging(false); } catch { setFailed(true); } finally { setBusy(false); } };
+  const btn = 'min-h-12 flex-1 rounded-xl border-2 px-4 text-base font-bold border-stone-900 disabled:opacity-60';
+  const asking = !o.pay_method || changing;
+  return (
+    <div className="mt-3 space-y-2 rounded-lg bg-stone-50 px-3 py-3 text-sm font-semibold text-stone-900" data-testid="pay-choice">
+      {asking ? (
+        <>
+          <p>{t('status.pay.title')}</p>
+          <div className="flex flex-wrap gap-2" role="group" aria-label={t('status.pay.title')}>
+            <button type="button" disabled={busy} onClick={() => void choose('room_bill')} className={`${btn} ${o.pay_method === 'room_bill' ? 'bg-stone-900 text-white' : 'bg-white text-stone-900'}`}>{t('status.pay.room')}</button>
+            {qrUrl && <button type="button" disabled={busy} onClick={() => void choose('pay_now')} className={`${btn} ${o.pay_method === 'pay_now' ? 'bg-stone-900 text-white' : 'bg-white text-stone-900'}`}>{t('status.pay.now')}</button>}
+          </div>
+          {failed && <p role="alert" className="font-semibold text-red-900">{t('status.pay.failed')}</p>}
+        </>
+      ) : o.pay_method === 'room_bill' ? (
+        <>
+          <p>{t('status.pay.roomDone')}</p>
+          <button type="button" className="min-h-11 text-sm font-semibold underline" onClick={() => setChanging(true)}>{t('status.pay.change')}</button>
+        </>
+      ) : (
+        <>
+          <p>{t('status.pay.nowDone', { amount: formatPaise(o.total_paise) })}</p>
+          {qrUrl && (
+            // eslint-disable-next-line @next/next/no-img-element -- the hotel's own payment QR from our storage
+            <img src={qrUrl} alt={t('status.pay.qrAlt')} className="mx-auto max-h-80 w-full max-w-xs rounded-xl border border-stone-300 bg-white object-contain p-2" />
+          )}
+          <button type="button" className="min-h-11 text-sm font-semibold underline" onClick={() => setChanging(true)}>{t('status.pay.change')}</button>
+        </>
+      )}
+    </div>
+  );
+}
+
 /** Takeaway: the desk says when it will be ready, and the guest answers how long they will take to reach the desk. */
 function Takeaway({ o, t, roomDining, onEta }: { o: StatusOrder; t: Translator; roomDining?: boolean; onEta?: (orderNo: number, minutes: number) => Promise<void> }) {
   const [busy, setBusy] = useState(false);
@@ -62,7 +100,7 @@ function Takeaway({ o, t, roomDining, onEta }: { o: StatusOrder; t: Translator; 
   );
 }
 
-function OrderCard({ o, t, roomDining, dietOf, onEta }: { o: StatusOrder; t: Translator; roomDining?: boolean; dietOf?: (name: string) => Diet | null; onEta?: (orderNo: number, minutes: number) => Promise<void> }) {
+function OrderCard({ o, t, roomDining, dietOf, pay, onEta }: { o: StatusOrder; t: Translator; roomDining?: boolean; dietOf?: (name: string) => Diet | null; pay?: { qrUrl: string | null; onPay: (orderNo: number, method: 'room_bill' | 'pay_now') => Promise<void> } | null; onEta?: (orderNo: number, minutes: number) => Promise<void> }) {
   const cancelled = o.status === 'cancelled';
   return (
     <li className={`rounded-2xl border bg-white p-4 ${cancelled ? 'border-red-200' : 'border-stone-200'}`}>
@@ -89,6 +127,7 @@ function OrderCard({ o, t, roomDining, dietOf, onEta }: { o: StatusOrder; t: Tra
         <>
           {o.handover === 'deliver' && <p className="mt-3 rounded-lg bg-sky-50 px-3 py-2 text-sm font-semibold text-sky-950">{t('status.handover.deliver')}</p>}
           {o.handover === 'takeaway' && <Takeaway o={o} t={t} roomDining={roomDining} onEta={onEta} />}
+          {pay && <PayChoice o={o} t={t} qrUrl={pay.qrUrl} onPay={pay.onPay} />}
           <Stepper status={o.status as Exclude<OrderStatus, 'cancelled'>} t={t} />
           {o.status === 'placed' && <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-center text-sm font-semibold text-amber-900">{t('status.notAccepted')}</p>}
         </>
@@ -97,8 +136,10 @@ function OrderCard({ o, t, roomDining, dietOf, onEta }: { o: StatusOrder; t: Tra
   );
 }
 
-export function StatusView({ data, t, dietOf, onAddMore, onEta }: { data: StatusData | null; t: Translator; dietOf?: (name: string) => Diet | null; onAddMore: () => void; onEta?: (orderNo: number, minutes: number) => Promise<void> }) {
+export function StatusView({ data, t, dietOf, imageBase = '', onPay, onAddMore, onEta }: { data: StatusData | null; t: Translator; dietOf?: (name: string) => Diet | null; imageBase?: string; onPay?: (orderNo: number, method: 'room_bill' | 'pay_now') => Promise<void>; onAddMore: () => void; onEta?: (orderNo: number, minutes: number) => Promise<void> }) {
   const orders = data?.orders ?? [];
+  // only a hotel room can choose how to pay: the room receipt, or the hotel's payment QR when it has one
+  const pay = data?.is_room && onPay ? { qrUrl: data.pay_qr_path ? `${imageBase}${data.pay_qr_path}` : null, onPay } : null;
   return (
     <div className="mx-auto max-w-2xl px-4 pb-4 pt-4">
       <div className="flex items-center justify-between gap-3">
@@ -112,7 +153,7 @@ export function StatusView({ data, t, dietOf, onAddMore, onEta }: { data: Status
           <p className="py-10 text-center text-stone-600">{t('status.noOrders')}</p>
         ) : (
           <>
-            <ul className="mt-3 space-y-3">{[...orders].reverse().map((o) => <OrderCard key={o.order_no} o={o} t={t} roomDining={data?.room_dining} dietOf={dietOf} onEta={onEta} />)}</ul>
+            <ul className="mt-3 space-y-3">{[...orders].reverse().map((o) => <OrderCard key={o.order_no} o={o} t={t} roomDining={data?.room_dining} dietOf={dietOf} pay={pay} onEta={onEta} />)}</ul>
             <div className="mt-4 flex items-baseline justify-between rounded-2xl bg-stone-900 px-4 py-3 text-white">
               <span className="font-semibold">{t('status.tableTotal')}</span>
               <span className="text-xl font-extrabold">{formatPaise(data.total_paise ?? 0)}</span>

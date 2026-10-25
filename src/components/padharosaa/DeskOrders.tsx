@@ -36,6 +36,8 @@ export function OrderCardDesk({ o, role, roomDining, a }: { o: BoardOrder; role:
         <span className="rounded-full bg-orange-100 px-2 py-1 text-orange-950">FOOD ORDER</span>
         <span className="rounded-full bg-stone-200 px-2 py-1">{o.status === 'placed' ? 'Waiting' : o.status === 'preparing' ? 'Being prepared' : 'Ready'}</span>
         {o.handover && <span className="rounded-full bg-sky-100 px-2 py-1 text-sky-950">{o.handover === 'deliver' ? 'Room delivery' : 'Takeaway'}</span>}
+        {o.pay_method === 'room_bill' && <span className="rounded-full bg-violet-100 px-2 py-1 text-violet-950">Add to room receipt</span>}
+        {o.pay_method === 'pay_now' && <span className="rounded-full bg-emerald-100 px-2 py-1 text-emerald-950">Guest pays now (QR)</span>}
       </div>
       <ul className="mt-2 space-y-1 text-base">
         {o.items.map((it, i) => (

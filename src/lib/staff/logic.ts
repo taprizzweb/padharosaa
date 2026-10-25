@@ -20,6 +20,8 @@ export interface BoardOrder {
   ready_in_at?: string | null;
   guest_eta_minutes?: number | null;
   guest_eta_at?: string | null;
+  /** hotel room order: how the guest settles it */
+  pay_method?: 'room_bill' | 'pay_now' | null;
   is_room?: boolean;
   items: { name: string; qty: number; note: string | null }[];
 }

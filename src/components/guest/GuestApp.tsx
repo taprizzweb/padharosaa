@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { formatPaise } from '@/lib/money';
-import { ApiFailure, askBill, callWaiter, currentPosition, placeOrder, sendOrderEta } from '@/lib/guest/client';
+import { ApiFailure, askBill, callWaiter, currentPosition, placeOrder, sendOrderEta, sendOrderPay } from '@/lib/guest/client';
 import type { MenuData, MenuItem, PayMode, WaiterReason } from '@/lib/guest/types';
 import { errorMessageKey, t } from '@/lib/i18n';
 import { trackEvent, type TrackIds } from '@/lib/guest/analytics';
@@ -201,7 +201,7 @@ export function GuestApp({
         {showStatus && closed && status ? (
           <ThankYou data={status} t={t} onBack={() => setView('menu')} exploreCode={menu.restaurant.explore_code} onExplore={() => track('explore_click')} />
         ) : showStatus ? (
-          <StatusView data={status} t={t} dietOf={dietOfName} onAddMore={() => setView('menu')} onEta={async (orderNo, minutes) => { if (!token) return; await sendOrderEta({ slug, token, order_no: orderNo, minutes }); live.refresh(); }} />
+          <StatusView data={status} t={t} dietOf={dietOfName} imageBase={imageBase} onPay={async (orderNo, method) => { if (!token) return; await sendOrderPay({ slug, token, order_no: orderNo, method }); live.refresh(); }} onAddMore={() => setView('menu')} onEta={async (orderNo, minutes) => { if (!token) return; await sendOrderEta({ slug, token, order_no: orderNo, minutes }); live.refresh(); }} />
         ) : (
           <MenuView initialCats={catsParam} initialDiet={dietParam} categories={categories} t={t} canOrder={canOrder} imageBase={imageBase} qtyOf={cart.qtyOf} onAdd={(id) => { track('cart_add', { item_id: id }); cart.add(id); }} onSet={cart.setQty} onCustomise={setChoosing} onTrack={track} />
         )}

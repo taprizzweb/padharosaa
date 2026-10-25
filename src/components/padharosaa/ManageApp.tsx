@@ -18,7 +18,7 @@ const TEAMS: [Team, string][] = [['front_desk', 'Front desk'], ['concierge', 'Co
 interface Settings {
   brand_color: string | null; logo_path: string | null; hero_path: string | null; tripadvisor_url: string | null; menu_url: string | null; review_link: string | null;
   offer_text: string | null; offer_until: string | null; info_text: string | null; wifi_name: string | null; checkout_time: string | null; breakfast_text: string | null;
-  reception_phone: string | null; manager_phone: string | null; room_dining: boolean; kitchen_display?: boolean; server_ready?: boolean; service_start?: string | null; service_end?: string | null;
+  reception_phone: string | null; manager_phone: string | null; room_dining: boolean; kitchen_display?: boolean; server_ready?: boolean; service_start?: string | null; service_end?: string | null; pay_qr_path?: string | null;
 }
 interface Person { user_id: string; email: string; name: string; role: string; active: boolean; department: Team | null; whatsapp: string | null; is_head: boolean }
 interface ImportResult { email: string; ok: boolean; error?: 'exists' | 'invalid' | 'failed' | string; temporary_password?: string }
@@ -69,6 +69,7 @@ export function ManageApp({ role, restaurant, supabase }: { role: string; restau
         <label className="flex min-h-11 items-center gap-3 font-semibold"><input type="checkbox" className="h-5 w-5" checked={!!s.kitchen_display} onChange={(e) => void save('kitchen-display', { kitchen_display: e.target.checked })} />We have a separate kitchen display</label>
         <p className="text-sm text-stone-700">Everything always arrives at the reception desk first (every request and every food order). With a kitchen display, the kitchen also gets its own screen with the food orders.</p>
       </Card>
+      <PayQrCard s={s} save={save} restaurantId={restaurant.id} sb={sb} />
       <HoursCard s={s} save={save} />
       <BuffetManager flash={flash} />
       <GuideManager flash={flash} />
@@ -98,6 +99,31 @@ function Checklist({ s, insta }: { s: Settings; insta: string }) {
 }
 
 type Save = (path: string, body: unknown, done?: string) => Promise<void>;
+
+/** The photo of the hotel's own payment (UPI) QR. A guest who taps "Pay now" on a room order sees this image. */
+function PayQrCard({ s, save, restaurantId, sb }: { s: Settings; save: Save; restaurantId: string; sb: ReturnType<typeof createBrowserClient> }) {
+  const [busy, setBusy] = useState(false);
+  const [bad, setBad] = useState(false);
+  const imageBase = sb.storage.from('menu-images').getPublicUrl('x').data.publicUrl.replace(/x$/, '');
+  const url = s.pay_qr_path ? `${imageBase}${s.pay_qr_path}` : null;
+  const upload = async (file: File) => {
+    setBusy(true); setBad(false);
+    const ext = file.type === 'image/png' ? 'png' : file.type === 'image/webp' ? 'webp' : 'jpg';
+    const path = `${restaurantId}/payqr-${crypto.randomUUID()}.${ext}`;
+    const { error } = await sb.storage.from('menu-images').upload(path, file, { contentType: file.type, upsert: false });
+    if (error) setBad(true); else await save('pay-qr', { path }, 'Payment QR saved.');
+    setBusy(false);
+  };
+  return (
+    <Card title="Payment QR for guests" hint="Upload a photo of your hotel's payment (UPI) QR code. After a room order the guest can choose Add to room receipt or Pay now. Pay now shows this QR. Without it, only Add to room receipt is offered. Photos up to 20 MB.">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      {url && <img src={url} alt="Your payment QR" className="my-1 max-h-56 rounded-lg border border-stone-300 bg-white object-contain p-2" />}
+      <input type="file" accept="image/jpeg,image/png,image/webp" aria-label="Choose the payment QR photo" disabled={busy} className="block min-h-11 w-full text-base" onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) void upload(f); }} />
+      {bad && <p role="alert" className="text-sm font-semibold text-red-900">The photo could not be uploaded. Please try a smaller JPG or PNG.</p>}
+      {url && <button type="button" className="min-h-11 text-sm font-semibold underline" onClick={() => void save('pay-qr', { path: null }, 'Payment QR removed.')}>Remove the QR</button>}
+    </Card>
+  );
+}
 
 function HoursCard({ s, save }: { s: Settings; save: Save }) {
   const [f, setF] = useState({ start: s.service_start ?? '', end: s.service_end ?? '' });

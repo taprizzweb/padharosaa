@@ -295,3 +295,34 @@ test('Dining: "What do you feel like?" has Veg, Non-Veg, Jain, Bar and Bestselle
     await q(`delete from public.categories where restaurant_id = ${RID} and (name_en like 'Zz %' or name_en like 'Bar - Zz %')`);
   }
 });
+
+test('after a room order the guest picks "Add to room receipt" or "Pay now" (the hotel QR photo); the desk sees which', async ({ browser, page }) => {
+  const t = await newTable();
+  await q(`update public.dining_tables set kind = 'room' where id = $1`, [t.id]);
+  await q(`update public.hotel_settings set pay_qr_path = $1 where restaurant_id = ${RID}`, [`${(await q<{ id: string }>(`select ${RID} as id`))[0]!.id}/payqr-e2e.png`]);
+  const ctx = await browser.newContext({ viewport: { width: 375, height: 800 } });
+  const g = await ctx.newPage();
+  try {
+    await g.goto(`/${t.slug}?k=${t.token}`);
+    await g.getByRole('button', { name: 'Add Butter Naan', exact: true }).click();
+    await g.getByRole('button', { name: /View cart/ }).click();
+    await g.getByRole('dialog').getByRole('button', { name: 'Place order' }).click();
+    const choice = g.getByTestId('pay-choice');
+    await expect(choice.getByRole('button', { name: 'Add to room receipt' })).toBeVisible();
+    await expect(choice.getByRole('button', { name: 'Pay now' })).toBeVisible();
+    await choice.getByRole('button', { name: 'Pay now' }).click();
+    await expect(choice.getByRole('img', { name: /payment QR code/ })).toBeVisible(); // the hotel's own QR photo
+    await expect(choice.getByText(/pay ₹60/)).toBeVisible();
+    await choice.getByRole('button', { name: 'Change how I pay' }).click();
+    await choice.getByRole('button', { name: 'Add to room receipt' }).click();
+    await expect(choice.getByText(/Added to your room receipt/)).toBeVisible();
+    await expect(choice.getByRole('img')).toHaveCount(0);
+    // the desk sees the choice on the order
+    await signIn(page, 'waiter@spice-garden.demo', /\/padharosaa\/desk$/, '/padharosaa/desk');
+    await expect(page.getByText('Add to room receipt').first()).toBeVisible();
+    expect(await g.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  } finally {
+    await ctx.close();
+    await q(`update public.hotel_settings set pay_qr_path = null where restaurant_id = ${RID}`);
+  }
+});
