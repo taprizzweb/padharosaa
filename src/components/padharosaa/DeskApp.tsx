@@ -28,6 +28,7 @@ const PRESETS_BY_TYPE: Record<string, string[]> = {
   late_checkout: ['Late check-out is not possible for your room today', 'Late check-out is possible until an earlier time, we will call you', 'We will call you'],
   housekeeping: ['Already on the way', 'Housekeeping will come later, we will call you', 'We will call you'],
   help: ['Already on the way', 'We will call you'],
+  checkout: ['Please wait a little, we will call you', 'We will call you'],
 };
 const presetsFor = (type: string): string[] => PRESETS_BY_TYPE[type] ?? PRESETS;
 /** Water, electricity and AC problems are never turned down: the team fixes them, or passes them on. */

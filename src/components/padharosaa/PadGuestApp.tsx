@@ -36,7 +36,7 @@ interface ReqView {
   request: { id: string; label: string; status: string; dismissed_reason: string | null; created_at: string; accepted_at: string | null; completed_at: string | null; version: number; resolution: string | null; followup_asked: boolean };
   updates: { at: string; key: string; params: Record<string, string> | null }[];
 }
-type Screen = { s: 'home' } | { s: 'services' } | { s: 'stay' } | { s: 'help' } | { s: 'dining' } | { s: 'guide' } | { s: 'plan' } | { s: 'buffet' } | { s: 'track'; id: string };
+type Screen = { s: 'home' } | { s: 'services' } | { s: 'checkout' } | { s: 'stay' } | { s: 'help' } | { s: 'dining' } | { s: 'guide' } | { s: 'plan' } | { s: 'buffet' } | { s: 'track'; id: string };
 
 
 export function PadGuestApp({ slug, qrKey, imageBase }: { slug: string; qrKey: string | null; imageBase: string }) {
@@ -83,6 +83,7 @@ export function PadGuestApp({ slug, qrKey, imageBase }: { slug: string; qrKey: s
         {me && home && (
           <>
             {screen.s === 'home' && <HomeScreen me={me} home={home} c={c} closed={closed} dine={dine} planCount={planCount} go={setScreen} imageBase={imageBase} lang={lang} setLang={setLang} />}
+            {screen.s === 'checkout' && <Checkout c={c} closed={closed} onClosed={() => void loadHours()} back={() => setScreen({ s: 'home' })} done={(id) => { void loadHome(); setScreen({ s: 'track', id }); }} />}
             {screen.s === 'services' && <Services c={c} closed={closed} onClosed={() => void loadHours()} back={() => setScreen({ s: 'home' })} done={(id) => { void loadHome(); setScreen({ s: 'track', id }); }} />}
             {screen.s === 'guide' && <GuideScreen c={c} back={() => setScreen({ s: 'home' })} goPlan={() => setScreen({ s: 'plan' })} />}
             {screen.s === 'plan' && <PlanScreen c={c} back={() => setScreen({ s: 'home' })} goGuide={() => setScreen({ s: 'guide' })} />}
@@ -200,6 +201,7 @@ function HomeScreen({ me, home, c, closed, dine, planCount, go, imageBase, lang,
       <div className="relative z-10 grid grid-cols-2 gap-3 px-5 pt-3">
         <Tile big wide icon="dining" title={c.dining} sub={dine && !dine.room_dining ? c.diningSubTakeaway : c.diningSub} onClick={() => go({ s: 'dining' })} />
         <Tile icon="services" title={c.services} onClick={() => go({ s: 'services' })} />
+        <Tile icon="checkout" title={c.coTitle} onClick={() => go({ s: 'checkout' })} />
         <Tile icon="wifi" title={c.stay} onClick={() => go({ s: 'stay' })} />
         {b.set && <Tile icon="buffet" title={c.buffet} sub={buffetSub} onClick={() => go({ s: 'buffet' })} />}
         {planCount > 0 && <Tile icon="guide" title={c.planTile} sub={fill(c.planTileSub, { n: planCount })} onClick={() => go({ s: 'plan' })} />}
@@ -343,6 +345,50 @@ function Services({ c, closed, onClosed, back, done }: { c: Copy; closed: string
         <label className="block text-sm font-semibold">{c.detail}<textarea maxLength={300} rows={3} value={detail} onChange={(e) => setDetail(e.target.value)} className="mt-1 w-full rounded-xl border bg-white p-3 text-base text-stone-900" /></label>
         <ClosedBanner text={closed} />
         {err && !closed && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm font-medium text-red-900">{err === 'time' ? c.needTime : err === 'where' ? c.needWhere : c.failed}</p>}
+        <Btn onClick={() => void send()} disabled={busy || !!closed}>{busy ? c.sending : c.send}</Btn>
+      </div>
+    </main>
+  );
+}
+
+/** The guest tells reception when they leave, and whether they need luggage help or the bill. Reception checks the room out, which signs the guest out. */
+function Checkout({ c, closed, onClosed, back, done }: { c: Copy; closed: string | null; onClosed: () => void; back: () => void; done: (id: string) => void }) {
+  const [now, setNow] = useState(true);
+  const [when, setWhen] = useState('');
+  const [luggage, setLuggage] = useState(false);
+  const [bill, setBill] = useState(false);
+  const [note, setNote] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<null | 'failed' | 'time'>(null);
+  const send = async () => {
+    if (!now && !when) { setErr('time'); return; }
+    const lines = [now ? c.coWhenNow : fill(c.coWhenAt, { t: clock12(when) })];
+    if (luggage) lines.push(c.coLuggageTag);
+    if (bill) lines.push(c.coBillTag);
+    if (note.trim()) lines.push(note.trim());
+    setBusy(true); setErr(null);
+    const r = await api<{ id?: string; request_id?: string }>('requests', { method: 'POST', idem: true, body: JSON.stringify({ type: 'checkout', label: fill(c.coLabel, { when: lines[0]! }), detail: lines.slice(1).join(' · ').slice(0, 500) || undefined, urgent: false }) });
+    setBusy(false);
+    const id = r.ok ? (r.data.id ?? r.data.request_id) : null;
+    if (!r.ok && r.key === 'service_closed') onClosed();
+    if (id) done(id); else setErr('failed');
+  };
+  return (
+    <main className="flex-1 pb-4">
+      <Header c={c} back={back} title={c.coTitle} />
+      <div className="space-y-3 px-5">
+        <p className="text-sm font-semibold">{c.coSub}</p>
+        <fieldset className="space-y-1">
+          <label className="flex min-h-11 items-center gap-3"><input type="radio" name="co" checked={now} onChange={() => setNow(true)} className="h-5 w-5" />{c.coNow}</label>
+          <label className="flex min-h-11 items-center gap-3"><input type="radio" name="co" checked={!now} onChange={() => setNow(false)} className="h-5 w-5" />{c.coAt}</label>
+        </fieldset>
+        {!now && <TimePick label={c.coAt} value={when} onChange={setWhen} />}
+        <label className="flex min-h-11 items-center gap-3"><input type="checkbox" checked={luggage} onChange={(e) => setLuggage(e.target.checked)} className="h-5 w-5" />{c.coLuggage}</label>
+        <label className="flex min-h-11 items-center gap-3"><input type="checkbox" checked={bill} onChange={(e) => setBill(e.target.checked)} className="h-5 w-5" />{c.coBill}</label>
+        <label className="block text-sm font-semibold">{c.coNote}<textarea maxLength={300} rows={3} value={note} onChange={(e) => setNote(e.target.value)} className="mt-1 w-full rounded-xl border bg-white p-3 text-base text-stone-900" /></label>
+        <p className="text-sm" style={{ color: '#4a4f5a' }}>{c.coSent}</p>
+        <ClosedBanner text={closed} />
+        {err && !closed && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm font-medium text-red-900">{err === 'time' ? c.needTime : c.failed}</p>}
         <Btn onClick={() => void send()} disabled={busy || !!closed}>{busy ? c.sending : c.send}</Btn>
       </div>
     </main>

@@ -411,6 +411,16 @@ test('reception checks a room out and the guest is signed out at once', async ({
     await g.getByLabel('Room number').fill('204');
     await g.getByRole('button', { name: 'Enter' }).click();
     await expect(g.getByText('Namaste, Checkout')).toBeVisible();
+    // the guest tells reception when they leave, and asks for luggage help
+    await g.getByText('Check-out', { exact: true }).click();
+    await g.getByLabel('I will check out at', { exact: true }).check();
+    await g.getByLabel('I will check out at', { exact: true }).last().fill('11:30');
+    await g.getByLabel('Please send someone for my luggage').check();
+    await g.getByRole('button', { name: 'Send request' }).click();
+    await expect(g.getByRole('heading', { name: 'Sent' })).toBeVisible();
+    const co = (await q<{ label: string; detail: string }>(`select label, detail from public.requests where restaurant_id = ${RID} and type = 'checkout' order by created_at desc limit 1`))[0]!;
+    expect(co.label).toBe('Check-out request: At 11:30 AM');
+    expect(co.detail).toBe('Luggage help');
     await signIn(page, 'waiter@spice-garden.demo', /\/padharosaa\/desk$/, '/padharosaa/desk');
     await page.getByText(/^Check out a room/).click();
     page.once('dialog', (d) => void d.accept());
