@@ -214,7 +214,7 @@ export function GuestApp({
             {!showStatus && cart.count > 0 && (
               <button type="button" onClick={() => { setOrderError(null); setSheet('cart'); }} className="flex min-h-14 w-full items-center justify-between rounded-xl bg-accent px-4 text-white">
                 <span className="flex items-center gap-2 font-bold"><IconCart /> {t('cart.view')} · {cart.count === 1 ? t('cart.item') : t('cart.items', { n: cart.count })}</span>
-                <span className="text-lg font-extrabold">{formatPaise(cart.totalPaise)}</span>
+                <span className="text-right"><span className="block text-[10px] font-semibold leading-tight opacity-90">{t('cart.exGst')}</span><span className="text-lg font-extrabold">{formatPaise(cart.totalPaise)}</span></span>
               </button>
             )}
             {(waiterReq || billReq) && (

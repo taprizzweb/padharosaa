@@ -72,6 +72,7 @@ export const en = {
   'cart.kitchenNote': 'Note for the kitchen',
   'cart.kitchenNoteHint': 'e.g. less spicy',
   'cart.total': 'Total',
+  'cart.exGst': 'Excluding GST and charges',
   'cart.totalHint': 'Final amount is confirmed when you place the order.',
   'cart.place': 'Place order',
   'cart.placing': 'Placing your order…',

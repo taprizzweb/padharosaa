@@ -104,6 +104,7 @@ export function CartSheet({
           </label>
 
           <div>
+            <p className="text-xs font-semibold text-stone-700">{t('cart.exGst')}</p>
             <div className="flex items-baseline justify-between">
               <span className="text-lg font-bold">{t('cart.total')}</span>
               <span className="text-2xl font-extrabold">{formatPaise(cart.totalPaise)}</span>

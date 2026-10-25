@@ -144,7 +144,7 @@ function SessionCard({ s, role, nowMs, actions }: { s: BoardSession; role: Role;
           <p className="text-2xl font-extrabold leading-none">{tableName(s.table_label)}</p>
           <p className="mt-1 text-sm text-stone-700">Open {open} · {s.orders_count} {s.orders_count === 1 ? 'order' : 'orders'}</p>
         </div>
-        <p className="text-2xl font-extrabold tabular-nums">{formatPaise(s.total_paise)}</p>
+        <p className="text-right"><span className="block text-[11px] font-semibold text-stone-600">Excluding GST and charges</span><span className="text-2xl font-extrabold tabular-nums">{formatPaise(s.total_paise)}</span></p>
       </div>
       <div className="mt-2 flex flex-wrap gap-2 text-sm font-bold">
         {s.bill_requested_at && <span className="rounded-md bg-emerald-100 px-2 py-0.5 text-emerald-950">Bill requested{s.pay_mode ? ` · ${s.pay_mode.toUpperCase()}` : ''}</span>}
@@ -275,7 +275,7 @@ export function CloseDialog({ session, role, onClose, onConfirm, busy, error }: 
   return (
     <Sheet open onClose={() => { setReason(''); setMode(null); onClose(); }} title={title} closeLabel="Close">
       <div className="space-y-4">
-        <p className="text-3xl font-extrabold tabular-nums">{formatPaise(session.total_paise)}</p>
+        <p><span className="block text-xs font-semibold text-stone-700">Excluding GST and charges</span><span className="text-3xl font-extrabold tabular-nums">{formatPaise(session.total_paise)}</span></p>
         {force ? (
           <>
             <p className="text-stone-800">{opts.blockedReason}</p>

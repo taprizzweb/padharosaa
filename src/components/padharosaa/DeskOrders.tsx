@@ -103,7 +103,7 @@ export function TableCallDesk({ r, session, a }: { r: BoardRequest; session: Boa
         <span className="rounded-full bg-stone-100 px-3 py-1 text-sm font-bold">{mins(r.created_at)} min</span>
       </div>
       <p className="mt-1 text-base font-semibold">{bill ? 'Asked for the bill' : 'Asked for a waiter'}{bill && mode ? ` · pays by ${mode === 'upi' ? 'UPI' : mode}` : ''}</p>
-      {bill && session && <p className="text-sm text-stone-700">Total {formatPaise(session.total_paise)} · {session.orders_count} order(s){session.unserved_count ? ` · ${session.unserved_count} not served yet` : ''}</p>}
+      {bill && session && <p className="text-sm text-stone-700">Total {formatPaise(session.total_paise)} (excl. GST and charges) · {session.orders_count} order(s){session.unserved_count ? ` · ${session.unserved_count} not served yet` : ''}</p>}
       {r.reason && <p className="text-sm text-stone-700">For: {r.reason}</p>}
       <div className="mt-3 flex flex-wrap gap-2">
         {bill && session && session.unserved_count === 0 && (['cash', 'upi', 'card'] as const).map((m) => <button key={m} type="button" className={`${btn} ${mode === m ? 'bg-emerald-800 text-white' : 'border-2 border-emerald-800 text-emerald-950'}`} onClick={() => void a.paid(session, m)}>Paid by {m === 'upi' ? 'UPI' : m}</button>)}
