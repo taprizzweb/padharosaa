@@ -3,6 +3,7 @@ export const LANGS: { code: Lang; label: string }[] = [{ code: 'en', label: 'Eng
 const en = {
   alertsAsk: 'Get buffet alerts on this phone', alertsOn: 'Alerts are on. Tap to switch off.', alertsHint: 'We will tell you when the buffet is set. On iPhone, first add this page to your Home Screen.', alertsBlocked: 'Allowing notifications was blocked on this phone.',
   coTitle: 'Check-out', coSub: 'Tell us when you are leaving', coNow: 'I am checking out now', coAt: 'I will check out at', coLuggage: 'Please send someone for my luggage', coBill: 'Please keep my bill ready', coNote: 'Anything else for the front desk (optional)', coLabel: 'Check-out request: {when}', coWhenNow: 'Now', coWhenAt: 'At {t}', coLuggageTag: 'Luggage help', coBillTag: 'Bill ready', coSent: 'Reception has your message. When you are checked out, this page signs out by itself.',
+  ackYes: 'Thank you. Glad it is sorted.', ackNo: 'Sorry about that. We have told the manager and someone will come back to you. You can also call reception.',
   hello: 'Namaste, {name}', room: 'Room {room} · What would you like?',
   dining: 'Dining', diningSub: 'Order to your room or collect', services: 'Services', stay: 'Stay & Wi-Fi', buffet: "Today's buffet",
   help: 'Help / problem', helpSub: 'Something not working? Tell us here', call: 'Call reception', back: 'Back', home: 'Back to home',
@@ -30,6 +31,7 @@ const en = {
 const hi: typeof en = {
   alertsAsk: 'इस फ़ोन पर बुफ़े की सूचना पाएँ', alertsOn: 'सूचनाएँ चालू हैं। बंद करने के लिए दबाएँ।', alertsHint: 'बुफ़े तय होते ही हम बताएँगे। iPhone पर पहले इस पेज को Home Screen में जोड़ें।', alertsBlocked: 'इस फ़ोन पर सूचना की अनुमति बंद है।',
   coTitle: 'चेक-आउट', coSub: 'बताइए आप कब निकल रहे हैं', coNow: 'मैं अभी चेक-आउट कर रहा/रही हूँ', coAt: 'मैं इस समय चेक-आउट करूँगा/करूँगी', coLuggage: 'कृपया सामान के लिए किसी को भेजें', coBill: 'कृपया मेरा बिल तैयार रखें', coNote: 'फ़्रंट डेस्क के लिए कुछ और (वैकल्पिक)', coLabel: 'चेक-आउट अनुरोध: {when}', coWhenNow: 'अभी', coWhenAt: '{t} बजे', coLuggageTag: 'सामान में मदद', coBillTag: 'बिल तैयार', coSent: 'रिसेप्शन को आपका संदेश मिल गया है। चेक-आउट होते ही यह पेज अपने आप साइन-आउट हो जाएगा।',
+  ackYes: 'धन्यवाद। अच्छा लगा कि समस्या सुलझ गई।', ackNo: 'माफ़ कीजिए। हमने मैनेजर को बता दिया है, कोई आपके पास दोबारा आएगा। आप रिसेप्शन को कॉल भी कर सकते हैं।',
   hello: 'नमस्ते, {name}', room: 'कमरा {room} · आप क्या चाहेंगे?',
   dining: 'भोजन', diningSub: 'कमरे में मँगाएँ या खुद लें', services: 'सेवाएँ', stay: 'ठहराव और Wi-Fi', buffet: 'आज का बुफे',
   help: 'मदद / समस्या', helpSub: 'कुछ ठीक नहीं? यहाँ बताएँ', call: 'रिसेप्शन को कॉल करें', back: 'वापस', home: 'होम पर जाएँ',
@@ -57,6 +59,7 @@ const hi: typeof en = {
 const fr: typeof en = {
   alertsAsk: 'Recevoir l\'alerte buffet sur ce téléphone', alertsOn: 'Alertes activées. Touchez pour désactiver.', alertsHint: 'Nous vous prévenons dès que le buffet est prêt. Sur iPhone, ajoutez d\'abord cette page à l\'écran d\'accueil.', alertsBlocked: 'Les notifications sont bloquées sur ce téléphone.',
   coTitle: 'Départ', coSub: 'Dites-nous quand vous partez', coNow: 'Je pars maintenant', coAt: 'Je partirai à', coLuggage: 'Merci d\'envoyer quelqu\'un pour mes bagages', coBill: 'Merci de préparer ma facture', coNote: 'Autre chose pour la réception (facultatif)', coLabel: 'Demande de départ : {when}', coWhenNow: 'Maintenant', coWhenAt: 'À {t}', coLuggageTag: 'Aide bagages', coBillTag: 'Facture prête', coSent: 'La réception a votre message. Une fois votre départ enregistré, cette page se déconnecte toute seule.',
+  ackYes: 'Merci. Ravi que ce soit réglé.', ackNo: 'Désolé. Nous avons prévenu le responsable et quelqu\'un reviendra vers vous. Vous pouvez aussi appeler la réception.',
   hello: 'Bonjour, {name}', room: 'Chambre {room} · Que souhaitez-vous ?',
   dining: 'Restauration', diningSub: 'Commandez dans votre chambre ou à emporter', services: 'Services', stay: 'Séjour et Wi-Fi', buffet: 'Buffet du jour',
   help: 'Aide / problème', helpSub: 'Quelque chose ne marche pas ? Dites-le-nous ici', call: 'Appeler la réception', back: 'Retour', home: "Retour à l'accueil",
@@ -84,6 +87,7 @@ const fr: typeof en = {
 const es: typeof en = {
   alertsAsk: 'Recibir avisos del buffet en este teléfono', alertsOn: 'Avisos activados. Toque para desactivar.', alertsHint: 'Le avisaremos cuando el buffet esté listo. En iPhone, primero añada esta página a la pantalla de inicio.', alertsBlocked: 'Las notificaciones están bloqueadas en este teléfono.',
   coTitle: 'Salida', coSub: 'Díganos cuándo se va', coNow: 'Salgo ahora', coAt: 'Saldré a las', coLuggage: 'Por favor, envíen a alguien por mi equipaje', coBill: 'Por favor, tengan lista mi cuenta', coNote: 'Algo más para recepción (opcional)', coLabel: 'Solicitud de salida: {when}', coWhenNow: 'Ahora', coWhenAt: 'A las {t}', coLuggageTag: 'Ayuda con el equipaje', coBillTag: 'Cuenta lista', coSent: 'Recepción tiene su mensaje. Al registrar su salida, esta página se cierra sola.',
+  ackYes: 'Gracias. Nos alegra que esté resuelto.', ackNo: 'Lo sentimos. Avisamos al gerente y alguien volverá con usted. También puede llamar a recepción.',
   hello: 'Hola, {name}', room: 'Habitación {room} · ¿Qué desea?',
   dining: 'Restaurante', diningSub: 'Pida a su habitación o recoja', services: 'Servicios', stay: 'Estancia y Wi-Fi', buffet: 'Buffet de hoy',
   help: 'Ayuda / problema', helpSub: '¿Algo no funciona? Cuéntenoslo aquí', call: 'Llamar a recepción', back: 'Atrás', home: 'Volver al inicio',
@@ -111,6 +115,7 @@ const es: typeof en = {
 const de: typeof en = {
   alertsAsk: 'Buffet-Hinweise auf diesem Handy erhalten', alertsOn: 'Hinweise sind an. Zum Ausschalten tippen.', alertsHint: 'Wir melden uns, sobald das Buffet feststeht. Auf dem iPhone zuerst diese Seite zum Home-Bildschirm hinzufügen.', alertsBlocked: 'Benachrichtigungen sind auf diesem Handy blockiert.',
   coTitle: 'Check-out', coSub: 'Sagen Sie uns, wann Sie abreisen', coNow: 'Ich checke jetzt aus', coAt: 'Ich checke aus um', coLuggage: 'Bitte schicken Sie jemanden für mein Gepäck', coBill: 'Bitte halten Sie meine Rechnung bereit', coNote: 'Sonst noch etwas für die Rezeption (optional)', coLabel: 'Check-out-Anfrage: {when}', coWhenNow: 'Jetzt', coWhenAt: 'Um {t}', coLuggageTag: 'Gepäckhilfe', coBillTag: 'Rechnung bereit', coSent: 'Die Rezeption hat Ihre Nachricht. Nach dem Check-out meldet sich diese Seite von selbst ab.',
+  ackYes: 'Danke. Schön, dass es erledigt ist.', ackNo: 'Das tut uns leid. Wir haben den Manager informiert, jemand kommt auf Sie zu. Sie können auch die Rezeption anrufen.',
   hello: 'Hallo, {name}', room: 'Zimmer {room} · Was möchten Sie?',
   dining: 'Restaurant', diningSub: 'Aufs Zimmer bestellen oder abholen', services: 'Services', stay: 'Aufenthalt & WLAN', buffet: 'Buffet heute',
   help: 'Hilfe / Problem', helpSub: 'Funktioniert etwas nicht? Sagen Sie es uns hier', call: 'Rezeption anrufen', back: 'Zurück', home: 'Zur Startseite',

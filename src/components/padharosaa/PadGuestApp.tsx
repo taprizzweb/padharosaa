@@ -446,7 +446,8 @@ function Track({ id, c, back, links, phone, retry }: { id: string; c: Copy; back
   const headline = !q ? '…' : declined ? c.declined : cancelled ? c.cancelled : finished ? c.done : q.accepted_at ? c.accepted : c.sent;
   // a request the team could not take ends there: no "Done" step is left waiting
   const steps = declined ? [{ k: c.sent, at: q?.created_at ?? null, on: true }, { k: c.declined, at: null, on: true }] : [{ k: c.sent, at: q?.created_at ?? null, on: true }, { k: c.accepted, at: q?.accepted_at ?? null, on: !!q?.accepted_at }, { k: c.done, at: q?.completed_at ?? null, on: finished }];
-  const confirm = async (ok: boolean) => { await api(`requests/${id}/confirm`, { method: 'POST', body: JSON.stringify({ ok }) }); await load(); };
+  const [answered, setAnswered] = useState<null | 'ok' | 'no'>(null);
+  const confirm = async (ok: boolean) => { const r = await api(`requests/${id}/confirm`, { method: 'POST', body: JSON.stringify({ ok }) }); if (r.ok) setAnswered(ok ? 'ok' : 'no'); await load(); };
   const cancel = async () => { await api(`requests/${id}/cancel`, { method: 'POST', body: '{}' }); await load(); };
   return (
     <main className="flex-1 pb-4">
@@ -471,6 +472,12 @@ function Track({ id, c, back, links, phone, retry }: { id: string; c: Copy; back
       {finished && q?.resolution && !q.followup_asked && (
         <section className="mx-5 mt-3 rounded-2xl bg-white p-4 text-stone-900 shadow-sm"><p className="mb-3 font-bold">{c.ok}</p>
           <div className="grid grid-cols-2 gap-2"><Btn onClick={() => void confirm(true)}>{c.yes}</Btn><Btn kind="soft" onClick={() => void confirm(false)}>{c.no}</Btn></div></section>
+      )}
+      {answered && (
+        <section role="status" data-testid="followup-ack" className="mx-5 mt-3 space-y-2 rounded-2xl bg-white p-4 text-stone-900 shadow-sm">
+          <p className="font-bold">{answered === 'ok' ? c.ackYes : c.ackNo}</p>
+          {answered === 'no' && phone && <a href={telHref(phone)} className="flex min-h-12 items-center justify-center rounded-2xl border-2 text-base font-bold" style={{ borderColor: '#1F6B3E', color: '#1F6B3E', background: '#E2F1E7' }}>{c.call}</a>}
+        </section>
       )}
       {finished && !q?.resolution && <Rate id={id} c={c} links={links} />}
       {q?.status === 'received' && <div className="mx-5 mt-4"><Btn kind="soft" onClick={() => void cancel()}>{c.cancel}</Btn></div>}

@@ -435,6 +435,60 @@ test('reception checks a room out and the guest is signed out at once', async ({
   }
 });
 
+test('reception hands a request to a person; it lands on that person\'s own display with "Assigned to me" and "Only mine"; routing sends the next one straight there; Done today lists finished ones', async ({ page, browser }) => {
+  await q(`insert into public.rooms (restaurant_id, number) values (${RID}, '204') on conflict do nothing`);
+  const mgrName = (await q<{ n: string }>(`select s.display_name n from public.staff s join auth.users u on u.id = s.user_id where u.email = 'manager@spice-garden.demo'`))[0]!.n;
+  const mgrId = (await q<{ id: string }>(`select s.user_id id from public.staff s join auth.users u on u.id = s.user_id where u.email = 'manager@spice-garden.demo'`))[0]!.id;
+  const gctx = await browser.newContext({ viewport: { width: 375, height: 800 } });
+  const mctx = await browser.newContext();
+  const g = await gctx.newPage();
+  const m = await mctx.newPage();
+  try {
+    await g.goto(second);
+    await g.getByLabel('Your name').fill('Assign Guest');
+    await g.getByRole('button', { name: 'Accept cookies' }).click();
+    await g.getByLabel('Mobile number').fill('9866666666');
+    await g.getByLabel('Room number').fill('204');
+    await g.getByRole('button', { name: 'Enter' }).click();
+    await expect(g.getByText('Namaste, Assign')).toBeVisible();
+    await g.getByText('Services', { exact: true }).click();
+    await g.getByLabel('Extra pillows').check();
+    await g.getByRole('button', { name: 'Send request' }).click();
+    await expect(g.getByRole('heading', { name: 'Sent' })).toBeVisible();
+    // reception hands it to the manager
+    await signIn(page, 'waiter@spice-garden.demo', /\/padharosaa\/desk$/, '/padharosaa/desk');
+    const card = page.locator('li', { hasText: 'Housekeeping: Extra pillows' }).first();
+    await card.getByRole('button', { name: 'Assign to…' }).click();
+    await card.getByRole('button', { name: new RegExp(`^${mgrName}`) }).click();
+    await expect(card.getByText(`Assigned to ${mgrName}`)).toBeVisible();
+    expect((await q<{ a: string }>(`select assigned_to::text a from public.requests where restaurant_id = ${RID} and label = 'Housekeeping: Extra pillows' order by created_at desc limit 1`))[0]!.a).toBe(mgrId);
+    // the manager sees it as theirs
+    await signIn(m, 'manager@spice-garden.demo', /\/padharosaa\/desk$/, '/padharosaa/desk');
+    const mine = m.locator('li', { hasText: 'Housekeeping: Extra pillows' }).first();
+    await expect(mine.getByText('Assigned to me')).toBeVisible();
+    await m.getByRole('button', { name: /^Only mine/ }).click();
+    await expect(mine).toBeVisible();
+    // finish it: it moves to "Done today"
+    await mine.getByRole('button', { name: 'Accept' }).click();
+    await mine.getByRole('button', { name: 'Mark done' }).click();
+    await m.getByTestId('done-today').locator('summary').click();
+    await expect(m.getByTestId('done-today')).toContainText('Housekeeping: Extra pillows');
+    // routing: housekeeping goes straight to the manager from now on
+    await q(`insert into public.request_routing (restaurant_id, team, user_id) values (${RID}, 'housekeeping', '${mgrId}') on conflict (restaurant_id, team) do update set user_id = excluded.user_id`);
+    await g.getByRole('button', { name: 'Back to home' }).click().catch(() => undefined);
+    await g.goto(second);
+    await g.getByText('Services', { exact: true }).click();
+    await g.getByLabel('Extra towels').check();
+    await g.getByRole('button', { name: 'Send request' }).click();
+    await expect(g.getByRole('heading', { name: 'Sent' })).toBeVisible();
+    expect((await q<{ a: string }>(`select assigned_to::text a from public.requests where restaurant_id = ${RID} and label = 'Housekeeping: Extra towels' order by created_at desc limit 1`))[0]!.a).toBe(mgrId);
+  } finally {
+    await q(`delete from public.request_routing where restaurant_id = ${RID}`);
+    await gctx.close();
+    await mctx.close();
+  }
+});
+
 test('guest services ask for what the team needs; a declined request is not left hanging; AC problems cannot be declined; French works', async ({ page, browser }) => {
   await q(`insert into public.rooms (restaurant_id, number) values (${RID}, '204') on conflict do nothing`);
   await q(`update public.hotel_settings set reception_phone = '9828114008' where restaurant_id = ${RID}`);

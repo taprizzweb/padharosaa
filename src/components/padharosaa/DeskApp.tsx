@@ -14,8 +14,9 @@ import type { BoardOrder, BoardRequest, BoardSession } from '@/lib/staff/logic';
 type Team = 'concierge' | 'front_desk' | 'housekeeping' | 'kitchen' | 'maintenance' | 'manager';
 interface Req {
   id: string; type: string; team: Team; label: string; detail: string | null; urgent: boolean; status: string; handover: string | null; version: number;
-  created_at: string; accepted_at: string | null; room: string; guest_name: string; diet: string | null; occasion: string | null; mobile: string | null; guests_in_room: number;
+  created_at: string; accepted_at: string | null; completed_at?: string | null; assigned_to?: string | null; assigned_name?: string | null; room: string; guest_name: string; diet: string | null; occasion: string | null; mobile: string | null; guests_in_room: number;
 }
+interface Person { user_id: string; name: string; role: string; department: string | null }
 interface Alerts { room_dining: boolean; kitchen_display?: boolean; muted: Team[]; teams: Team[] }
 const TEAM_NAME: Record<Team, string> = { concierge: 'Concierge', front_desk: 'Front desk', housekeeping: 'Housekeeping', kitchen: 'Kitchen', maintenance: 'Maintenance', manager: 'Manager' };
 const PRESETS = ['Not available right now', 'We do not offer this', 'Already on the way', 'Fully booked, please choose another time', 'We will call you'];
@@ -43,6 +44,9 @@ export function DeskApp({ role, hotel, title = 'Reception desk', current = 'desk
   const privileged = role === 'owner' || role === 'manager';
   const [group, setGroup] = useState<Group>(start);
   const [reqs, setReqs] = useState<Req[] | null>(null);
+  const [me, setMe] = useState<string | null>(null);
+  const [mineOnly, setMineOnly] = useState(false);
+  const [people, setPeople] = useState<Person[]>([]);
   const [orders, setOrders] = useState<BoardOrder[]>([]);
   const [calls, setCalls] = useState<BoardRequest[]>([]);
   const [sessions, setSessions] = useState<BoardSession[]>([]);
@@ -61,8 +65,8 @@ export function DeskApp({ role, hotel, title = 'Reception desk', current = 'desk
 
   const load = useCallback(async () => {
     try {
-      const [b, a, ob] = await Promise.all([apiGet<{ requests: Req[] }>('/api/padharosaa/v1/staff/board'), apiGet<Alerts>('/api/padharosaa/v1/staff/alerts'), apiGet<{ orders: BoardOrder[]; requests?: BoardRequest[]; sessions?: BoardSession[]; room_dining?: boolean }>('/api/staff/board').catch(() => null)]);
-      setReqs(b.requests); setAlerts(a); setErr(null);
+      const [b, a, ob] = await Promise.all([apiGet<{ requests: Req[]; me?: string }>('/api/padharosaa/v1/staff/board'), apiGet<Alerts>('/api/padharosaa/v1/staff/alerts'), apiGet<{ orders: BoardOrder[]; requests?: BoardRequest[]; sessions?: BoardSession[]; room_dining?: boolean }>('/api/staff/board').catch(() => null)]);
+      setReqs(b.requests); setMe(b.me ?? null); setAlerts(a); setErr(null);
       if (ob) { setOrders(ob.orders ?? []); setCalls(ob.requests ?? []); setSessions(ob.sessions ?? []); setOrderRoomDining(ob.room_dining !== false); }
     } catch (e) {
       if (e instanceof ApiFailure && e.status === 401) window.location.assign('/login?next=/padharosaa/desk');
@@ -73,7 +77,13 @@ export function DeskApp({ role, hotel, title = 'Reception desk', current = 'desk
   useEffect(() => { void load(); const i = setInterval(() => { if (!document.hidden) void load(); tick((n) => n + 1); }, 4000); return () => clearInterval(i); }, [load]);
 
   const muted = useMemo(() => new Set(alerts?.muted ?? []), [alerts]);
-  const allOpen = useMemo(() => (reqs ?? []).filter((r) => OPEN.includes(r.status)), [reqs]);
+  // reception, concierge, manager and owner hand requests to a person; the list of people is fetched once and refreshed when it is opened
+  const canAssign = privileged || !!alerts?.teams.includes('front_desk') || !!alerts?.teams.includes('concierge');
+  const loadPeople = useCallback(async () => { try { setPeople((await apiGet<{ people: Person[] }>('/api/padharosaa/v1/staff/assignees')).people); } catch { setPeople([]); } }, []);
+  useEffect(() => { if (canAssign) void loadPeople(); }, [canAssign, loadPeople]);
+  const allOpen = useMemo(() => (reqs ?? []).filter((r) => OPEN.includes(r.status) && (!mineOnly || r.assigned_to === me)), [reqs, mineOnly, me]);
+  const doneToday = useMemo(() => (reqs ?? []).filter((r) => !OPEN.includes(r.status)).sort((a, b) => Date.parse(b.completed_at ?? b.created_at) - Date.parse(a.completed_at ?? a.created_at)), [reqs]);
+  const mineCount = useMemo(() => (reqs ?? []).filter((r) => OPEN.includes(r.status) && r.assigned_to === me).length, [reqs, me]);
   const open = useMemo(() => { const t = privileged ? GROUP_TEAMS[group] : null; return t ? allOpen.filter((r) => t.includes(r.team)) : allOpen; }, [allOpen, group, privileged]);
   const pending = allOpen.filter((r) => r.status === 'received' && !muted.has(r.team));
 
@@ -146,6 +156,9 @@ export function DeskApp({ role, hotel, title = 'Reception desk', current = 'desk
           })}
         </div>
       )}
+      {(mineCount > 0 || mineOnly) && (
+        <div className="mt-3"><button type="button" aria-pressed={mineOnly} onClick={() => setMineOnly(!mineOnly)} className={`min-h-11 rounded-full border-2 px-4 text-sm font-bold ${mineOnly ? 'border-violet-900 bg-violet-900 text-white' : 'border-violet-900 text-violet-950'}`}>Only mine ({mineCount})</button></div>
+      )}
       <CheckoutPanel flash={flash} />
       {alerts && (
         <section aria-label="My alerts" className="mt-3 rounded-2xl bg-white p-3 shadow-sm">
@@ -166,7 +179,7 @@ export function DeskApp({ role, hotel, title = 'Reception desk', current = 'desk
         const orderGroup = privileged ? GROUP_TEAMS[group] : null;
         const shownOrders = orderGroup && group !== 'kitchen' ? [] : orders;
         const items = [
-          ...open.map((r) => ({ key: `r${r.id}`, urgent: r.urgent, at: r.created_at, node: <Card key={`r${r.id}`} r={r} role={role} roomDining={alerts?.room_dining ?? true} muted={muted.has(r.team)} act={act} /> })),
+          ...open.map((r) => ({ key: `r${r.id}`, urgent: r.urgent, at: r.created_at, node: <Card key={`r${r.id}`} r={r} role={role} me={me} people={canAssign ? people : null} refreshPeople={loadPeople} roomDining={alerts?.room_dining ?? true} muted={muted.has(r.team)} act={act} /> })),
           ...(orderGroup && group !== 'all' && group !== 'reception' ? [] : calls).map((c) => ({ key: `c${c.id}`, urgent: false, at: c.created_at, node: <TableCallDesk key={`c${c.id}`} r={c} session={sessions.find((x) => x.id === c.session_id)} a={callActions} /> })),
           ...shownOrders.map((o) => ({ key: `o${o.id}`, urgent: false, at: o.created_at, node: <OrderCardDesk key={`o${o.id}`} o={o} role={role} roomDining={orderRoomDining} a={orderActions} /> })),
         ].sort((x, y) => Number(y.urgent) - Number(x.urgent) || new Date(x.at).getTime() - new Date(y.at).getTime());
@@ -178,6 +191,17 @@ export function DeskApp({ role, hotel, title = 'Reception desk', current = 'desk
           </>
         );
       })()}
+      {doneToday.length > 0 && (
+        <details className="mt-6 rounded-2xl bg-white p-3 shadow-sm" data-testid="done-today">
+          <summary className="min-h-11 cursor-pointer py-2 text-base font-extrabold">Done today <span className="text-sm font-semibold text-stone-700">({doneToday.length}, last 12 hours)</span></summary>
+          <ul className="mt-1 divide-y divide-stone-200">
+            {doneToday.map((r) => (
+              <li key={r.id} className="py-2 text-sm"><b>Room {r.room}</b> · {r.label}
+                <span className="ml-1 text-stone-700">· {r.status === 'completed' ? 'done' : r.status === 'dismissed' ? 'declined' : r.status}{r.assigned_name ? ` · ${r.assigned_name}` : ''} · {new Date(r.completed_at ?? r.created_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</span></li>
+            ))}
+          </ul>
+        </details>
+      )}
       {(privileged || alerts?.teams.includes('front_desk') || alerts?.teams.includes('concierge')) && (
         <details className="mt-6 rounded-2xl bg-white p-3 shadow-sm">
           <summary className="min-h-11 cursor-pointer py-2 text-base font-extrabold">Buffet: set today and the coming days</summary>
@@ -188,8 +212,8 @@ export function DeskApp({ role, hotel, title = 'Reception desk', current = 'desk
   );
 }
 
-function Card({ r, role, roomDining, muted, act }: { r: Req; role: string; roomDining: boolean; muted: boolean; act: (r: Req, a: string, b?: Record<string, unknown>) => Promise<void> }) {
-  const [mode, setMode] = useState<null | 'decline' | 'pass' | 'resolve'>(null);
+function Card({ r, role, me, people, refreshPeople, roomDining, muted, act }: { r: Req; role: string; me: string | null; people: Person[] | null; refreshPeople: () => Promise<void>; roomDining: boolean; muted: boolean; act: (r: Req, a: string, b?: Record<string, unknown>) => Promise<void> }) {
+  const [mode, setMode] = useState<null | 'decline' | 'pass' | 'resolve' | 'assign'>(null);
   const [reason, setReason] = useState('');
   const age = mins(r.created_at);
   const urgentCls = r.urgent ? 'border-red-700' : r.status === 'received' ? 'border-amber-600' : 'border-stone-300';
@@ -205,6 +229,7 @@ function Card({ r, role, roomDining, muted, act }: { r: Req; role: string; roomD
         <span className="rounded-full bg-stone-200 px-2 py-1">{TEAM_NAME[r.team]}</span>
         {r.diet && <span className="rounded-full bg-emerald-100 px-2 py-1 text-emerald-950">{r.diet.replace('_', ' ')}</span>}
         {r.occasion && <span className="rounded-full bg-amber-100 px-2 py-1 text-amber-950">{r.occasion}</span>}
+        {r.assigned_to && <span className={`rounded-full px-2 py-1 ${r.assigned_to === me ? 'bg-violet-800 text-white' : 'bg-violet-100 text-violet-950'}`}>{r.assigned_to === me ? 'Assigned to me' : `Assigned to ${r.assigned_name ?? 'someone'}`}</span>}
         {muted && <span className="rounded-full bg-stone-100 px-2 py-1 text-stone-700">alerts muted for me</span>}
         {r.handover && <span className="rounded-full bg-sky-100 px-2 py-1 text-sky-950">{r.handover === 'deliver' ? 'Room delivery' : 'Takeaway'}</span>}
       </div>
@@ -220,6 +245,7 @@ function Card({ r, role, roomDining, muted, act }: { r: Req; role: string; roomD
         {r.status === 'received' && <button type="button" className={`${btn} bg-emerald-800 text-white`} onClick={() => void act(r, 'accept')}>Accept</button>}
         {r.status !== 'received' && r.type !== 'help' && <button type="button" className={`${btn} bg-emerald-800 text-white`} onClick={() => void act(r, 'complete')}>Mark done</button>}
         {r.type === 'help' && <button type="button" className={`${btn} bg-emerald-800 text-white`} onClick={() => setMode(mode === 'resolve' ? null : 'resolve')}>Resolved…</button>}
+        {people && r.type !== 'food' && <button type="button" className={`${btn} border-2 border-violet-900 text-violet-950`} onClick={() => { setMode(mode === 'assign' ? null : 'assign'); void refreshPeople(); }}>{r.assigned_to ? 'Change person…' : 'Assign to…'}</button>}
         {role !== 'kitchen' && r.type !== 'food' && <button type="button" className={`${btn} border-2 border-stone-700`} onClick={() => setMode(mode === 'pass' ? null : 'pass')}>Pass to team</button>}
         {r.status !== 'preparing' && r.status !== 'ready' && !mustFix(r) && <button type="button" className={`${btn} border-2 border-red-800 text-red-900`} onClick={() => setMode(mode === 'decline' ? null : 'decline')}>Decline…</button>}
       </div>
@@ -231,6 +257,15 @@ function Card({ r, role, roomDining, muted, act }: { r: Req; role: string; roomD
           <div className="flex flex-wrap gap-2">{presetsFor(r.type).map((p) => <button key={p} type="button" className="min-h-11 rounded-full bg-stone-100 px-3 text-sm font-semibold" onClick={() => setReason(p)}>{p}</button>)}</div>
           <button type="submit" disabled={reason.trim().length < 3} className={`${btn} bg-red-800 text-white disabled:opacity-50`}>Send to guest</button>
         </form>
+      )}
+      {mode === 'assign' && people && (
+        <div className="mt-3" role="group" aria-label="Assign to a person">
+          <div className="flex flex-wrap gap-2">
+            {people.map((p) => <button key={p.user_id} type="button" aria-pressed={r.assigned_to === p.user_id} className={`${btn} ${r.assigned_to === p.user_id ? 'bg-violet-900 text-white' : 'bg-stone-100'}`} onClick={() => void act(r, 'assign', { user: p.user_id })}>{p.name}{p.department ? ` · ${TEAM_NAME[p.department as Team] ?? p.department}` : ''}</button>)}
+            {r.assigned_to && <button type="button" className={`${btn} border-2 border-stone-700`} onClick={() => void act(r, 'assign', { user: null })}>Back to the team</button>}
+          </div>
+          {people.length === 0 && <p className="mt-2 text-sm text-stone-700">No team members yet. The owner or manager adds them in Manage → Team.</p>}
+        </div>
       )}
       {mode === 'pass' && <div className="mt-3 flex flex-wrap gap-2">{(Object.keys(TEAM_NAME) as Team[]).filter((t) => t !== r.team).map((t) => <button key={t} type="button" className={`${btn} bg-stone-100`} onClick={() => void act(r, 'pass', { team: t })}>{TEAM_NAME[t]}</button>)}</div>}
       {mode === 'resolve' && <div className="mt-3 flex flex-wrap gap-2">{OUTCOMES.map(([k, l]) => <button key={k} type="button" className={`${btn} bg-stone-100`} onClick={() => void act(r, 'resolve', { outcome: k })}>{l}</button>)}</div>}

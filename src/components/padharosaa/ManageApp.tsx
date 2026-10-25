@@ -77,6 +77,7 @@ export function ManageApp({ role, restaurant, supabase }: { role: string; restau
       <BuffetManager flash={flash} />
       <GuideManager flash={flash} />
       <TeamCard canImport={role === 'owner'} flash={flash} />
+      <RoutingCard flash={flash} />
     </div>
   );
 }
@@ -133,6 +134,36 @@ function AutoBillCard({ s, save }: { s: Settings; save: Save }) {
   return (
     <Card title="Bill room orders to the room automatically" hint="When this is on, every food order from a room is added to that room's receipt as soon as it is placed. The guest is not asked, and can still choose Pay now on the order screen if you have a payment QR. Amounts are shown without GST and service charges.">
       <label className="flex min-h-11 items-center gap-3 text-base font-semibold"><input type="checkbox" className="size-5" checked={!!s.auto_room_bill} onChange={(e) => void save('auto-bill', { on: e.target.checked }, e.target.checked ? 'Room orders are now billed to the room automatically.' : 'Guests will be asked how to pay.')} />Bill to the room automatically</label>
+    </Card>
+  );
+}
+
+/** Who gets each team's requests straight on their own display, without reception handing them over. */
+function RoutingCard({ flash }: { flash: (ok: boolean, text: string) => void }) {
+  const [people, setPeople] = useState<{ user_id: string; name: string; department: string | null }[]>([]);
+  const [routing, setRouting] = useState<Record<string, string>>({});
+  const load = useCallback(async () => {
+    try {
+      const [p, r] = await Promise.all([apiGet<{ people: typeof people }>('/api/padharosaa/v1/staff/assignees'), apiGet<{ routing: Record<string, string> }>('/api/padharosaa/v1/staff/routing')]);
+      setPeople(p.people); setRouting(r.routing);
+    } catch { /* the card simply stays empty */ }
+  }, []);
+  useEffect(() => { void load(); }, [load]);
+  const set = async (team: Team, user: string) => {
+    try { await apiPost('/api/padharosaa/v1/staff/routing', { team, user: user || null }); flash(true, user ? 'Saved. New requests of this team now go straight to that person.' : 'Saved. This team shares its requests again.'); await load(); } catch { flash(false, 'That could not be saved. Please try again.'); }
+  };
+  return (
+    <Card title="Who gets which requests" hint="Choose a person for a team and every new request of that team appears directly on that person's own screen (reception, manager and owner still see it and can hand it to someone else). Leave it empty and the whole team shares the requests.">
+      <div className="space-y-2">
+        {TEAMS.map(([t, name]) => (
+          <label key={t} className="block text-sm font-semibold">{name}
+            <select value={routing[t] ?? ''} onChange={(e) => void set(t, e.target.value)} className="mt-1 min-h-11 w-full rounded-xl border-2 border-stone-300 bg-white px-3 text-base text-stone-900">
+              <option value="">Everyone in the team</option>
+              {people.map((p) => <option key={p.user_id} value={p.user_id}>{p.name}{p.department ? ` · ${p.department.replace('_', ' ')}` : ''}</option>)}
+            </select>
+          </label>
+        ))}
+      </div>
     </Card>
   );
 }
