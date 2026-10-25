@@ -175,6 +175,14 @@ test('reception can set the buffet from the desk', async ({ page }) => {
   await page.getByRole('button', { name: 'Save', exact: true }).click();
   await expect(page.getByText('Buffet saved.')).toBeVisible();
   expect((await q<{ n: number }>(`select count(*)::int n from public.buffets where restaurant_id = ${RID} and name = 'Rajasthani thali night'`))[0]!.n).toBe(1);
+  // the desk also chooses when guests' phones are told: on save, and a daily reminder time
+  const card = page.getByTestId('buffet-notify');
+  await card.getByLabel('Remind everyone every day at').fill('18:30');
+  await card.getByRole('button', { name: 'Save time' }).click();
+  await expect(page.getByText('Alert settings saved.')).toBeVisible();
+  expect((await q<{ t: string }>(`select to_char(buffet_notify_time, 'HH24:MI') t from public.hotel_settings where restaurant_id = ${RID}`))[0]!.t).toBe('18:30');
+  await card.getByLabel('Send when today\'s buffet is saved').uncheck();
+  await expect.poll(async () => (await q<{ b: boolean }>(`select buffet_notify_on_save b from public.hotel_settings where restaurant_id = ${RID}`))[0]!.b).toBe(false);
 });
 
 test('every guest is told about today\'s buffet on the home screen, with a New mark until they look', async ({ browser }) => {

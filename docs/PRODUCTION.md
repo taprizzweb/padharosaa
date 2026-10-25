@@ -14,6 +14,7 @@ What is built, what must be switched on, and what is still open. Read top to bot
 |---|---|---|
 | `PADHAROSAA_DATA_KEY` | every Padharosaa hotel (mobile numbers, Wi-Fi password) | `openssl rand -base64 32`. **Keep a copy in a password manager: losing it makes stored numbers unreadable.** |
 | `CRON_SECRET` | the alert worker | `openssl rand -base64 32` |
+| `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` | buffet alerts on guests' phones | `npx web-push generate-vapid-keys`; subject is `mailto:you@yourdomain` |
 | `WHATSAPP_TOKEN`, `WHATSAPP_PHONE_ID` | WhatsApp alerts to department heads | Meta WhatsApp Business Cloud API (permanent token, phone number id) |
 | `WHATSAPP_HELP_TEMPLATE`, `WHATSAPP_TEMPLATE_LANG` | template name / language | default `padharosaa_help_alert`, `en` |
 The existing menu-app variables are unchanged. Menu Lite (cafes) needs none of the new ones.
@@ -21,7 +22,7 @@ The existing menu-app variables are unchanged. Menu Lite (cafes) needs none of t
 ## 3. WhatsApp alerts
 - Create a **Utility** template named `padharosaa_help_alert` in Meta Business Manager with three body variables: `{{1}}` room, `{{2}}` problem, `{{3}}` urgency. Example: "Guest problem in room {{1}}: {{2}} ({{3}}). Please check the Padharosaa desk."
 - Guest problems are queued in `notifications` automatically (database trigger path in `padh_guest_create_help`). Nothing is sent until the worker runs.
-- Run the worker every minute: `GET /api/padharosaa/v1/cron/notify` with `Authorization: Bearer $CRON_SECRET`. Vercel Cron sends this by itself, but per-minute schedules need a Pro plan; otherwise point a free pinger (cron-job.org, UptimeRobot) at it with the header. Without the WhatsApp variables the worker does nothing and alerts wait safely in the outbox (no attempts are burnt).
+- Run the worker every minute: `GET /api/padharosaa/v1/cron/notify` with `Authorization: Bearer $CRON_SECRET`. Vercel Cron sends this by itself, but per-minute schedules need a Pro plan; otherwise point a free pinger (cron-job.org, UptimeRobot) at it with the header. The same worker also sends the daily buffet reminder; while a desk is open the app sends it by itself, so the pinger is only needed for hotels where nobody has the desk open at that time. Guests on iPhone must first add the page to the Home Screen (iOS rule). Without the WhatsApp variables the worker does nothing and alerts wait safely in the outbox (no attempts are burnt).
 - Retries: 1, 2, 4, 8 minutes, then marked `failed` after 5 attempts. Deactivated staff are suppressed. Numbers are looked up at send time, never copied into the outbox.
 
 ## 4. People

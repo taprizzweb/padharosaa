@@ -1,6 +1,7 @@
 export type Lang = 'en' | 'hi' | 'fr' | 'es' | 'de';
 export const LANGS: { code: Lang; label: string }[] = [{ code: 'en', label: 'English' }, { code: 'hi', label: 'हिन्दी' }, { code: 'fr', label: 'Français' }, { code: 'es', label: 'Español' }, { code: 'de', label: 'Deutsch' }];
 const en = {
+  alertsAsk: 'Get buffet alerts on this phone', alertsOn: 'Alerts are on. Tap to switch off.', alertsHint: 'We will tell you when the buffet is set. On iPhone, first add this page to your Home Screen.', alertsBlocked: 'Allowing notifications was blocked on this phone.',
   hello: 'Namaste, {name}', room: 'Room {room} · What would you like?',
   dining: 'Dining', diningSub: 'Order to your room or collect', services: 'Services', stay: 'Stay & Wi-Fi', buffet: "Today's buffet",
   help: 'Help / problem', helpSub: 'Something not working? Tell us here', call: 'Call reception', back: 'Back', home: 'Back to home',
@@ -26,6 +27,7 @@ const en = {
   upd: { 'msg.sent': 'Your request was sent to the team.', 'msg.accepted': 'Accepted by {team} at {at}.', 'msg.completed': 'Done: {label}.', 'msg.dismissed': 'We could not take this up. {reason}', 'msg.passed': 'Passed to {team}.', 'msg.sorry_problem': 'Sorry about this. Reception has been told.', 'msg.resolved': 'We have fixed it. Is everything okay now?', 'msg.handover_deliver': 'Your order will be delivered to your room.', 'msg.handover_takeaway': 'Your order is for takeaway. Please collect it from the restaurant.' } as Record<string, string>,
 };
 const hi: typeof en = {
+  alertsAsk: 'इस फ़ोन पर बुफ़े की सूचना पाएँ', alertsOn: 'सूचनाएँ चालू हैं। बंद करने के लिए दबाएँ।', alertsHint: 'बुफ़े तय होते ही हम बताएँगे। iPhone पर पहले इस पेज को Home Screen में जोड़ें।', alertsBlocked: 'इस फ़ोन पर सूचना की अनुमति बंद है।',
   hello: 'नमस्ते, {name}', room: 'कमरा {room} · आप क्या चाहेंगे?',
   dining: 'भोजन', diningSub: 'कमरे में मँगाएँ या खुद लें', services: 'सेवाएँ', stay: 'ठहराव और Wi-Fi', buffet: 'आज का बुफे',
   help: 'मदद / समस्या', helpSub: 'कुछ ठीक नहीं? यहाँ बताएँ', call: 'रिसेप्शन को कॉल करें', back: 'वापस', home: 'होम पर जाएँ',
@@ -51,6 +53,7 @@ const hi: typeof en = {
   upd: { 'msg.sent': 'आपका अनुरोध टीम को भेज दिया गया।', 'msg.accepted': '{team} ने {at} बजे स्वीकार किया।', 'msg.completed': 'पूरा हुआ: {label}।', 'msg.dismissed': 'हम यह नहीं कर पाए। {reason}', 'msg.passed': '{team} को भेजा गया।', 'msg.sorry_problem': 'असुविधा के लिए खेद है। रिसेप्शन को बता दिया गया है।', 'msg.resolved': 'हमने इसे ठीक कर दिया है। क्या अब सब ठीक है?', 'msg.handover_deliver': 'आपका ऑर्डर आपके कमरे में पहुँचाया जाएगा।', 'msg.handover_takeaway': 'आपका ऑर्डर टेकअवे है। कृपया रेस्टोरेंट से ले लें।' } as Record<string, string>,
 };
 const fr: typeof en = {
+  alertsAsk: 'Recevoir l\'alerte buffet sur ce téléphone', alertsOn: 'Alertes activées. Touchez pour désactiver.', alertsHint: 'Nous vous prévenons dès que le buffet est prêt. Sur iPhone, ajoutez d\'abord cette page à l\'écran d\'accueil.', alertsBlocked: 'Les notifications sont bloquées sur ce téléphone.',
   hello: 'Bonjour, {name}', room: 'Chambre {room} · Que souhaitez-vous ?',
   dining: 'Restauration', diningSub: 'Commandez dans votre chambre ou à emporter', services: 'Services', stay: 'Séjour et Wi-Fi', buffet: 'Buffet du jour',
   help: 'Aide / problème', helpSub: 'Quelque chose ne marche pas ? Dites-le-nous ici', call: 'Appeler la réception', back: 'Retour', home: "Retour à l'accueil",
@@ -76,6 +79,7 @@ const fr: typeof en = {
   upd: { 'msg.sent': "Votre demande a été envoyée à l'équipe.", 'msg.accepted': 'Acceptée par {team} à {at}.', 'msg.completed': 'Terminé : {label}.', 'msg.dismissed': "Nous n'avons pas pu la prendre en charge. {reason}", 'msg.passed': 'Transmise à {team}.', 'msg.sorry_problem': 'Désolé. La réception a été prévenue.', 'msg.resolved': "C'est réglé. Tout va bien maintenant ?", 'msg.handover_deliver': 'Votre commande sera livrée dans votre chambre.', 'msg.handover_takeaway': 'Votre commande est à emporter. Veuillez la récupérer au restaurant.' },
 };
 const es: typeof en = {
+  alertsAsk: 'Recibir avisos del buffet en este teléfono', alertsOn: 'Avisos activados. Toque para desactivar.', alertsHint: 'Le avisaremos cuando el buffet esté listo. En iPhone, primero añada esta página a la pantalla de inicio.', alertsBlocked: 'Las notificaciones están bloqueadas en este teléfono.',
   hello: 'Hola, {name}', room: 'Habitación {room} · ¿Qué desea?',
   dining: 'Restaurante', diningSub: 'Pida a su habitación o recoja', services: 'Servicios', stay: 'Estancia y Wi-Fi', buffet: 'Buffet de hoy',
   help: 'Ayuda / problema', helpSub: '¿Algo no funciona? Cuéntenoslo aquí', call: 'Llamar a recepción', back: 'Atrás', home: 'Volver al inicio',
@@ -101,6 +105,7 @@ const es: typeof en = {
   upd: { 'msg.sent': 'Su solicitud fue enviada al equipo.', 'msg.accepted': 'Aceptada por {team} a las {at}.', 'msg.completed': 'Hecho: {label}.', 'msg.dismissed': 'No pudimos atenderla. {reason}', 'msg.passed': 'Pasada a {team}.', 'msg.sorry_problem': 'Lo sentimos. Se ha avisado a recepción.', 'msg.resolved': 'Lo hemos solucionado. ¿Todo bien ahora?', 'msg.handover_deliver': 'Su pedido se entregará en su habitación.', 'msg.handover_takeaway': 'Su pedido es para llevar. Recójalo en el restaurante.' },
 };
 const de: typeof en = {
+  alertsAsk: 'Buffet-Hinweise auf diesem Handy erhalten', alertsOn: 'Hinweise sind an. Zum Ausschalten tippen.', alertsHint: 'Wir melden uns, sobald das Buffet feststeht. Auf dem iPhone zuerst diese Seite zum Home-Bildschirm hinzufügen.', alertsBlocked: 'Benachrichtigungen sind auf diesem Handy blockiert.',
   hello: 'Hallo, {name}', room: 'Zimmer {room} · Was möchten Sie?',
   dining: 'Restaurant', diningSub: 'Aufs Zimmer bestellen oder abholen', services: 'Services', stay: 'Aufenthalt & WLAN', buffet: 'Buffet heute',
   help: 'Hilfe / Problem', helpSub: 'Funktioniert etwas nicht? Sagen Sie es uns hier', call: 'Rezeption anrufen', back: 'Zurück', home: 'Zur Startseite',

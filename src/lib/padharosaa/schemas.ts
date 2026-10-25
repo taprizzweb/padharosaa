@@ -201,3 +201,5 @@ export const feedbackBody = z.object({ rating: z.enum(['great', 'okay', 'not_goo
 /** room numbers for the manager page: each is 1 to 10 characters, upper-case letters, digits, space or dash */
 export const roomsBody = z.object({ numbers: z.array(z.string().max(12)).min(1).max(100) }).strict();
 export const roomActiveBody = z.object({ active: z.boolean() }).strict();
+
+export const buffetNotifyBody = z.object({ time: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/).or(z.literal('')).nullish(), onSave: z.boolean() });

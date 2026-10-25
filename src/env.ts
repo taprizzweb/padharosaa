@@ -46,6 +46,10 @@ const serverSchema = publicSchema.extend({
   AI_MODEL: z.string().regex(/^[A-Za-z0-9._:\/-]{1,80}$/).optional().or(z.literal('').transform(() => undefined)),
   /** Shared secret for /api/padharosaa/v1/cron/notify (Vercel Cron sends it as a bearer token). Generate with: openssl rand -base64 32 */
   CRON_SECRET: z.string().min(24).optional().or(z.literal('').transform(() => undefined)),
+  /** Web Push keys for the buffet alerts on guests' phones. Generate once with: npx web-push generate-vapid-keys. VAPID_SUBJECT is mailto:you@example.com */
+  VAPID_PUBLIC_KEY: z.string().min(40).max(120).optional().or(z.literal('').transform(() => undefined)),
+  VAPID_PRIVATE_KEY: z.string().min(20).max(120).optional().or(z.literal('').transform(() => undefined)),
+  VAPID_SUBJECT: z.string().regex(/^(mailto:|https:\/\/)\S+$/).optional().or(z.literal('').transform(() => undefined)),
   SENTRY_DSN: z.string().url().optional().or(z.literal('').transform(() => undefined)),
   LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error']).default('info'),
 });

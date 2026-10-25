@@ -11,7 +11,7 @@ const label = (date: string, today: string) => {
 };
 
 export function BuffetManager({ flash, bare }: { flash: (ok: boolean, t: string) => void; bare?: boolean }) {
-  const [d, setD] = useState<{ today: string; days: Day[] } | null>(null);
+  const [d, setD] = useState<{ today: string; days: Day[]; notify_time: string | null; notify_on_save: boolean } | null>(null);
   const [open, setOpen] = useState<string | null>(null);
   const load = useCallback(async () => { try { setD(await apiGet('/api/padharosaa/v1/staff/buffet')); } catch { flash(false, 'The buffet list could not be loaded.'); } }, [flash]);
   useEffect(() => { void load(); }, [load]);
@@ -20,6 +20,7 @@ export function BuffetManager({ flash, bare }: { flash: (ok: boolean, t: string)
     <section className={bare ? 'mt-2' : 'mt-4 rounded-2xl bg-white p-4 shadow-sm'} aria-labelledby="buffet-h">
       <h2 id="buffet-h" className={bare ? 'sr-only' : 'text-lg font-extrabold'}>Buffet</h2>
       <p className="text-sm text-stone-700">Set it for today and the coming week. Guests see today and the next two days.</p>
+      <NotifyCard time={d.notify_time ?? ''} onSave={d.notify_on_save} flash={flash} />
       <ul className="mt-3 space-y-2">{d.days.map((x) => <DayRow key={x.date} day={x} today={d.today} open={open === x.date} onOpen={() => setOpen(open === x.date ? null : x.date)} onSaved={async (ok) => { flash(ok, ok ? 'Buffet saved.' : 'Please check the times and name.'); if (ok) { setOpen(null); await load(); } }} />)}</ul>
     </section>
   );
@@ -55,5 +56,26 @@ function DayRow({ day, today, open, onOpen, onSaved }: { day: Day; today: string
         </div>
       )}
     </li>
+  );
+}
+
+/** When guests' phones are told: right after today's buffet is saved, and once more every day at a time the hotel picks. */
+function NotifyCard({ time, onSave, flash }: { time: string; onSave: boolean; flash: (ok: boolean, t: string) => void }) {
+  const [t, setT] = useState(time);
+  const [on, setOn] = useState(onSave);
+  const save = async (nt: string, ns: boolean) => {
+    try { await apiPost('/api/padharosaa/v1/staff/buffet/notify', { time: nt, onSave: ns }); flash(true, 'Alert settings saved.'); } catch { flash(false, 'The alert settings could not be saved.'); }
+  };
+  return (
+    <div className="mt-3 rounded-xl border-2 border-stone-200 p-3" data-testid="buffet-notify">
+      <p className="text-sm font-bold">Phone alerts to guests</p>
+      <p className="text-sm text-stone-700">Guests who allowed alerts on their phone get a message.</p>
+      <label className="mt-2 flex min-h-11 items-center gap-2 text-sm font-semibold"><input type="checkbox" className="size-5" checked={on} onChange={(e) => { setOn(e.target.checked); void save(t, e.target.checked); }} />Send when today&apos;s buffet is saved</label>
+      <div className="mt-1 flex flex-wrap items-end gap-2">
+        <label className="block text-sm font-semibold">Remind everyone every day at<input type="time" className={inputCls} value={t} onChange={(e) => setT(e.target.value)} /></label>
+        <button type="button" className="min-h-11 rounded-xl bg-stone-900 px-4 text-sm font-bold text-white" onClick={() => void save(t, on)}>Save time</button>
+        {t && <button type="button" className="min-h-11 rounded-xl border-2 border-stone-300 px-4 text-sm font-bold" onClick={() => { setT(''); void save('', on); }}>No daily reminder</button>}
+      </div>
+    </div>
   );
 }

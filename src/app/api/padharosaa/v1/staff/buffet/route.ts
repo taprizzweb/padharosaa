@@ -1,6 +1,8 @@
+import { after } from 'next/server';
 import { jsonOk, staffRoute } from '@/lib/api/route';
 import { limit } from '@/lib/guest/rpc';
 import { buffetBody } from '@/lib/padharosaa/schemas';
+import { buffetMessage, pushToHotel, runBuffetReminders, type BuffetToday } from '@/lib/padharosaa/push';
 import { staffRpc } from '@/lib/staff/rpc';
 
 export const dynamic = 'force-dynamic';
@@ -9,12 +11,17 @@ export const dynamic = 'force-dynamic';
 export async function GET(req: Request) {
   return staffRoute(req, { method: 'GET' }, async (ctx) => {
     await limit(`ps:${ctx.userId}`, 120, 60);
+    after(runBuffetReminders); // the desk is open all day: it also serves as the clock for the daily reminder
     return jsonOk(await staffRpc(ctx.db, 'padh_buffet_list'), ctx.requestId);
   });
 }
 export async function POST(req: Request) {
   return staffRoute(req, { method: 'POST', schema: buffetBody }, async (ctx, b) => {
     await limit(`ps:${ctx.userId}`, 120, 60);
-    return jsonOk(await staffRpc(ctx.db, 'padh_buffet_set', { p_date: b.date, p_mode: b.mode, p_name: b.name ?? null, p_start: b.start ?? null, p_end: b.end ?? null, p_venue: b.venue ?? null, p_highlights: b.highlights ?? null, p_mood: b.mood ?? null }), ctx.requestId);
+    const saved = await staffRpc(ctx.db, 'padh_buffet_set', { p_date: b.date, p_mode: b.mode, p_name: b.name ?? null, p_start: b.start ?? null, p_end: b.end ?? null, p_venue: b.venue ?? null, p_highlights: b.highlights ?? null, p_mood: b.mood ?? null });
+    // tell the guests' phones (only for today's buffet, if switched on; claimed once per 10 minutes in the database)
+    const announce = await staffRpc<BuffetToday | null>(ctx.db, 'padh_buffet_announce', { p_date: b.date }).catch(() => null);
+    if (announce?.restaurant_id) after(() => pushToHotel(announce.restaurant_id!, buffetMessage(announce, 'saved')));
+    return jsonOk(saved, ctx.requestId);
   });
 }

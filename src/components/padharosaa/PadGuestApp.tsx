@@ -5,6 +5,7 @@ import { POWERED_BY, instagramUrl } from '@/lib/brand';
 import { FILTERS, SECTIONS, pickGroups, summaryHasMatch, toggleFilter, type CategorySummary, type Filter, type Section } from '@/lib/guest/filters';
 import { buildTheme, themeVars } from '@/lib/padharosaa/theme';
 import { COPY, LANGS, fill, isHelpLabel, localLabel, type Copy, type Lang } from './copy';
+import { BuffetAlerts } from './BuffetAlerts';
 import { BuffetScreen, GuideScreen, PlanScreen } from './GuideScreens';
 import { Btn, BrandPill, CookieNotice, Header, Hero, Icon, IconBox, PoweredPill, api, safeUrl, telHref, time, type IconName } from './shared';
 
@@ -187,6 +188,7 @@ function HomeScreen({ me, home, c, closed, dine, planCount, go, imageBase, lang,
           </div>
         )}
         {b.set && b.mode !== 'none' && <BuffetNotice b={b} c={c} onOpen={() => go({ s: 'buffet' })} />}
+        <BuffetAlerts c={c} />
         {home.info && (
           <div className="rounded-[22px] p-4 shadow-md" style={{ background: 'linear-gradient(140deg,#fff1b0 0%,#fcd34d 55%,#f0a020 135%)', color: '#3a2704' }}>
             <span className="text-[11px] font-bold uppercase tracking-[.16em]" style={{ color: 'rgba(88,56,4,.85)' }}>{c.infoTag}</span>

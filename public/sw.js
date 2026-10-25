@@ -18,3 +18,18 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(fetch(event.request).catch(() => caches.match(OFFLINE)));
   }
 });
+
+// Buffet alerts (Web Push). The message holds only a title, a line of text and the hotel page to open: nothing private.
+self.addEventListener('push', (event) => {
+  let d = {};
+  try { d = event.data ? event.data.json() : {}; } catch { /* plain text */ }
+  event.waitUntil(self.registration.showNotification(d.title || 'Buffet', { body: d.body || '', tag: d.tag || 'buffet', renotify: true, icon: '/icons/icon-192.png', data: { url: d.url || '/' } }));
+});
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const url = (event.notification.data && event.notification.data.url) || '/';
+  event.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
+    for (const c of list) if ('focus' in c && c.url.includes(url)) return c.focus();
+    return self.clients.openWindow(url);
+  }));
+});
