@@ -31,7 +31,7 @@ export function CheckoutPanel({ flash }: { flash: (ok: boolean, text: string) =>
     <details className="mt-4 rounded-xl border border-stone-200 bg-white p-4">
       <summary className="min-h-11 cursor-pointer py-2 text-base font-semibold">Check out a room · live rooms {rooms && <span className="text-sm font-semibold text-stone-700">({rooms.filter((r) => r.guests > 0).length} with guests)</span>}</summary>
       <p className="text-sm text-stone-700">When a guest leaves, tap their room. They are signed out of the hotel app straight away, so no one can send requests or orders from that room afterwards.</p>
-      <label className="mt-2 block text-sm font-semibold">Room number<input value={q} onChange={(e) => setQ(e.target.value)} inputMode="text" autoComplete="off" maxLength={10} className="mt-1 min-h-11 w-full rounded-xl border-2 border-stone-300 bg-white px-3 text-base text-stone-900" /></label>
+      <label className="mt-2 block text-sm font-semibold">Room number<input value={q} onChange={(e) => setQ(e.target.value)} inputMode="text" autoComplete="off" maxLength={10} className="mt-1 min-h-11 w-full rounded-lg border border-stone-300 bg-white px-3 text-base text-stone-900" /></label>
       {rooms && staying.length === 0 && <p className="mt-2 text-sm text-stone-700">{q.trim() ? 'No room with a guest matches that number.' : 'No room has a guest signed in right now.'}</p>}
       <ul className="mt-2 grid gap-2 sm:grid-cols-2" data-testid="live-rooms">
         {staying.slice(0, 60).map((r) => (
@@ -44,7 +44,7 @@ export function CheckoutPanel({ flash }: { flash: (ok: boolean, text: string) =>
                 {!!r.unpaid_paise && <span className="rounded-full bg-violet-100 px-2 py-0.5 text-violet-950">{formatPaise(r.unpaid_paise)} not settled · excl. GST and charges</span>}
               </p>
             ) : null}
-            <button type="button" disabled={busy === r.id} onClick={() => void out(r)} aria-label={`Check out Room ${r.number}`} className="min-h-11 rounded-full border-2 border-stone-800 px-4 text-sm font-bold text-stone-900 disabled:opacity-50">Check out{r.guest_name ? '' : ` Room ${r.number}`}</button></li>
+            <button type="button" disabled={busy === r.id} onClick={() => void out(r)} aria-label={`Check out Room ${r.number}`} className="min-h-11 rounded-lg border border-stone-300 px-4 text-sm font-semibold text-stone-900 disabled:opacity-50">Check out{r.guest_name ? '' : ` Room ${r.number}`}</button></li>
         ))}
       </ul>
     </details>

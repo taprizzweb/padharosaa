@@ -49,3 +49,46 @@ html.staff-large { font-size: 125%; }
   .print-tent { page: tent; width: 297mm; height: 210mm; break-after: page; }
   .print-tent:last-child { break-after: auto; }
 }
+
+/* ---- form controls follow the hotel's / the staff accent instead of the browser's blue ---- */
+input[type='checkbox'], input[type='radio'] { accent-color: var(--button, #312e81); }
+input[type='file']::file-selector-button {
+  margin-right: 0.75rem; min-height: 2.5rem; cursor: pointer; border-radius: 0.5rem; border: 1px solid #d6d3d1; background: #fff; padding: 0 0.9rem; font-weight: 600; color: #1c1917;
+}
+
+/* ---- dark mode of the staff screens (desk, owner console, settings) ----
+   Switched by the button in the header (class "ns-dark" on <html>); the guest app is never touched. The staff screens use a small fixed
+   palette, so it is mapped here once instead of adding a dark: variant to every element. */
+html.ns-dark { color-scheme: dark; }
+html.ns-dark body { background: #0c0a09; color: #f5f5f4; }
+html.ns-dark .bg-stone-50 { background-color: #0c0a09; }
+html.ns-dark .bg-white { background-color: #1c1917; }
+html.ns-dark .bg-stone-100 { background-color: #292524; }
+html.ns-dark .bg-stone-200 { background-color: #3a3633; }
+html.ns-dark .text-stone-900, html.ns-dark .text-stone-800 { color: #f5f5f4; }
+html.ns-dark .text-stone-700 { color: #d6d3d1; }
+html.ns-dark .text-stone-600, html.ns-dark .text-stone-500 { color: #a8a29e; }
+html.ns-dark .border-stone-200 { border-color: #3a3633; }
+html.ns-dark .border-stone-300 { border-color: #57534e; }
+html.ns-dark .border-stone-400 { border-color: #78716c; }
+html.ns-dark .divide-stone-200 > :not([hidden]) ~ :not([hidden]) { border-color: #3a3633; }
+html.ns-dark .bg-indigo-900 { background-color: #4f46e5; color: #fff; }
+html.ns-dark .text-indigo-950 { color: #c7d2fe; }
+html.ns-dark .border-indigo-900 { border-color: #818cf8; }
+html.ns-dark .fill-indigo-900 { fill: #818cf8; }
+html.ns-dark .bg-indigo-900.text-white { color: #fff; }
+html.ns-dark .fill-stone-200 { fill: #3a3633; }
+html.ns-dark .fill-stone-500 { fill: #a8a29e; }
+html.ns-dark .bg-red-50, html.ns-dark .bg-red-50\/60 { background-color: #3b1717; }
+html.ns-dark .text-red-900, html.ns-dark .text-red-800 { color: #fca5a5; }
+html.ns-dark .border-red-300 { border-color: #7f1d1d; }
+html.ns-dark .bg-emerald-50, html.ns-dark .bg-emerald-100 { background-color: #052e1f; }
+html.ns-dark .text-emerald-950, html.ns-dark .text-emerald-800 { color: #a7f3d0; }
+html.ns-dark .bg-amber-100 { background-color: #3b2a05; }
+html.ns-dark .text-amber-950 { color: #fde68a; }
+html.ns-dark .bg-sky-100 { background-color: #082f49; }
+html.ns-dark .text-sky-950 { color: #bae6fd; }
+html.ns-dark .bg-violet-100 { background-color: #2e1065; }
+html.ns-dark .text-violet-950 { color: #ddd6fe; }
+html.ns-dark input[type='file']::file-selector-button { background: #292524; border-color: #57534e; color: #f5f5f4; }
+html.ns-dark input, html.ns-dark select, html.ns-dark textarea { color-scheme: dark; }

@@ -13,8 +13,8 @@ interface Manage { location: { lat: number; lng: number } | null; items: Item[];
 interface Cand { category: 'place' | 'food' | 'craft'; name: string; lat: number; lng: number; address: string | null; kind: string; distance_m: number; already: boolean }
 
 const CAT_LABEL: Record<Cat, string> = { place: 'Place', food: 'Food', craft: 'Craft', tip: 'Tip' };
-const inputCls = 'mt-1 min-h-11 w-full rounded-xl border-2 border-stone-300 bg-white px-3 text-base text-stone-900';
-const btn = 'min-h-11 rounded-xl bg-stone-900 px-4 text-sm font-bold text-white disabled:opacity-50';
+const inputCls = 'mt-1 min-h-11 w-full rounded-lg border border-stone-300 bg-white px-3 text-base text-stone-900';
+const btn = 'min-h-11 rounded-lg bg-indigo-900 px-4 text-sm font-semibold text-white disabled:opacity-50';
 const btn2 = 'min-h-11 rounded-xl border-2 border-stone-700 px-4 text-sm font-bold text-stone-900 disabled:opacity-50';
 const base = '/api/padharosaa/v1/staff';
 
@@ -84,7 +84,7 @@ export function GuideManager({ flash }: { flash: (ok: boolean, t: string) => voi
   if (!g) return <p className="mt-4 text-center">Loading the guide…</p>;
   const drafts = g.items.filter((i) => i.needs_review), live = g.items.filter((i) => !i.needs_review);
   return (
-    <section className="mt-4 rounded-2xl bg-white p-4 shadow-sm" aria-labelledby="guide-h">
+    <section className="mt-4 rounded-xl border border-stone-200 bg-white p-5" aria-labelledby="guide-h">
       <h2 id="guide-h" className="text-lg font-extrabold">Jaipur guide and day plans</h2>
       <p className="text-sm text-stone-700">Guests only see what you publish. Places found on the map and AI-written text always arrive as drafts for you to read first.</p>
 

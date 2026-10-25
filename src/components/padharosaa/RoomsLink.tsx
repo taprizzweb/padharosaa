@@ -7,12 +7,12 @@ import { parseRooms } from '@/lib/padharosaa/rooms';
 interface Room { id: string; number: string; active: boolean; guests: number }
 type Flash = (ok: boolean, text: string) => void;
 
-const inputCls = 'mt-1 min-h-11 w-full rounded-xl border-2 border-stone-300 bg-white px-3 text-base text-stone-900';
-const btnCls = 'min-h-11 rounded-xl bg-stone-900 px-5 text-sm font-bold text-white disabled:opacity-50';
-const softCls = 'inline-flex min-h-11 items-center rounded-xl border-2 border-stone-800 px-4 text-sm font-bold disabled:opacity-50';
+const inputCls = 'mt-1 min-h-11 w-full rounded-lg border border-stone-300 bg-white px-3 text-base text-stone-900';
+const btnCls = 'min-h-11 rounded-lg bg-indigo-900 px-5 text-sm font-semibold text-white disabled:opacity-50';
+const softCls = 'inline-flex min-h-11 items-center rounded-lg border border-stone-300 px-4 text-sm font-semibold disabled:opacity-50';
 
 function Card({ title, hint, children }: { title: string; hint?: string; children: ReactNode }) {
-  return <section className="mt-4 rounded-2xl bg-white p-4 shadow-sm"><h2 className="text-lg font-extrabold">{title}</h2>{hint && <p className="text-sm text-stone-700">{hint}</p>}<div className="mt-3 space-y-3">{children}</div></section>;
+  return <section className="mt-4 rounded-xl border border-stone-200 bg-white p-5"><h2 className="text-base font-semibold tracking-tight">{title}</h2>{hint && <p className="text-sm text-stone-700">{hint}</p>}<div className="mt-3 space-y-3">{children}</div></section>;
 }
 
 /** Step 1 of going live: tell Padharosaa which rooms exist. Type "101-110, 201-210" and tap Add. */
@@ -53,7 +53,7 @@ export function RoomsCard({ flash }: { flash: Flash }) {
           {rooms.map((r) => (
             <li key={r.id}>
               <button type="button" onClick={() => void toggle(r)} aria-pressed={r.active} title={r.active ? 'Tap to switch off' : 'Switched off. Tap to switch on'}
-                className={`min-h-11 rounded-full px-4 text-sm font-bold ${r.active ? 'bg-stone-900 text-white' : 'border-2 border-dashed border-stone-400 text-stone-600 line-through'}`}>
+                className={`min-h-11 rounded-lg px-3.5 text-sm font-semibold ${r.active ? 'bg-indigo-900 text-white' : 'border border-dashed border-stone-400 text-stone-600 line-through'}`}>
                 {r.number}{r.guests > 0 && <span className="ml-1 text-xs font-semibold opacity-80">· {r.guests} in</span>}
               </button>
             </li>

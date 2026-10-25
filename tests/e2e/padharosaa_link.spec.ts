@@ -50,6 +50,7 @@ test('platform admin turns the hotel on from /admin and sees its guest link at o
 
 test('the owner sees the same link; a new one needs their own password and a tick', async ({ page }) => {
   await signIn(page, 'owner@spice-garden.demo', /\/padharosaa\/owner$/, '/padharosaa/owner');
+  await page.getByRole('tab', { name: 'Start' }).click(); // the console opens on the Overview
   await expect(page.getByLabel('Guest link')).toBeVisible();
   expect(await linkOf(page)).toBe(first);
   await page.getByRole('button', { name: 'Create a new link…' }).click();
@@ -79,6 +80,7 @@ test('a guest: the old printed QR no longer works, the new one does', async ({ b
 
 test('the manager can see the link but cannot make a new one', async ({ page }) => {
   await signIn(page, 'manager@spice-garden.demo', /\/padharosaa\/manager$/, '/padharosaa/manager');
+  await page.getByRole('tab', { name: 'Start' }).click(); // the console opens on the Overview
   await expect(page.getByLabel('Guest link')).toBeVisible();
   expect(await linkOf(page)).toBe(second);
   await expect(page.getByRole('button', { name: /Create a new link/ })).toHaveCount(0);
@@ -106,6 +108,7 @@ test('the manager can see the link but cannot make a new one', async ({ page }) 
 test('a first-time owner link: no tick is asked for, and one tap creates it', async ({ page }) => {
   await q(`update public.hotel_settings set qr_key_enc = null where restaurant_id = ${RID}`);
   await signIn(page, 'owner@spice-garden.demo', /\/padharosaa\/owner$/, '/padharosaa/owner');
+  await page.getByRole('tab', { name: 'Start' }).click(); // the console opens on the Overview
   await expect(page.getByText('No saved link yet')).toBeVisible();
   await page.getByRole('button', { name: 'Create guest link' }).click();
   await expect(page.getByRole('checkbox', { name: /old QR codes will stop working/ })).toHaveCount(0);
@@ -517,6 +520,26 @@ test('signing in never drops the owner or the kitchen on the reception desk, eve
   }
 });
 
+test('the owner console opens on an Overview of today; the desk and the console can switch to dark mode', async ({ browser }) => {
+  const ctx = await browser.newContext();
+  const o = await ctx.newPage();
+  try {
+    await signIn(o, 'owner@spice-garden.demo', /\/padharosaa\/owner$/, '/padharosaa/owner');
+    await expect(o.getByTestId('overview')).toBeVisible();
+    await expect(o.getByText('Guests in', { exact: true })).toBeVisible();
+    await expect(o.getByText('Requests', { exact: true })).toBeVisible();
+    await expect(o.getByRole('img', { name: 'Requests by hour today' })).toBeVisible();
+    await o.getByRole('button', { name: 'Dark mode' }).click();
+    await expect(o.locator('html')).toHaveClass(/ns-dark/);
+    await o.goto('/padharosaa/desk'); // the choice is remembered on this device
+    await expect(o.locator('html')).toHaveClass(/ns-dark/);
+    await o.getByRole('button', { name: 'Dark mode' }).click();
+    await expect(o.locator('html')).not.toHaveClass(/ns-dark/);
+  } finally {
+    await ctx.close();
+  }
+});
+
 test('a public demo hotel: one link, no sign-in, and the demo answers itself; a normal hotel has no demo link', async ({ browser }) => {
   test.setTimeout(150_000); // the demo answers after about 20 seconds
   const ctx = await browser.newContext({ viewport: { width: 375, height: 800 } });
@@ -603,8 +626,10 @@ test('guest services ask for what the team needs; a declined request is not left
     await signIn(page, 'waiter@spice-garden.demo', /\/padharosaa\/desk$/, '/padharosaa/desk');
     const ac = page.locator('li', { hasText: 'AC or electrical' }).first();
     await expect(ac).toBeVisible();
+    await ac.getByRole('button', { name: /^More/ }).click();
     await expect(ac.getByRole('button', { name: /Decline/ })).toHaveCount(0);
     const cab = page.locator('li', { hasText: 'To: Jaipur airport' }).first();
+    await cab.getByRole('button', { name: /^More/ }).click();
     await cab.getByRole('button', { name: /Decline/ }).click();
     await expect(cab.getByRole('button', { name: 'Fully booked, please choose another time' })).toHaveCount(0);
     await cab.getByRole('button', { name: 'We will call you' }).click();

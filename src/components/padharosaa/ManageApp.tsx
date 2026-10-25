@@ -7,6 +7,8 @@ import { ImageCropper } from '@/components/dash/ImageCropper';
 import { apiGet, apiPost } from '@/components/staff/hooks';
 import { ApiFailure } from '@/lib/guest/client';
 import { AreaNav } from './AreaNav';
+import { Overview } from './Overview';
+import { ThemeToggle } from '@/components/ui/ns';
 import { BuffetManager } from './BuffetManager';
 import { GuideManager } from './GuideManager';
 import { CheckoutPanel } from './CheckoutPanel';
@@ -25,8 +27,8 @@ interface Settings {
 interface Person { user_id: string; email: string; name: string; role: string; active: boolean; department: Team | null; whatsapp: string | null; is_head: boolean }
 interface ImportResult { email: string; ok: boolean; error?: 'exists' | 'invalid' | 'failed' | string; temporary_password?: string }
 
-const inputCls = 'mt-1 min-h-11 w-full rounded-xl border-2 border-stone-300 bg-white px-3 text-base text-stone-900';
-const btnCls = 'min-h-11 rounded-xl bg-stone-900 px-5 text-sm font-bold text-white disabled:opacity-50';
+const inputCls = 'mt-1 min-h-11 w-full rounded-lg border border-stone-300 bg-white px-3 text-base text-stone-900';
+const btnCls = 'min-h-11 rounded-lg bg-indigo-900 px-5 text-sm font-semibold text-white disabled:opacity-50';
 
 function Card({ title, hint, children }: { title: string; hint?: string; children: ReactNode }) {
   return <section className="mt-4 rounded-xl border border-stone-200 bg-white p-5"><h2 className="text-base font-semibold tracking-tight">{title}</h2>{hint && <p className="text-sm text-stone-700">{hint}</p>}<div className="mt-3 space-y-3">{children}</div></section>;
@@ -40,7 +42,7 @@ export function ManageApp({ role, restaurant, supabase }: { role: string; restau
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const flash = (ok: boolean, text: string) => { setMsg({ ok, text }); window.scrollTo({ top: 0, behavior: 'smooth' }); };
 
-  const [tab, setTab] = useState<'start' | 'hotel' | 'ops' | 'content' | 'team'>('start');
+  const [tab, setTab] = useState<'overview' | 'start' | 'hotel' | 'ops' | 'content' | 'team'>('overview');
   const [loadErr, setLoadErr] = useState<false | 'forbidden' | 'failed'>(false);
   const load = useCallback(async () => {
     try {
@@ -60,15 +62,16 @@ export function ManageApp({ role, restaurant, supabase }: { role: string; restau
   if (!s) return <main className="p-8 text-center">{loadErr === 'forbidden' ? <p role="alert" className="mx-auto max-w-md font-semibold">This restaurant is not a Padharosaa hotel yet. Please ask Taprizz to switch Padharosaa on for it, then reload this page.</p> : loadErr ? <><p role="alert" className="font-semibold">The settings could not be loaded.</p><button type="button" className={btnCls + ' mt-3'} onClick={() => void load()}>Try again</button></> : 'Loading…'}</main>;
   return (
     <div className="mx-auto min-h-dvh max-w-2xl bg-stone-50 px-4 pb-24 pt-4 text-stone-900">
-      <header className="border-b border-stone-200 pb-4"><p className="text-[11px] font-semibold uppercase tracking-[.16em] text-stone-500">{restaurant.name}</p><h1 className="mt-1 text-2xl font-semibold tracking-tight">Manage Padharosaa</h1></header>
+      <header className="flex items-start justify-between gap-3 border-b border-stone-200 pb-4"><div><p className="text-[11px] font-semibold uppercase tracking-[.16em] text-stone-500">{restaurant.name}</p><h1 className="mt-1 text-2xl font-semibold tracking-tight">Manage Padharosaa</h1></div><ThemeToggle /></header>
       <AreaNav role={role} current={role === 'owner' ? 'owner' : 'manager'} kitchenDisplay={!!s.kitchen_display} />
       {msg && <p role={msg.ok ? 'status' : 'alert'} className={`mt-3 rounded-xl p-3 text-sm font-semibold ${msg.ok ? 'bg-emerald-50 text-emerald-950' : 'bg-red-50 text-red-900'}`}>{msg.text}</p>}
       {s.server_ready === false && <p role="alert" className="mt-3 rounded-xl bg-red-50 p-3 text-sm font-semibold text-red-900">Guest sign-in is switched off: the setting PADHAROSAA_DATA_KEY is missing on the server. Add it in your hosting settings (Vercel → Environment Variables) and redeploy. Until then guests cannot enter.</p>}
       <div role="tablist" aria-label="Console sections" className="-mx-4 mt-4 flex gap-6 overflow-x-auto border-b border-stone-200 px-4">
-        {([['start', 'Start'], ['hotel', 'Hotel'], ['ops', 'Orders & payment'], ['content', 'Buffet & guide'], ['team', 'Team']] as const).map(([k, label]) => (
+        {([['overview', 'Overview'], ['start', 'Start'], ['hotel', 'Hotel'], ['ops', 'Orders & payment'], ['content', 'Buffet & guide'], ['team', 'Team']] as const).map(([k, label]) => (
           <button key={k} type="button" role="tab" aria-selected={tab === k} onClick={() => setTab(k)} className={`-mb-px min-h-11 shrink-0 border-b-2 px-0.5 text-sm font-semibold ${tab === k ? 'border-indigo-900 text-indigo-950' : 'border-transparent text-stone-500'}`}>{label}</button>
         ))}
       </div>
+      {tab === 'overview' && <Overview />}
       {tab === 'start' && (
         <>
       <Checklist s={s} insta={insta} />
@@ -183,7 +186,7 @@ function RoutingCard({ flash }: { flash: (ok: boolean, text: string) => void }) 
       <div className="space-y-2">
         {TEAMS.map(([t, name]) => (
           <label key={t} className="block text-sm font-semibold">{name}
-            <select value={routing[t] ?? ''} onChange={(e) => void set(t, e.target.value)} className="mt-1 min-h-11 w-full rounded-xl border-2 border-stone-300 bg-white px-3 text-base text-stone-900">
+            <select value={routing[t] ?? ''} onChange={(e) => void set(t, e.target.value)} className="mt-1 min-h-11 w-full rounded-lg border border-stone-300 bg-white px-3 text-base text-stone-900">
               <option value="">Everyone in the team</option>
               {people.map((p) => <option key={p.user_id} value={p.user_id}>{p.name}{p.department ? ` · ${p.department.replace('_', ' ')}` : ''}</option>)}
             </select>

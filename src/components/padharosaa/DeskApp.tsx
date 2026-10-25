@@ -8,6 +8,7 @@ import { ApiFailure } from '@/lib/guest/client';
 import { GROUP_LABEL, GROUP_TEAMS, soundsFor, type Group } from '@/lib/padharosaa/areas';
 import { AreaNav, type NavCurrent } from './AreaNav';
 import { BuffetManager } from './BuffetManager';
+import { ThemeToggle } from '@/components/ui/ns';
 import { CheckoutPanel } from './CheckoutPanel';
 import { OrderCardDesk, TableCallDesk, type OrderDeskActions, type TableCallActions } from './DeskOrders';
 import type { BoardOrder, BoardRequest, BoardSession } from '@/lib/staff/logic';
@@ -141,9 +142,10 @@ export function DeskApp({ role, hotel, title = 'Reception desk', current = 'desk
 
   return (
     <div className="mx-auto min-h-dvh max-w-3xl bg-stone-50 px-4 pb-24 pt-4 text-stone-900">
-      <header className="flex items-start justify-between gap-3 border-b border-stone-200 pb-4">
-        <div><p className="text-[11px] font-semibold uppercase tracking-[.16em] text-stone-500">{hotel}</p><h1 className="mt-1 text-2xl font-semibold tracking-tight">{title}</h1></div>
-        <button type="button" className={`min-h-11 shrink-0 rounded-lg border px-3 text-sm font-semibold ${soundOn ? 'border-indigo-900 bg-indigo-900 text-white' : 'border-stone-300 bg-white text-stone-900'}`} onClick={async () => setSoundOn(await sound.current.enable())} aria-pressed={soundOn}>{soundOn ? 'Alarm sound is ON' : 'Turn alarm sound on'}</button>
+      <header className="flex flex-wrap items-start justify-between gap-3 border-b border-stone-200 pb-4">
+        <div className="min-w-0"><p className="text-[11px] font-semibold uppercase tracking-[.16em] text-stone-500">{hotel}</p><h1 className="mt-1 text-2xl font-semibold tracking-tight">{title}</h1></div>
+        <div className="flex flex-wrap gap-2"><ThemeToggle />
+        <button type="button" className={`min-h-11 shrink-0 rounded-lg border px-3 text-sm font-semibold ${soundOn ? 'border-indigo-900 bg-indigo-900 text-white' : 'border-stone-300 bg-white text-stone-900'}`} onClick={async () => setSoundOn(await sound.current.enable())} aria-pressed={soundOn}>{soundOn ? 'Alarm sound is ON' : 'Turn alarm sound on'}</button></div>
       </header>
       <AreaNav role={role} current={current} kitchenDisplay={!!alerts?.kitchen_display} />
       {privileged && (
@@ -214,11 +216,12 @@ export function DeskApp({ role, hotel, title = 'Reception desk', current = 'desk
 function Card({ r, role, me, people, refreshPeople, roomDining, muted, act }: { r: Req; role: string; me: string | null; people: Person[] | null; refreshPeople: () => Promise<void>; roomDining: boolean; muted: boolean; act: (r: Req, a: string, b?: Record<string, unknown>) => Promise<void> }) {
   const [mode, setMode] = useState<null | 'decline' | 'pass' | 'resolve' | 'assign'>(null);
   const [reason, setReason] = useState('');
+  const [more, setMore] = useState(false);
   const age = mins(r.created_at);
   const urgentCls = r.urgent ? '!border-l-red-700' : r.status === 'received' ? '!border-l-amber-500' : '!border-l-stone-300';
   const btn = 'min-h-11 rounded-lg px-4 text-sm font-semibold';
   return (
-    <li className={`rounded-xl border border-l-4 border-stone-200 bg-white p-4 ${urgentCls}`}>
+    <li className={`rounded-xl border border-l-4 border-stone-200 p-4 ${r.urgent ? 'bg-red-50/60' : 'bg-white'} ${urgentCls}`}>
       <div className="flex items-start justify-between gap-2">
         <div><p className="text-lg font-semibold tracking-tight">Room {r.room} <span className="font-semibold text-stone-700">· {r.guest_name}</span></p>{r.mobile && <a href={`tel:${dialNumber(r.mobile)}`} className="text-sm font-semibold underline">{r.mobile}</a>}</div>
         <span className="rounded-md bg-stone-100 px-2 py-1 text-xs font-semibold text-stone-700">{age} min</span>
@@ -243,10 +246,11 @@ function Card({ r, role, me, people, refreshPeople, roomDining, muted, act }: { 
       <div className="mt-3 flex flex-wrap gap-2">
         {r.status === 'received' && <button type="button" className={`${btn} bg-indigo-900 text-white`} onClick={() => void act(r, 'accept')}>Accept</button>}
         {r.status !== 'received' && r.type !== 'help' && <button type="button" className={`${btn} bg-indigo-900 text-white`} onClick={() => void act(r, 'complete')}>Mark done</button>}
-        {r.type === 'help' && <button type="button" className={`${btn} bg-indigo-900 text-white`} onClick={() => setMode(mode === 'resolve' ? null : 'resolve')}>Resolved…</button>}
+        {r.type === 'help' && <button type="button" className={`${btn} border border-indigo-900 text-indigo-950`} onClick={() => setMode(mode === 'resolve' ? null : 'resolve')}>Resolved…</button>}
         {people && r.type !== 'food' && <button type="button" className={`${btn} border border-stone-300 text-stone-900`} onClick={() => { setMode(mode === 'assign' ? null : 'assign'); void refreshPeople(); }}>{r.assigned_to ? 'Change person…' : 'Assign to…'}</button>}
-        {role !== 'kitchen' && r.type !== 'food' && <button type="button" className={`${btn} border border-stone-300 text-stone-900`} onClick={() => setMode(mode === 'pass' ? null : 'pass')}>Pass to team</button>}
-        {r.status !== 'preparing' && r.status !== 'ready' && !mustFix(r) && <button type="button" className={`${btn} border border-red-300 text-red-800`} onClick={() => setMode(mode === 'decline' ? null : 'decline')}>Decline…</button>}
+        {((role !== 'kitchen' && r.type !== 'food') || (r.status !== 'preparing' && r.status !== 'ready' && !mustFix(r))) && <button type="button" aria-expanded={more} className={`${btn} border border-stone-300 text-stone-900`} onClick={() => setMore(!more)}>More {more ? '▴' : '▾'}</button>}
+        {more && role !== 'kitchen' && r.type !== 'food' && <button type="button" className={`${btn} border border-stone-300 text-stone-900`} onClick={() => setMode(mode === 'pass' ? null : 'pass')}>Pass to team</button>}
+        {more && r.status !== 'preparing' && r.status !== 'ready' && !mustFix(r) && <button type="button" className={`${btn} border border-red-300 text-red-800`} onClick={() => setMode(mode === 'decline' ? null : 'decline')}>Decline…</button>}
       </div>
       {mode === 'decline' && (
         <form className="mt-3 space-y-2" onSubmit={(e) => { e.preventDefault(); if (reason.trim().length >= 3) void act(r, 'dismiss', { reason: reason.trim() }); }}>
