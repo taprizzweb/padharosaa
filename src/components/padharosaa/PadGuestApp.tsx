@@ -107,6 +107,7 @@ export function PadGuestApp({ slug, qrKey, imageBase }: { slug: string; qrKey: s
         {me === null && !farewell && <Login slug={slug} qrKey={qrKey} c={c} lang={lang} setLang={setLang} imageBase={imageBase} onDone={async () => { const r = await api<Me>('sessions/me'); if (r.ok) { setMe(r.data); await loadHome(); } }} />}
         {me && home && (
           <>
+            <div key={screen.s} className="screen-in flex flex-1 flex-col">
             {screen.s === 'home' && <HomeScreen me={me} home={home} c={c} closed={closed} dine={dine} planCount={planCount} go={setScreen} imageBase={imageBase} lang={lang} setLang={setLang} />}
             {screen.s === 'checkout' && <Checkout c={c} closed={closed} onClosed={() => void loadHours()} back={() => setScreen({ s: 'home' })} done={(id) => { void loadHome(); setScreen({ s: 'track', id }); }} />}
             {screen.s === 'services' && <Services c={c} closed={closed} onClosed={() => void loadHours()} back={() => setScreen({ s: 'home' })} done={(id) => { void loadHome(); setScreen({ s: 'track', id }); }} />}
@@ -117,6 +118,7 @@ export function PadGuestApp({ slug, qrKey, imageBase }: { slug: string; qrKey: s
             {screen.s === 'help' && <HelpDialog c={c} closed={closed} onClosed={() => void loadHours()} close={() => setScreen({ s: 'home' })} done={(id) => { void loadHome(); setScreen({ s: 'track', id }); }} />}
             {screen.s === 'stay' && <Stay c={c} back={() => setScreen({ s: 'home' })} />}
             {screen.s === 'track' && <Track id={screen.id} c={c} links={home.links} phone={home.contacts.reception} retry={(label) => setScreen({ s: isHelpLabel(label) ? 'help' : 'services' })} back={() => { void loadHome(); setScreen({ s: 'home' }); }} />}
+            </div>
             <Footer home={home} c={c} />
           </>
         )}
@@ -181,17 +183,17 @@ function Login({ slug, qrKey, c, lang, setLang, onDone, imageBase }: { slug: str
 
 function Tile({ icon, title, sub, onClick, big, wide }: { icon: IconName; title: string; sub?: string; onClick: () => void; big?: boolean; wide?: boolean }) {
   return (
-    <button type="button" onClick={onClick} className={`flex w-full flex-col items-center justify-start gap-2.5 rounded-3xl px-4 pb-4 pt-5 text-center shadow-sm transition active:scale-[0.97] ${big ? 'min-h-36' : 'min-h-28'} ${wide ? 'col-span-2' : ''}`}
-      style={{ background: 'rgba(255,255,255,.94)', color: '#10131a' }}>
-      <IconBox name={icon} />
-      <span><span className={`block font-semibold ${big ? 'text-lg' : 'text-base'}`}>{title}</span>{sub && <span className="mt-0.5 block text-sm font-medium" style={{ color: '#4a4f5a' }}>{sub}</span>}</span>
+    <button type="button" onClick={onClick} className={`group flex w-full gap-3.5 rounded-3xl p-4 text-left transition active:scale-[0.975] ${big ? 'min-h-24 items-center' : 'min-h-[132px] flex-col items-start justify-between'} ${wide ? 'col-span-2' : ''}`}
+      style={{ background: 'rgba(255,255,255,.96)', color: '#10131a', boxShadow: '0 1px 2px rgba(40,20,10,.06), 0 6px 18px -8px rgba(40,20,10,.18)' }}>
+      <IconBox name={icon} size={big ? 52 : 44} />
+      <span className={`min-w-0 ${big ? "flex-1" : "w-full"}`}><span className={`block font-semibold leading-tight ${big ? 'text-lg' : 'text-[15px]'}`}>{title}</span>{sub && <span className="mt-0.5 line-clamp-2 block text-[13px] font-medium leading-snug" style={{ color: '#5a5f6a' }}>{sub}</span>}</span>
+      {big && <span aria-hidden className="text-xl opacity-40 transition group-active:translate-x-0.5">›</span>}
     </button>
   );
 }
 
 function HomeScreen({ me, home, c, closed, dine, planCount, go, imageBase, lang, setLang }: { me: Me; home: Home; c: Copy; closed: string | null; dine: { room_dining: boolean } | null; planCount: number; go: (s: Screen) => void; imageBase: string; lang: Lang; setLang: (l: Lang) => void }) {
   const b = home.buffet;
-  const buffetSub = !b.set ? c.buffetNotSet : b.mode === 'none' ? c.buffetNone : [b.name ? cap(b.name) : '', b.start && b.end ? `${nb(b.start)} – ${nb(b.end)}` : ''].filter(Boolean).join(' · ');
   const logo = home.look.logo_path ? `${imageBase}${home.look.logo_path}` : null;
   const photo = home.look.hero_path ? `${imageBase}${home.look.hero_path}` : null;
   return (
@@ -227,7 +229,6 @@ function HomeScreen({ me, home, c, closed, dine, planCount, go, imageBase, lang,
         <Tile icon="services" title={c.services} onClick={() => go({ s: 'services' })} />
         <Tile icon="checkout" title={c.coTitle} onClick={() => go({ s: 'checkout' })} />
         <Tile icon="wifi" title={c.stay} sub={c.staySub} onClick={() => go({ s: 'stay' })} />
-        {b.set && <Tile icon="buffet" title={c.buffet} sub={buffetSub} onClick={() => go({ s: 'buffet' })} />}
         {planCount > 0 && <Tile icon="plan" title={c.planTile} sub={fill(c.planTileSub, { n: planCount })} onClick={() => go({ s: 'plan' })} />}
         <Tile icon="guide" title={c.guideTitle} sub={c.guideSub} onClick={() => go({ s: 'guide' })} />
       </div>
