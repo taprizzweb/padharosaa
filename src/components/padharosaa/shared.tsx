@@ -91,9 +91,7 @@ export const IconBox = ({ name, bg = 'var(--ink)', fg = 'var(--paper)', size = 4
   <span aria-hidden className="grid shrink-0 place-items-center rounded-[14px]" style={{ width: size, height: size, background: bg, color: fg }}><Icon name={name} size={Math.round(size * 0.52)} /></span>
 );
 
-const STENCIL = ['M20 190 H380', 'M40 190 V110 H360 V190', 'M170 190 V120 Q200 80 230 120 V190', 'M180 190 V124 Q200 94 220 124 V190', 'M185 70 Q200 30 215 70', 'M200 30 V14', 'M196 14 H204', 'M170 110 V80 H230 V110', 'M160 110 H240', 'M60 110 V84 H110 V110', 'M60 84 Q85 56 110 84', 'M70 110 V96 Q85 80 100 96 V110', 'M290 110 V84 H340 V110', 'M290 84 Q315 56 340 84', 'M300 110 V96 Q315 80 330 96 V110', 'M40 110 V100 H52 V110', 'M348 110 V100 H360 V110', 'M20 190 V176 H380 V190', 'M120 190 V140 Q135 124 150 140 V190', 'M250 190 V140 Q265 124 280 140 V190', 'M60 132 H110', 'M290 132 H340', 'M10 50 Q30 20 50 50', 'M350 50 Q370 20 390 50'];
-
-/** Faint haveli outline behind the hero text. Decoration only. A hotel photo replaces it when the manager has uploaded one. */
+/** The hotel's own photo, faded behind the greeting. Without one the page stays plain. */
 export function Hero({ photo }: { photo?: string | null }) {
   const mask = { WebkitMaskImage: 'linear-gradient(to bottom, #000 55%, transparent 100%)', maskImage: 'linear-gradient(to bottom, #000 55%, transparent 100%)' } as const;
   if (photo) {
@@ -105,19 +103,13 @@ export function Hero({ photo }: { photo?: string | null }) {
       </div>
     );
   }
-  return (
-    <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 z-0 h-48 opacity-[0.16]" style={{ color: 'var(--on-hero)', ...mask }}>
-      <svg viewBox="0 0 400 200" preserveAspectRatio="xMidYMin slice" className="block h-full w-full">
-        {STENCIL.map((d) => <path key={d} d={d} fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />)}
-      </svg>
-    </div>
-  );
+  return null;
 }
 
 /** Hotel logo and name in a white pill; sits on the hero, so it stays readable on any brand colour. */
 export function BrandPill({ name, logo }: { name: string; logo?: string | null }) {
   return (
-    <span className="inline-flex max-w-[70%] items-center gap-2 rounded-full px-3.5 py-1.5 text-xs font-semibold shadow-sm" style={{ background: 'rgba(255,255,255,.94)', color: '#4a3b32', fontFamily: "Marcellus, 'Iowan Old Style', Georgia, serif" }}>
+    <span className="inline-flex max-w-[70%] items-center gap-2 rounded-full px-3.5 py-1.5 text-xs font-semibold" style={{ background: '#fff', color: 'var(--ink)', border: '1px solid #e7e5e4' }}>
       {/* eslint-disable-next-line @next/next/no-img-element -- own storage, tiny logo */}
       {logo && <img src={logo} alt="" width={28} height={28} className="h-7 w-7 shrink-0 rounded-lg object-cover" />}
       <span className="truncate text-sm">{name}</span>

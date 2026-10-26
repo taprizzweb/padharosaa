@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { POWERED_BY, instagramUrl } from '@/lib/brand';
 import { FILTERS, SECTIONS, pickGroups, summaryHasMatch, toggleFilter, type CategorySummary, type Filter, type Section } from '@/lib/guest/filters';
-import { buildTheme, themeVars } from '@/lib/padharosaa/theme';
+import { guestTheme, themeVars } from '@/lib/padharosaa/theme';
 import { COPY, LANGS, fill, isHelpLabel, localLabel, type Copy, type Lang } from './copy';
 import { BuffetAlerts } from './BuffetAlerts';
 import { BuffetScreen, GuideScreen, PlanScreen } from './GuideScreens';
@@ -42,7 +42,7 @@ function BuffetNotice({ b, c, onOpen }: { b: Home['buffet']; c: Copy; onOpen: ()
   useEffect(() => { try { setFresh(localStorage.getItem('padh-buffet-seen') !== sig); } catch { setFresh(true); } }, [sig]);
   const open = () => { try { localStorage.setItem('padh-buffet-seen', sig); } catch { /* private mode */ } setFresh(false); onOpen(); };
   return (
-    <button type="button" onClick={open} data-testid="buffet-notice" className="w-full rounded-[22px] p-4 text-left shadow-md" style={{ background: 'linear-gradient(135deg,#2f5d3a 0%,#3f7a4b 100%)', color: '#fff' }}>
+    <button type="button" onClick={open} data-testid="buffet-notice" className="w-full rounded-2xl p-4 text-left" style={{ background: 'linear-gradient(135deg,#2f5d3a 0%,#3f7a4b 100%)', color: '#fff' }}>
       <span className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[.16em]">● {c.buffet}{fresh && <span className="rounded-full bg-white px-2 py-0.5 text-[10px] text-green-900">{c.newTag}</span>}</span>
       <span className="mt-1.5 block text-base font-semibold leading-snug">{[b.name ? cap(b.name) : null, b.start && b.end ? `${nb(b.start)} – ${nb(b.end)}` : null, b.venue].filter(Boolean).join(' · ')}</span>
     </button>
@@ -96,7 +96,7 @@ export function PadGuestApp({ slug, qrKey, imageBase }: { slug: string; qrKey: s
   }, [loadHome, slug, signedOut]);
 
   const brand = home?.look.brand_color ?? farewell?.brand_color ?? null;
-  const theme = useMemo(() => buildTheme(brand), [brand]);
+  const theme = useMemo(() => guestTheme(brand), [brand]);
   const style = themeVars(theme) as CSSProperties;
 
   return (
@@ -138,7 +138,7 @@ function Login({ slug, qrKey, c, lang, setLang, onDone, imageBase }: { slug: str
     if (!qrKey) return;
     void api<typeof hotel>(`hotels/${slug}/public?k=${qrKey}`).then((r) => { if (r.ok) setHotel(r.data); else setErr('needKey'); });
   }, [slug, qrKey]);
-  const t = buildTheme(hotel?.brand_color);
+  const t = guestTheme(hotel?.brand_color);
   const submit = async () => {
     if (!qrKey) return;
     setBusy(true); setErr(null);
@@ -157,20 +157,20 @@ function Login({ slug, qrKey, c, lang, setLang, onDone, imageBase }: { slug: str
     </label>
   );
   return (
-    <main className="relative flex-1 pb-44" style={{ background: `linear-gradient(${t.gradient[0]}, ${t.gradient[1]} 18rem, var(--paper) 30rem)` }}>
+    <main className="relative flex-1 pb-44" style={{ background: 'var(--paper)' }}>
       <Hero photo={hotel?.hero_path ? `${imageBase}${hotel.hero_path}` : null} />
       <div className="relative z-10 px-5 pb-4 pt-6" style={{ color: t.onHero }}>
         <BrandPill name={hotel?.name ?? ''} logo={hotel?.logo_path ? `${imageBase}${hotel.logo_path}` : null} />
-        <h1 className="mt-6 text-3xl font-semibold leading-tight tracking-tight" style={{ fontFamily: "Marcellus, 'Iowan Old Style', Georgia, serif", textShadow: '0 1px 12px rgba(60,20,12,.25)' }}>{hotel?.name || c.loginTitle}</h1>
+        <h1 className="mt-6 text-3xl font-semibold leading-tight tracking-tight" style={{ textShadow: 'none' }}>{hotel?.name || c.loginTitle}</h1>
         <p className="mt-1.5" style={{ color: t.onHeroSoft }}>{c.loginTitle}. {c.loginSub}</p>
         <div className="-mx-6 mt-3 flex gap-2 overflow-x-auto px-6 pb-1" role="group" aria-label={c.language}>
           {LANGS.map(({ code, label }) => (
             <button key={code} type="button" aria-pressed={lang === code} onClick={() => setLang(code)} className="min-h-11 shrink-0 rounded-full border px-4 text-sm font-semibold"
-              style={lang === code ? { background: '#fff', color: '#5b4a40', borderColor: '#fff' } : { background: 'rgba(60,20,12,.32)', color: '#fff', borderColor: 'rgba(255,255,255,.55)' }}>{label}</button>
+              style={lang === code ? { background: t.button, color: t.onButton, borderColor: t.button } : { background: '#fff', color: 'var(--ink)', borderColor: '#d6d3d1' }}>{label}</button>
           ))}
         </div>
       </div>
-      <form className="relative z-10 mx-4 space-y-3 rounded-3xl p-4 shadow-lg" onSubmit={(e) => { e.preventDefault(); void submit(); }} style={{ color: t.ink, background: 'rgba(255,255,255,.94)' }}>
+      <form className="relative z-10 mx-4 space-y-3 rounded-2xl border border-stone-200 p-4" onSubmit={(e) => { e.preventDefault(); void submit(); }} style={{ color: t.ink, background: '#fff' }}>
         {field('name', c.name)}{field('mobile', c.mobile, { inputMode: 'tel', maxLength: 14 })}{field('room', c.roomNo, { maxLength: 10 })}{field('stay', c.stayCode, { inputMode: 'numeric', maxLength: 4 })}
         <label className="flex items-start gap-3 text-sm"><input type="checkbox" className="mt-1 h-5 w-5" onChange={(e) => { f.current.consent = e.target.checked; }} />{c.consent}</label>
         {err && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm font-medium text-red-900">{err === 'needKey' ? c.needKey : err === 'unknown_room' ? c.roomNotFound : err === 'login_failed' ? c.loginFailed : err === 'locked' ? c.tooManyTries : err === 'not_configured' ? c.notReady : c.failed}</p>}
@@ -183,10 +183,10 @@ function Login({ slug, qrKey, c, lang, setLang, onDone, imageBase }: { slug: str
 
 function Tile({ icon, title, sub, onClick, big, wide }: { icon: IconName; title: string; sub?: string; onClick: () => void; big?: boolean; wide?: boolean }) {
   return (
-    <button type="button" onClick={onClick} className={`group flex w-full gap-3.5 rounded-3xl p-4 text-left transition active:scale-[0.975] ${big ? 'min-h-24 items-center' : 'min-h-[132px] flex-col items-start justify-between'} ${wide ? 'col-span-2' : ''}`}
-      style={{ background: 'rgba(255,255,255,.96)', color: '#10131a', boxShadow: '0 1px 2px rgba(40,20,10,.06), 0 6px 18px -8px rgba(40,20,10,.18)' }}>
-      <IconBox name={icon} size={big ? 52 : 44} />
-      <span className={`min-w-0 ${big ? "flex-1" : "w-full"}`}><span className={`block font-semibold leading-tight ${big ? 'text-lg' : 'text-[15px]'}`}>{title}</span>{sub && <span className="mt-0.5 line-clamp-2 block text-[13px] font-medium leading-snug" style={{ color: '#5a5f6a' }}>{sub}</span>}</span>
+    <button type="button" onClick={onClick} className={`group flex w-full gap-3.5 rounded-2xl p-4 text-left transition active:scale-[0.975] ${big ? 'min-h-24 items-center' : 'min-h-[132px] flex-col items-start justify-between'} ${wide ? 'col-span-2' : ''}`}
+      style={{ background: '#fff', color: 'var(--ink)', border: '1px solid #e7e5e4' }}>
+      <IconBox name={icon} size={big ? 48 : 42} bg="var(--tint)" fg="var(--accent-text)" />
+      <span className={`min-w-0 ${big ? "flex-1" : "w-full"}`}><span className={`block font-semibold leading-tight ${big ? 'text-lg' : 'text-[15px]'}`}>{title}</span>{sub && <span className="mt-0.5 line-clamp-2 block text-[13px] font-medium leading-snug" style={{ color: '#57534e' }}>{sub}</span>}</span>
       {big && <span aria-hidden className="text-xl opacity-40 transition group-active:translate-x-0.5">›</span>}
     </button>
   );
@@ -197,20 +197,20 @@ function HomeScreen({ me, home, c, closed, dine, planCount, go, imageBase, lang,
   const logo = home.look.logo_path ? `${imageBase}${home.look.logo_path}` : null;
   const photo = home.look.hero_path ? `${imageBase}${home.look.hero_path}` : null;
   return (
-    <main className="relative flex-1 pb-4" style={{ background: 'linear-gradient(180deg, var(--hero-0) 0, var(--hero-1) 15rem, var(--paper) 30rem)' }}>
+    <main className="relative flex-1 pb-4" style={{ background: 'var(--paper)' }}>
       <Hero photo={photo} />
       <div className="relative z-10 space-y-3 px-5 pb-1 pt-6">
         <div className="flex items-center justify-between gap-3">
           <BrandPill name={home.look.name} logo={logo} />
-          <select aria-label={c.language} value={lang} onChange={(e) => setLang(e.target.value as Lang)} className="min-h-11 rounded-full border px-3 text-sm font-semibold" style={{ borderColor: 'rgba(255,255,255,.55)', background: 'rgba(60,20,12,.55)', color: '#fff' }}>{LANGS.map(({ code, label }) => <option key={code} value={code} style={{ color: '#10131a' }}>{label}</option>)}</select>
+          <select aria-label={c.language} value={lang} onChange={(e) => setLang(e.target.value as Lang)} className="min-h-11 rounded-full border px-3 text-sm font-semibold" style={{ borderColor: '#d6d3d1', background: '#fff', color: 'var(--ink)' }}>{LANGS.map(({ code, label }) => <option key={code} value={code} style={{ color: '#10131a' }}>{label}</option>)}</select>
         </div>
         <div className="pb-1 pt-5" style={{ color: 'var(--on-hero)' }}>
-          <h1 className="text-4xl font-semibold leading-[1.06] tracking-tight" style={{ textShadow: '0 1px 12px rgba(60,20,12,.25)' }}>{fill(c.hello, { name: me.name.trim().split(/\s+/)[0] ?? me.name })}</h1>
+          <h1 className="text-4xl font-semibold leading-[1.06] tracking-tight" style={{ textShadow: 'none' }}>{fill(c.hello, { name: me.name.trim().split(/\s+/)[0] ?? me.name })}</h1>
           <p className="mt-2 text-base" style={{ color: 'var(--on-hero-soft)' }}>{fill(c.room, { room: me.room })}</p>
         </div>
         <ClosedBanner text={closed} />
         {home.offer && (
-          <div className="rounded-[22px] p-4 text-white shadow-lg" style={{ background: 'linear-gradient(135deg,#8E1B2D 0%,#C42B45 60%,#B32A48 130%)' }}>
+          <div className="rounded-2xl p-4 text-white" style={{ background: 'linear-gradient(135deg,#8E1B2D 0%,#C42B45 60%,#B32A48 130%)' }}>
             <span className="text-[11px] font-bold uppercase tracking-[.16em] text-white/95">● {c.offerTag}</span>
             <p className="mt-1.5 whitespace-pre-line text-base font-semibold leading-snug">{home.offer}</p>
           </div>
@@ -218,7 +218,7 @@ function HomeScreen({ me, home, c, closed, dine, planCount, go, imageBase, lang,
         {b.set && b.mode !== 'none' && <BuffetNotice b={b} c={c} onOpen={() => go({ s: 'buffet' })} />}
         <BuffetAlerts c={c} />
         {home.info && (
-          <div className="rounded-[22px] border-l-4 bg-white p-4 shadow-sm" style={{ borderColor: '#d9a21b', color: '#2a2113' }}>
+          <div className="rounded-2xl border border-l-4 border-stone-200 bg-white p-4" style={{ borderColor: '#d9a21b', color: '#2a2113' }}>
             <span className="text-[11px] font-bold uppercase tracking-[.16em]" style={{ color: '#8a6410' }}>{c.infoTag}</span>
             <p className="mt-1.5 whitespace-pre-line text-base font-semibold leading-snug">{home.info}</p>
           </div>
@@ -233,8 +233,8 @@ function HomeScreen({ me, home, c, closed, dine, planCount, go, imageBase, lang,
         <Tile icon="guide" title={c.guideTitle} sub={c.guideSub} onClick={() => go({ s: 'guide' })} />
       </div>
       <div className="relative z-10 px-5 pt-3">
-        <button type="button" onClick={() => go({ s: 'help' })} className="flex min-h-[68px] w-full items-center gap-3.5 rounded-3xl p-3.5 text-left shadow-sm transition active:scale-[0.985]" style={{ background: '#F8EBCB', color: '#7a4e0a' }}>
-          <IconBox name="help" bg="#8A5A0E" fg="#F8EBCB" size={40} />
+        <button type="button" onClick={() => go({ s: 'help' })} className="flex min-h-[68px] w-full items-center gap-3.5 rounded-2xl p-3.5 text-left transition active:scale-[0.985]" style={{ background: '#fff', color: 'var(--ink)', border: '1px solid #e7e5e4' }}>
+          <IconBox name="help" bg="#fef3c7" fg="#92400e" size={40} />
           <span className="flex-1 font-semibold">{c.help}<span className="block text-sm font-medium">{c.helpSub}</span></span>
           <span aria-hidden className="text-xl">›</span>
         </button>
@@ -277,7 +277,7 @@ function Reviews({ home, c }: { home: Home; c: Copy }) {
   const btn = 'flex min-h-12 flex-1 items-center justify-center gap-2 rounded-2xl border bg-white px-3 text-sm font-bold text-stone-900 shadow-sm';
   const handle = ig ? `@${ig.replace(/\/+$/, '').split('/').pop() ?? ''}` : '';
   return (
-    <section className="relative z-10 mx-5 mt-3 space-y-2.5 rounded-3xl p-4 shadow-sm" style={{ background: 'rgba(255,255,255,.94)', color: '#10131a' }}>
+    <section className="relative z-10 mx-5 mt-3 space-y-2.5 rounded-2xl border border-stone-200 p-4" style={{ background: '#fff', color: 'var(--ink)' }}>
       {(g || t) && (<><h2 className="font-bold">{c.reviewTitle}</h2><p className="text-sm text-stone-600">{c.reviewSub}</p>
         <div className="flex gap-2">
           {g && <a className={btn} style={{ borderColor: '#e3cdb4' }} href={g} target="_blank" rel="noopener noreferrer"><b aria-hidden className="grid h-6 w-6 place-items-center rounded-full border bg-white text-[13px] text-[#1A5FD0]">G</b>{c.google}</a>}
@@ -417,7 +417,7 @@ function Checkout({ c, closed, onClosed, back, done }: { c: Copy; closed: string
         <label className="flex min-h-11 items-center gap-3"><input type="checkbox" checked={luggage} onChange={(e) => setLuggage(e.target.checked)} className="h-5 w-5" />{c.coLuggage}</label>
         <label className="flex min-h-11 items-center gap-3"><input type="checkbox" checked={bill} onChange={(e) => setBill(e.target.checked)} className="h-5 w-5" />{c.coBill}</label>
         <label className="block text-sm font-semibold">{c.coNote}<textarea maxLength={300} rows={3} value={note} onChange={(e) => setNote(e.target.value)} className="mt-1 w-full rounded-xl border bg-white p-3 text-base text-stone-900" /></label>
-        <p className="text-sm" style={{ color: '#4a4f5a' }}>{c.coSent}</p>
+        <p className="text-sm" style={{ color: '#57534e' }}>{c.coSent}</p>
         <ClosedBanner text={closed} />
         {err && !closed && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm font-medium text-red-900">{err === 'time' ? c.needTime : c.failed}</p>}
         <Btn onClick={() => void send()} disabled={busy || !!closed}>{busy ? c.sending : c.send}</Btn>

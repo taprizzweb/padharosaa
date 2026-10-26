@@ -132,3 +132,11 @@ export function themeVars(t: Theme): Record<string, string> {
     '--hero-0': t.gradient[0], '--hero-1': t.gradient[1], '--hero-2': t.gradient[2],
   };
 }
+
+/** The guest app's look, the same as the staff screens: flat light page, hairline borders, indigo unless the hotel picked a colour. */
+export const NORTHSTAR_BRAND = '#312e81';
+export function guestTheme(input: string | null | undefined): Theme {
+  const base = buildTheme(input && normaliseHex(input) !== DEFAULT_BRAND ? input : NORTHSTAR_BRAND);
+  const paper = '#fafaf9';
+  return { ...base, paper, ink: '#1c1917', onHero: '#1c1917', onHeroSoft: '#57534e', tint: mix(base.picked, paper, 0.1), gradient: [paper, paper, paper] };
+}
