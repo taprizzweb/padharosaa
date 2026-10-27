@@ -233,3 +233,7 @@ export const paymentBody = z.object({ kind: z.enum(['advance', 'payment', 'refun
 export const stayUpdateBody = z.object({ rate_paise: paise.nullish(), out_on: day.nullish(), company: z.string().max(120).nullish(), gstin: z.string().max(15).nullish(), inter_state: z.boolean().nullish() }).strict();
 export const voidBody = z.object({ reason: z.string().trim().min(1).max(200) }).strict();
 export const staysQuery = z.object({ status: z.enum(['in_house', 'checked_out']) });
+
+// ---- staff push notifications (migration 0068) ----
+const pushSub = z.object({ endpoint: z.string().url().max(1000), expirationTime: z.number().nullish(), keys: z.object({ p256dh: z.string().max(200), auth: z.string().max(100) }).strict() }).strict();
+export const staffPushBody = z.object({ subscription: pushSub.nullable(), endpoint: z.string().url().max(1000).nullish() }).strict();

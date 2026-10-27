@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useEffect } from 'react';
 import { alarm, useAlarm } from '@/components/staff/alarm-center';
+import { StaffPushToggle } from './StaffPushToggle';
 
 /**
  * The alarm switch and the "waiting" banner, on every staff screen. The alarm keeps ringing when the person moves between screens, so what
@@ -21,6 +22,7 @@ export function AlarmControl({ onDesk, deskHref }: { onDesk: boolean; deskHref: 
           <span aria-hidden>{a.on ? '🔔' : '🔕'}</span>{a.on ? 'Alarm is on' : a.needsTap ? 'Tap to turn the alarm back on' : 'Alarm is off: tap to turn it on'}
         </button>
         {a.on && <button type="button" className="inline-flex min-h-11 items-center rounded-lg border border-stone-300 bg-white px-3 text-sm font-semibold" onClick={() => alarm.play('urgent')}>Test the sound</button>}
+        <StaffPushToggle />
       </div>
       {a.on && a.waiting.length > 0 && (
         <div role="alert" data-testid="alarm-banner" className={`mt-2 flex flex-wrap items-center justify-between gap-2 rounded-xl p-3 text-sm font-semibold text-white ${urgent ? 'animate-pulse bg-red-700' : 'bg-amber-700'}`}>

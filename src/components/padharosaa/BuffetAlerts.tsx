@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from 'react';
 import type { Copy } from './copy';
+import { pushKeyBytes } from '@/lib/padharosaa/webpush-client';
 import { api } from './shared';
 
-const toKey = (b64: string) => { const pad = '='.repeat((4 - (b64.length % 4)) % 4); const raw = atob((b64 + pad).replace(/-/g, '+').replace(/_/g, '/')); return Uint8Array.from(raw, (ch) => ch.charCodeAt(0)); };
+const toKey = pushKeyBytes;
 
 /** Guest: allow buffet alerts on this phone (Web Push). Hidden when the phone or the server cannot do it. */
 export function BuffetAlerts({ c }: { c: Copy }) {

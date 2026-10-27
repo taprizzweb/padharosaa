@@ -3,6 +3,8 @@ import { guestRoute, jsonOk } from '@/lib/api/route';
 import { ApiError } from '@/lib/errors';
 import { guard, penalize, rpc } from '@/lib/guest/rpc';
 import { setGuestCookie } from '@/lib/guest/session-cookie';
+import { later } from '@/lib/padharosaa/push';
+import { notifyStaffOfOrder } from '@/lib/padharosaa/staff-push';
 import { orderBody } from '@/lib/schemas/guest';
 
 export const dynamic = 'force-dynamic';
@@ -47,6 +49,7 @@ export async function POST(req: Request) {
         if (body.handover === 'deliver' && e instanceof ApiError && e.key === 'invalid_input') handover = await set('takeaway').then((x) => x.handover).catch(() => null);
       }
     }
+    if (!r.replayed) later(() => notifyStaffOfOrder(body.slug, r.order_no)); // a room order also reaches the kitchen's and reception's phones
     const res = jsonOk({ order_no: r.order_no, total_paise: r.total_paise, status: r.status, replayed: r.replayed, handover }, ctx.requestId) as NextResponse;
     setGuestCookie(res, r.session_id, body.slug);
     return res;

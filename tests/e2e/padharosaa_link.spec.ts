@@ -756,6 +756,50 @@ test('the alarm keeps ringing when reception moves to another screen, and a wait
   }
 });
 
+test('an offer: the manager types it, picks "Tonight", saves, and the guest sees it on the home screen; switching it off removes it', async ({ browser }) => {
+  test.setTimeout(120_000);
+  await q(`insert into public.rooms (restaurant_id, number) values (${RID}, '204') on conflict do nothing`);
+  await q(`update public.hotel_settings set offer_text = null, offer_until = null where restaurant_id = ${RID}`);
+  const octx = await browser.newContext({ viewport: { width: 1100, height: 900 } });
+  const gctx = await browser.newContext({ viewport: { width: 375, height: 800 } });
+  const o = await octx.newPage();
+  const g = await gctx.newPage();
+  try {
+    await signIn(o, 'owner@spice-garden.demo', /\/padharosaa\/owner$/, '/padharosaa/owner');
+    await o.getByRole('tab', { name: 'Hotel' }).click();
+    await o.getByLabel('Offer (e.g. Free lassi with dinner tonight)').fill('Free lassi with dinner tonight');
+    await expect(o.getByLabel('Offer ends', { exact: true }).first()).not.toHaveValue(''); // a time is chosen for you, so the save cannot fail on an empty time
+    await o.getByRole('button', { name: 'Tomorrow night' }).click();
+    await o.getByRole('button', { name: 'Save texts' }).click();
+    await expect(o.getByText('Saved. Guests see the offer now.')).toBeVisible();
+    await expect(o.getByTestId('offer-live')).toContainText('Free lassi with dinner tonight');
+    await g.goto(second);
+    await g.getByLabel('Your name').fill('Offer Guest');
+    await g.getByRole('button', { name: 'Accept cookies' }).click();
+    await g.getByLabel('Mobile number').fill('9855550101');
+    await g.getByLabel('Room number').fill('204');
+    await g.getByRole('button', { name: 'Enter' }).click();
+    await expect(g.getByText('Namaste, Offer')).toBeVisible();
+    await expect(g.getByText('Free lassi with dinner tonight')).toBeVisible();
+    // switching it off
+    await o.getByRole('button', { name: 'Switch the offer off' }).click();
+    await expect(o.getByText('The offer is switched off.')).toBeVisible();
+    await g.reload();
+    await expect(g.getByText('Namaste, Offer')).toBeVisible();
+    await expect(g.getByText('Free lassi with dinner tonight')).toHaveCount(0);
+    // a time in the past or an empty one is explained, not sent
+    await o.getByLabel('Offer (e.g. Free lassi with dinner tonight)').fill('Late snack');
+    await o.getByLabel('Offer ends', { exact: true }).first().fill('2020-01-01T10:00');
+    await o.getByRole('button', { name: 'Save texts' }).click();
+    await expect(o.getByText('The offer must end later than now.')).toBeVisible();
+  } finally {
+    await q(`update public.hotel_settings set offer_text = null, offer_until = null where restaurant_id = ${RID}`);
+    await q(`delete from public.guest_sessions where restaurant_id = ${RID} and guest_name = 'Offer Guest'`);
+    await octx.close();
+    await gctx.close();
+  }
+});
+
 test('a public demo hotel: one link, no sign-in, and the demo answers itself; a normal hotel has no demo link', async ({ browser }) => {
   test.setTimeout(150_000); // the demo answers after about 20 seconds
   const ctx = await browser.newContext({ viewport: { width: 375, height: 800 } });

@@ -18,6 +18,7 @@ import { prettyPhone } from '@/lib/padharosaa/phone';
 import { parseVoucherLines } from '@/lib/padharosaa/wifi';
 import { parseStaffCsv } from '@/lib/padharosaa/csv';
 import { buildTheme, contrast, normaliseHex } from '@/lib/padharosaa/theme';
+import { OFFER_PROBLEM, isoToLocalInput, offerEndProblem, offerPresets } from '@/lib/padharosaa/offer';
 
 type Team = 'concierge' | 'front_desk' | 'housekeeping' | 'kitchen' | 'maintenance' | 'manager';
 const TEAMS: [Team, string][] = [['front_desk', 'Front desk'], ['concierge', 'Concierge'], ['housekeeping', 'Housekeeping'], ['kitchen', 'Kitchen'], ['maintenance', 'Maintenance'], ['manager', 'Manager']];
@@ -235,13 +236,29 @@ function HoursCard({ s, save }: { s: Settings; save: Save }) {
 }
 
 function HomeCard({ s, save }: { s: Settings; save: Save }) {
-  const [f, setF] = useState({ offer: s.offer_text ?? '', until: s.offer_until ? s.offer_until.slice(0, 16) : '', info: s.info_text ?? '' });
+  const [f, setF] = useState({ offer: s.offer_text ?? '', until: isoToLocalInput(s.offer_until), info: s.info_text ?? '' });
+  const [problem, setProblem] = useState<string | null>(null);
+  const live = !!s.offer_text && !!s.offer_until && Date.parse(s.offer_until) > Date.now();
+  const submit = () => {
+    if (f.offer.trim()) {
+      const p = offerEndProblem(f.until, new Date());
+      if (p) { setProblem(OFFER_PROBLEM[p]); return; }
+    }
+    setProblem(null);
+    void save('home', { offer: f.offer.trim() || null, offer_until: f.offer.trim() && f.until ? new Date(f.until).toISOString() : null, info: f.info.trim() || null }, f.offer.trim() ? 'Saved. Guests see the offer now.' : 'Saved.');
+  };
   return (
-    <Card title="Guest home texts" hint="The offer box shows until the time you set (max 7 days). The info box shows until you clear it.">
-      <Field label="Offer (e.g. Free lassi with dinner tonight)"><input className={inputCls} maxLength={200} value={f.offer} onChange={(e) => setF({ ...f, offer: e.target.value })} /></Field>
-      <Field label="Offer ends"><input type="datetime-local" className={inputCls} value={f.until} onChange={(e) => setF({ ...f, until: e.target.value })} /></Field>
+    <Card title="Guest home texts" hint="The offer box shows on every guest's home screen until the time you choose (7 days at most). The info box shows until you clear it.">
+      {live && <p className="rounded-lg bg-emerald-50 p-2.5 text-sm font-semibold text-emerald-950" data-testid="offer-live">Live now until {new Date(s.offer_until!).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}: {s.offer_text}</p>}
+      <Field label="Offer (e.g. Free lassi with dinner tonight)"><input className={inputCls} maxLength={200} value={f.offer} onChange={(e) => { setF({ ...f, offer: e.target.value, until: e.target.value && !f.until ? offerPresets(new Date())[0]!.value : f.until }); setProblem(null); }} /></Field>
+      <Field label="Offer ends"><input type="datetime-local" className={inputCls} value={f.until} onChange={(e) => { setF({ ...f, until: e.target.value }); setProblem(null); }} /></Field>
+      <div className="flex flex-wrap gap-2" role="group" aria-label="Offer ends">
+        {offerPresets(new Date()).map((p) => <button key={p.label} type="button" className="min-h-9 rounded-full border border-stone-300 bg-white px-3 text-sm font-semibold" onClick={() => { setF({ ...f, until: p.value }); setProblem(null); }}>{p.label}</button>)}
+      </div>
+      {problem && <p role="alert" className="text-sm font-semibold text-red-900">{problem}</p>}
       <Field label="Info (e.g. Pool closed 1 to 3 PM)"><input className={inputCls} maxLength={400} value={f.info} onChange={(e) => setF({ ...f, info: e.target.value })} /></Field>
-      <button type="button" className={btnCls} onClick={() => void save('home', { offer: f.offer || null, offer_until: f.offer && f.until ? new Date(f.until).toISOString() : null, info: f.info || null })}>Save texts</button>
+      <button type="button" className={btnCls} onClick={submit}>Save texts</button>
+      {live && <button type="button" className="ml-2 min-h-11 rounded-lg border border-stone-300 px-4 text-sm font-semibold" onClick={() => { setF({ ...f, offer: '', until: '' }); void save('home', { offer: null, offer_until: null, info: f.info.trim() || null }, 'The offer is switched off.'); }}>Switch the offer off</button>}
     </Card>
   );
 }

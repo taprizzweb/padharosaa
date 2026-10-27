@@ -19,11 +19,18 @@ self.addEventListener('fetch', (event) => {
   }
 });
 
-// Buffet alerts (Web Push). The message holds only a title, a line of text and the hotel page to open: nothing private.
+// Web Push: buffet alerts for guests, and new requests and food orders for staff. The message holds only a title, a line of text and the page
+// to open: nothing private. A staff message about an urgent request stays on the screen until someone taps it, and buzzes the phone.
 self.addEventListener('push', (event) => {
   let d = {};
   try { d = event.data ? event.data.json() : {}; } catch { /* plain text */ }
-  event.waitUntil(self.registration.showNotification(d.title || 'Buffet', { body: d.body || '', tag: d.tag || 'buffet', renotify: true, icon: '/icons/icon-192.png', data: { url: d.url || '/' } }));
+  const staff = d.kind === 'staff';
+  const options = { body: d.body || '', tag: d.tag || (staff ? 'staff' : 'buffet'), renotify: true, icon: '/icons/icon-192.png', badge: '/icons/icon-192.png', data: { url: d.url || '/' } };
+  if (staff) {
+    options.requireInteraction = !!d.urgent;
+    options.vibrate = d.urgent ? [400, 150, 400, 150, 800] : [250, 100, 250];
+  }
+  event.waitUntil(self.registration.showNotification(d.title || (staff ? 'New request' : 'Buffet'), options));
 });
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
