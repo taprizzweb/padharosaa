@@ -87,9 +87,9 @@ test('the manager can see the link but cannot make a new one', async ({ page }) 
   await expect(page.getByText('Only the owner can create a new link')).toBeVisible();
   // and the manager can reach the one reception desk, where everything arrives
   const nav = page.getByRole('navigation', { name: 'Screens' });
-  await expect(nav.getByRole('link', { name: 'Reception desk (everything)' })).toBeVisible();
-  await expect(nav.getByRole('link', { name: 'Kitchen display' })).toHaveCount(0); // only when the hotel says it has one
-  await nav.getByRole('link', { name: 'Reception desk (everything)' }).click();
+  await expect(nav.getByRole('link', { name: 'Reception desk' })).toBeVisible();
+  await expect(nav.getByRole('link', { name: 'Kitchen' })).toHaveCount(0); // only when the hotel says it has one
+  await nav.getByRole('link', { name: 'Reception desk' }).click();
   await expect(page).toHaveURL(/\/padharosaa\/desk$/);
   await expect(page.getByRole('button', { name: /^All\s*\d+$/ })).toHaveAttribute('aria-pressed', 'true');
   // old addresses land on the desk too
@@ -98,7 +98,7 @@ test('the manager can see the link but cannot make a new one', async ({ page }) 
   // with a separate kitchen display switched on, the manager gets that screen as well
   await q(`update public.hotel_settings set kitchen_display = true where restaurant_id = ${RID}`);
   await page.goto('/padharosaa/desk');
-  await page.getByRole('navigation', { name: 'Screens' }).getByRole('link', { name: 'Kitchen display' }).click();
+  await page.getByRole('navigation', { name: 'Screens' }).getByRole('link', { name: 'Kitchen' }).click();
   await expect(page).toHaveURL(/\/padharosaa\/kitchen$/);
   await expect(page.getByRole('tab', { name: 'Live' })).toBeVisible();
   await expect(page.getByRole('tab', { name: 'Sold out' })).toBeVisible();
@@ -226,7 +226,7 @@ test('in a hotel only the Taprizz admin edits the menu: the owner has no edit op
     await signIn(page, 'owner@spice-garden.demo', /\/padharosaa\/owner$/, '/padharosaa/owner');
     const nav = page.getByRole('navigation', { name: 'Screens' });
     await expect(nav.getByRole('link', { name: /add or delete dishes/ })).toHaveCount(0);
-    await expect(nav.getByRole('link', { name: 'Menu (sold-out switches)' })).toBeVisible();
+    await expect(nav.getByRole('link', { name: 'Menu' })).toBeVisible();
     await page.goto('/dash/menu');
     await expect(page).toHaveURL(/\/dash\/settings$/);
     await expect(page.getByRole('link', { name: 'Menu', exact: true })).toHaveCount(0);
@@ -289,7 +289,7 @@ test('the owner sets opening and closing time; after closing a guest sees it and
 test('reception sees only the desk, the menu (sold-out switches) and settings, and no console, dashboard or team tools', async ({ page }) => {
   await signIn(page, 'waiter@spice-garden.demo', /\/padharosaa\/desk$/, '/padharosaa/desk');
   const nav = page.getByRole('navigation', { name: 'Screens' });
-  await expect(nav.getByRole('link')).toHaveText(['Desk', 'Billing', 'Menu', 'Settings']);
+  await expect(nav.getByRole('link')).toHaveText(['Reception desk', 'Billing', 'Menu', 'Settings']);
   await expect(page.getByRole('heading', { name: 'Opening and closing time for requests' })).toHaveCount(0);
   await nav.getByRole('link', { name: 'Menu' }).click();
   await expect(page).toHaveURL(/\/padharosaa\/menu$/);

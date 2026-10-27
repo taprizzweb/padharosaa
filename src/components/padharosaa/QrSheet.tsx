@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
 import { apiGet } from '@/components/staff/hooks';
 import { roomLink } from '@/lib/padharosaa/qrsheet';
 
@@ -34,10 +33,9 @@ export function QrSheet({ hotel }: { hotel: string }) {
   const toggle = (n: string) => setPicked((p) => { const s = new Set(p ?? rooms.map((r) => r.number)); if (s.has(n)) s.delete(n); else s.add(n); return s; });
 
   return (
-    <div className="mx-auto min-h-dvh max-w-4xl bg-white px-4 pb-16 pt-4 text-stone-900 print:max-w-none print:p-0">
+    <div className="mx-auto max-w-4xl px-4 pb-16 pt-3 text-stone-900 print:max-w-none print:p-0">
       <div className="print:hidden" data-testid="qr-controls">
-        <Link href="/padharosaa/owner" prefetch={false} className="text-sm font-semibold underline">← Back to the console</Link>
-        <h1 className="mt-3 text-2xl font-semibold tracking-tight">QR codes to print</h1>
+        <h2 className="text-2xl font-semibold tracking-tight">QR codes to print</h2>
         <p className="mt-1 text-sm text-stone-600">Every code opens the same guest page of your hotel. A room code also fills in the room number, so the guest only types a name and a mobile number. The codes never change unless you make a new guest link.</p>
         {link === null && <p role="alert" className="mt-3 rounded-xl bg-amber-50 p-3 text-sm font-semibold text-amber-950">The guest link is not made yet. Make it in the console first (Start → Guest link and QR code).</p>}
         <div className="mt-4 flex flex-wrap gap-4">

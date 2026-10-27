@@ -6,9 +6,7 @@ import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react
 import { ImageCropper } from '@/components/dash/ImageCropper';
 import { apiGet, apiPost } from '@/components/staff/hooks';
 import { ApiFailure } from '@/lib/guest/client';
-import { AreaNav } from './AreaNav';
 import { Overview } from './Overview';
-import { ThemeToggle } from '@/components/ui/ns';
 import { BuffetManager } from './BuffetManager';
 import { GuideManager } from './GuideManager';
 import { CheckoutPanel } from './CheckoutPanel';
@@ -65,9 +63,7 @@ export function ManageApp({ role, restaurant, supabase }: { role: string; restau
 
   if (!s) return <main className="p-8 text-center">{loadErr === 'forbidden' ? <p role="alert" className="mx-auto max-w-md font-semibold">This restaurant is not a Padharosaa hotel yet. Please ask Taprizz to switch Padharosaa on for it, then reload this page.</p> : loadErr ? <><p role="alert" className="font-semibold">The settings could not be loaded.</p><button type="button" className={btnCls + ' mt-3'} onClick={() => void load()}>Try again</button></> : 'Loading…'}</main>;
   return (
-    <div className="mx-auto min-h-dvh max-w-2xl bg-stone-50 px-4 pb-24 pt-4 text-stone-900">
-      <header className="flex items-start justify-between gap-3 border-b border-stone-200 pb-4"><div><p className="text-[11px] font-semibold uppercase tracking-[.16em] text-stone-500">{restaurant.name}</p><h1 className="mt-1 text-2xl font-semibold tracking-tight">Manage Padharosaa</h1></div><ThemeToggle /></header>
-      <AreaNav role={role} current={role === 'owner' ? 'owner' : 'manager'} kitchenDisplay={!!s.kitchen_display} />
+    <div className="mx-auto max-w-5xl px-4 pb-24 pt-3 text-stone-900">
       {msg && <p role={msg.ok ? 'status' : 'alert'} className={`mt-3 rounded-xl p-3 text-sm font-semibold ${msg.ok ? 'bg-emerald-50 text-emerald-950' : 'bg-red-50 text-red-900'}`}>{msg.text}</p>}
       {s.server_ready === false && <p role="alert" className="mt-3 rounded-xl bg-red-50 p-3 text-sm font-semibold text-red-900">Guest sign-in is switched off: the setting PADHAROSAA_DATA_KEY is missing on the server. Add it in your hosting settings (Vercel → Environment Variables) and redeploy. Until then guests cannot enter.</p>}
       <div role="tablist" aria-label="Console sections" className="-mx-4 mt-4 flex gap-6 overflow-x-auto border-b border-stone-200 px-4">

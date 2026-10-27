@@ -6,9 +6,7 @@ import { apiGet, apiPost } from '@/components/staff/hooks';
 import { alarm } from '@/components/staff/alarm-center';
 import { ApiFailure } from '@/lib/guest/client';
 import { GROUP_LABEL, GROUP_TEAMS, type Group } from '@/lib/padharosaa/areas';
-import { AreaNav, type NavCurrent } from './AreaNav';
 import { BuffetManager } from './BuffetManager';
-import { ThemeToggle } from '@/components/ui/ns';
 import { CheckoutPanel } from './CheckoutPanel';
 import { StayCodeTool } from './StayCode';
 import { OrderCardDesk, TableCallDesk, type OrderDeskActions, type TableCallActions } from './DeskOrders';
@@ -43,7 +41,7 @@ const OPEN = ['received', 'accepted', 'preparing', 'ready'];
 
 const mins = (iso: string) => Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000));
 
-export function DeskApp({ role, hotel, title = 'Reception desk', current = 'desk', start = 'all' }: { role: string; hotel: string; title?: string; current?: NavCurrent; start?: Group }) {
+export function DeskApp({ role, start = 'all' }: { role: string; start?: Group }) {
   const privileged = role === 'owner' || role === 'manager';
   const [group, setGroup] = useState<Group>(start);
   const [reqs, setReqs] = useState<Req[] | null>(null);
@@ -110,13 +108,7 @@ export function DeskApp({ role, hotel, title = 'Reception desk', current = 'desk
   const toggleMute = async (team: Team) => { await apiPost('/api/padharosaa/v1/staff/alerts', { team, muted: !muted.has(team) }); await load(); };
 
   return (
-    <div className="mx-auto min-h-dvh max-w-3xl bg-stone-50 px-4 pb-24 pt-4 text-stone-900">
-      <header className="flex flex-wrap items-start justify-between gap-3 border-b border-stone-200 pb-4">
-        <div className="min-w-0"><p className="text-[11px] font-semibold uppercase tracking-[.16em] text-stone-500">{hotel}</p><h1 className="mt-1 text-2xl font-semibold tracking-tight">{title}</h1></div>
-        <div className="flex flex-wrap gap-2"><ThemeToggle />
-</div>
-      </header>
-      <AreaNav role={role} current={current} kitchenDisplay={!!alerts?.kitchen_display} />
+    <div className="mx-auto max-w-5xl px-4 pb-24 pt-3 text-stone-900">
       {privileged && (
         <div role="group" aria-label="Show requests of" className="mt-4 flex gap-6 overflow-x-auto border-b border-stone-200">
           {(Object.keys(GROUP_LABEL) as Group[]).map((g) => {

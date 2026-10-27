@@ -24,6 +24,7 @@ export default defineConfig({
   },
   projects: [
     { name: 'mobile', use: { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 } },
+    { name: 'desktop', use: { viewport: { width: 1366, height: 800 } } },
     { name: 'tablet', use: { viewport: { width: 820, height: 1180 }, hasTouch: true, deviceScaleFactor: 2 } },
   ],
 });

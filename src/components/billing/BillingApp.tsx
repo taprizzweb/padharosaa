@@ -1,9 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { AreaNav } from '@/components/padharosaa/AreaNav';
 import { apiGet } from '@/components/staff/hooks';
-import { ThemeToggle, ns } from '@/components/ui/ns';
 import { taxesMissing, type BillingSetup, type StayRow } from '@/lib/padharosaa/billing';
 import { CheckIn } from './CheckIn';
 import { FolioView } from './FolioView';
@@ -15,7 +13,7 @@ const API = '/api/padharosaa/v1/staff';
 type Tab = 'house' | 'checkin' | 'past' | 'setup';
 
 /** Front office and billing: who is in the hotel, check-in, each guest's bill and invoice, and (owner and manager) the billing setup. */
-export function BillingApp({ role, hotel }: { role: string; hotel: string }) {
+export function BillingApp({ role }: { role: string }) {
   const canSetup = role === 'owner' || role === 'manager';
   const [tab, setTab] = useState<Tab>('house');
   const [stayId, setStayId] = useState<string | null>(null);
@@ -39,12 +37,7 @@ export function BillingApp({ role, hotel }: { role: string; hotel: string }) {
   const tabs: [Tab, string][] = [['house', `In the hotel${inHouse ? ` (${inHouse.length})` : ''}`], ['checkin', 'Check in'], ['past', 'Past guests'], ...(canSetup ? ([['setup', 'Taxes & rates']] as [Tab, string][]) : [])];
 
   return (
-    <div className="mx-auto min-h-dvh max-w-4xl bg-stone-50 px-4 pb-24 pt-4 text-stone-900">
-      <header className="flex items-start justify-between gap-3 border-b border-stone-200 pb-4">
-        <div><p className={ns.label}>{hotel}</p><h1 className="mt-1 text-2xl font-semibold tracking-tight">Front office and billing</h1></div>
-        <ThemeToggle />
-      </header>
-      <AreaNav role={role} current="billing" />
+    <div className="mx-auto max-w-5xl px-4 pb-24 pt-3 text-stone-900">
       {msg && <p role={msg.ok ? 'status' : 'alert'} className={`mt-3 rounded-xl p-3 text-sm font-semibold ${msg.ok ? 'bg-emerald-50 text-emerald-950' : 'bg-red-50 text-red-900'}`}>{msg.text}</p>}
       {setup && taxesMissing(setup) && (
         <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950" role="status" data-testid="taxes-missing">
