@@ -103,14 +103,14 @@ grant execute on function private.billing_staff() to authenticated;
 
 -- ---------- check-in ----------
 create or replace function public.padh_stay_checkin(
-  p_room uuid, p_guest text, p_mobile text, p_id_type text, p_id_last4 text, p_adults int, p_company text, p_gstin text, p_inter_state boolean,
+  p_room uuid, p_guest text, p_mobile text, p_id_type text, p_id_tail text, p_adults int, p_company text, p_gstin text, p_inter_state boolean,
   p_address text, p_rate_paise int, p_out_on date, p_advance_paise int, p_advance_mode text) returns jsonb
 language plpgsql security definer set search_path = '' as $$
 declare
   v_rid uuid := private.billing_staff(); h public.hotel_settings; rm public.rooms; rt public.room_types;
   v_name text := private.bill_text(p_guest); v_mobile text := nullif(regexp_replace(coalesce(p_mobile, ''), '[^0-9]', '', 'g'), '');
   v_company text := private.bill_text(p_company); v_gst text := upper(nullif(btrim(coalesce(p_gstin, '')), '')); v_addr text := private.bill_text(p_address);
-  v_last4 text := nullif(btrim(coalesce(p_id_last4, '')), ''); v_rate int; v_today date; v_inter boolean; v_id uuid; v_code jsonb; v_adv int := coalesce(p_advance_paise, 0);
+  v_last4 text := nullif(btrim(coalesce(p_id_tail, '')), ''); v_rate int; v_today date; v_inter boolean; v_id uuid; v_code jsonb; v_adv int := coalesce(p_advance_paise, 0);
 begin
   select * into h from public.hotel_settings where restaurant_id = v_rid;
   v_today := (now() at time zone coalesce(h.timezone, 'Asia/Kolkata'))::date;

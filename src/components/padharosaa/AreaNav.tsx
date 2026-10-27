@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 
-export type NavCurrent = 'owner' | 'manager' | 'desk' | 'kitchen' | 'menu' | 'settings';
+export type NavCurrent = 'owner' | 'manager' | 'desk' | 'billing' | 'kitchen' | 'menu' | 'settings';
 
 /** Owner and manager see every screen of the hotel: the console, the one reception desk, and the kitchen display when the hotel has one. */
 export function AreaNav({ role, current, kitchenDisplay = false }: { role: string; current: NavCurrent; kitchenDisplay?: boolean }) {
@@ -11,10 +11,11 @@ export function AreaNav({ role, current, kitchenDisplay = false }: { role: strin
   useEffect(() => { setPad(/^padharosaa\./i.test(location.host)); }, []);
   const to = (a: string) => (pad ? `/${a}` : `/padharosaa/${a}`);
   // reception and the rest of the staff: their working screen, the menu (sold-out switches) and their own settings, nothing else
-  const staffItems: [NavCurrent, string, string][] = [['desk', 'Desk', to('desk')], ['menu', 'Menu', to('menu')], ['settings', 'Settings', to('settings')]];
+  const staffItems: [NavCurrent, string, string][] = [['desk', 'Desk', to('desk')], ['billing', 'Billing', to('billing')], ['menu', 'Menu', to('menu')], ['settings', 'Settings', to('settings')]];
   const items: [NavCurrent, string, string][] = role !== 'owner' && role !== 'manager' ? (role === 'waiter' ? staffItems : []) : [
     [role as NavCurrent, role === 'owner' ? 'Owner console' : 'Manager console', to(role)],
     ['desk', 'Reception desk (everything)', to('desk')],
+    ['billing', 'Billing & check-in', to('billing')],
     ['menu', 'Menu (sold-out switches)', to('menu')],
     ...(kitchenDisplay ? ([['kitchen', 'Kitchen display', to('kitchen')]] as [NavCurrent, string, string][]) : []),
   ];

@@ -209,3 +209,27 @@ export const assignBody = z.object({ version: z.number().int().min(1), user: z.s
 export const routingBody = z.object({ team: z.enum(['concierge', 'front_desk', 'housekeeping', 'kitchen', 'maintenance', 'manager']), user: z.string().uuid().nullable() }).strict();
 export const demoBody = z.object({ on: z.boolean() }).strict();
 export const wifiVouchersBody = z.object({ items: z.array(z.object({ username: z.string().min(1).max(64), password: z.string().min(1).max(64) }).strict()).min(1).max(2000) }).strict();
+
+// ---- billing (migrations 0065-0067): the hotel's own taxes, check-in, the folio and payments ----
+const bpInt = z.number().int().min(0).max(10000);
+const paise = z.number().int().min(0).max(10_000_000);
+const day = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+const payMode = z.enum(['cash', 'card', 'upi', 'bank', 'company']);
+export const taxRateBody = z.object({ id: uuid.nullish(), name: z.string().trim().min(1).max(40), rate_bp: bpInt, active: z.boolean() }).strict();
+export const categoryBody = z.object({ id: uuid.nullish(), name: z.string().trim().min(1).max(40), sac: z.string().max(8).nullish(), tax_rate_id: uuid.nullish(), active: z.boolean() }).strict();
+export const slabsBody = z.object({ items: z.array(z.object({ up_to_paise: z.number().int().min(1).max(10_000_000).nullable(), tax_rate_id: uuid }).strict()).max(8) }).strict();
+export const extraBody = z.object({ id: uuid.nullish(), name: z.string().trim().min(1).max(40), mode: z.enum(['percent', 'per_night', 'flat']), value: paise, applies_to: z.enum(['room', 'food', 'all']), tax_rate_id: uuid.nullish(), active: z.boolean() }).strict();
+export const legalBody = z.object({ legal_name: z.string().max(120).nullish(), gstin: z.string().max(15).nullish(), address: z.string().max(300).nullish(), prefix: z.string().trim().min(1).max(8), terms: z.string().max(400).nullish(), round_off: z.boolean() }).strict();
+export const roomTypeBody = z.object({ id: uuid.nullish(), name: z.string().trim().min(1).max(40), rate_paise: paise, max_guests: z.number().int().min(1).max(20), active: z.boolean() }).strict();
+export const roomSetTypeBody = z.object({ room: uuid, type: uuid.nullable() }).strict();
+export const checkinBody = z.object({
+  room: uuid, guest: z.string().trim().min(2).max(80), mobile: z.string().max(20).nullish(), id_type: z.enum(['aadhaar', 'passport', 'driving_licence', 'voter_id', 'other']).nullish(),
+  id_last4: z.string().max(4).nullish(), adults: z.number().int().min(1).max(20).default(1), company: z.string().max(120).nullish(), gstin: z.string().max(15).nullish(),
+  inter_state: z.boolean().nullish(), address: z.string().max(300).nullish(), rate_paise: paise.nullish(), out_on: day,
+  advance_paise: z.number().int().min(0).max(100_000_000).default(0), advance_mode: payMode.nullish(),
+}).strict();
+export const chargeBody = z.object({ category: uuid, description: z.string().trim().min(1).max(120), qty: z.number().int().min(1).max(99), unit_paise: z.number().int().min(-10_000_000).max(10_000_000).refine((n) => n !== 0) }).strict();
+export const paymentBody = z.object({ kind: z.enum(['advance', 'payment', 'refund']), mode: payMode, amount_paise: z.number().int().min(1).max(100_000_000), ref: z.string().max(60).nullish() }).strict();
+export const stayUpdateBody = z.object({ rate_paise: paise.nullish(), out_on: day.nullish(), company: z.string().max(120).nullish(), gstin: z.string().max(15).nullish(), inter_state: z.boolean().nullish() }).strict();
+export const voidBody = z.object({ reason: z.string().trim().min(1).max(200) }).strict();
+export const staysQuery = z.object({ status: z.enum(['in_house', 'checked_out']) });

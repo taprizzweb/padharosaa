@@ -4,6 +4,7 @@ import { dialNumber } from '@/lib/padharosaa/phone';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { apiGet, apiPost } from '@/components/staff/hooks';
 import { formatPaise } from '@/lib/money';
+import { ApiFailure } from '@/lib/guest/client';
 
 interface Room { id: string; number: string; active: boolean; guests: number; guest_name?: string | null; mobile?: string | null; open_requests?: number; open_orders?: number; unpaid_paise?: number }
 
@@ -24,7 +25,7 @@ export function CheckoutPanel({ flash }: { flash: (ok: boolean, text: string) =>
     if (!window.confirm(`Check out Room ${r.number}? ${open.length ? `Still open: ${open.join(', ')}. ` : ''}${r.guests === 1 ? 'The guest is' : `${r.guests} guests are`} signed out of the hotel app now and cannot send requests or orders from their phone any more.`)) return;
     setBusy(r.id);
     try { await apiPost(`/api/padharosaa/v1/staff/rooms/${r.id}/checkout`, {}); flash(true, `Room ${r.number} checked out. The guest is signed out.`); await load(); }
-    catch { flash(false, 'The check-out did not go through. Please try again.'); }
+    catch (e) { flash(false, e instanceof ApiFailure && e.key === 'stay_open' ? `Room ${r.number} has a guest checked in with a bill. Open Billing, check the guest out from the bill, and the invoice is made.` : 'The check-out did not go through. Please try again.'); }
     setBusy(null);
   };
   return (

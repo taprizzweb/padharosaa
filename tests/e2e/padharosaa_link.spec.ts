@@ -289,7 +289,7 @@ test('the owner sets opening and closing time; after closing a guest sees it and
 test('reception sees only the desk, the menu (sold-out switches) and settings, and no console, dashboard or team tools', async ({ page }) => {
   await signIn(page, 'waiter@spice-garden.demo', /\/padharosaa\/desk$/, '/padharosaa/desk');
   const nav = page.getByRole('navigation', { name: 'Screens' });
-  await expect(nav.getByRole('link')).toHaveText(['Desk', 'Menu', 'Settings']);
+  await expect(nav.getByRole('link')).toHaveText(['Desk', 'Billing', 'Menu', 'Settings']);
   await expect(page.getByRole('heading', { name: 'Opening and closing time for requests' })).toHaveCount(0);
   await nav.getByRole('link', { name: 'Menu' }).click();
   await expect(page).toHaveURL(/\/padharosaa\/menu$/);
@@ -611,6 +611,104 @@ test('guest sign-in: after the owner asks for the stay code a guest needs the co
     await q(`update public.hotel_settings set verification_level = 'light' where restaurant_id = ${RID}`);
     await octx.close();
     await gctx.close();
+  }
+});
+
+test('billing: the owner sets the hotel\'s own taxes, reception checks a guest in, adds a charge, takes the payment, checks out and prints the invoice', async ({ browser }) => {
+  test.setTimeout(180_000);
+  const clean = async () => {
+    await q(`delete from public.stays where restaurant_id = ${RID}`);
+    await q(`delete from public.bill_extras where restaurant_id = ${RID}`);
+    await q(`delete from public.room_tax_slabs where restaurant_id = ${RID}`);
+    await q(`delete from public.tax_rates where restaurant_id = ${RID}`);
+    await q(`delete from public.charge_categories where restaurant_id = ${RID}`);
+    await q(`delete from public.invoice_counters where restaurant_id = ${RID}`);
+    await q(`delete from public.room_types where restaurant_id = ${RID}`);
+  };
+  await clean();
+  await q(`insert into public.rooms (restaurant_id, number) values (${RID}, '204') on conflict do nothing`);
+  await q(`update public.hotel_settings set verification_level = 'light' where restaurant_id = ${RID}`);
+  const octx = await browser.newContext({ viewport: { width: 1100, height: 900 } });
+  const rctx = await browser.newContext({ viewport: { width: 1100, height: 900 } });
+  const o = await octx.newPage();
+  const r = await rctx.newPage();
+  const card = (p: Page, title: string) => p.locator('section', { has: p.getByRole('heading', { name: title }) });
+  try {
+    // --- the owner: nothing is fixed, so the hotel chooses its own rates ---
+    await signIn(o, 'owner@spice-garden.demo', /\/padharosaa\/owner$/, '/padharosaa/owner');
+    await o.goto('/padharosaa/billing');
+    await expect(o.getByTestId('taxes-missing')).toBeVisible(); // until the owner sets them the screens say bills show no tax
+    await o.getByRole('tab', { name: 'Taxes & rates' }).click();
+    await o.getByRole('button', { name: /Add common rates/ }).click();
+    await expect(o.getByText('Common rates added.')).toBeVisible();
+    await o.getByLabel('Tax for Room rent').selectOption({ label: 'GST 5% (5%)' });
+    await o.getByRole('row', { name: /Room rent/ }).getByRole('button', { name: 'Save' }).click();
+    await expect(o.getByText('Room rent saved.')).toBeVisible();
+    await o.getByLabel('Name on the invoice').fill('Spice Garden Pvt Ltd');
+    await o.getByLabel('Hotel GSTIN').fill('08ABCDE1234F1Z5');
+    await o.getByRole('button', { name: 'Save invoice details' }).click();
+    await expect(o.getByText('Invoice details saved.')).toBeVisible();
+    const types = card(o, 'Room types and rates');
+    await types.getByLabel('New room type').fill('Deluxe');
+    await types.getByLabel('Rate per night in ₹').fill('3200');
+    await types.getByRole('button', { name: 'Add', exact: true }).click();
+    await expect(o.getByText('Room type added.')).toBeVisible();
+    await o.getByLabel('Type of room 204').selectOption({ label: 'Deluxe' });
+    await expect(o.getByText('Room 204 saved.')).toBeVisible();
+
+    // --- reception: check-in ---
+    await signIn(r, 'waiter@spice-garden.demo', /\/padharosaa\/desk$/, '/padharosaa/desk');
+    await r.goto('/padharosaa/billing');
+    await expect(r.getByRole('tab', { name: 'Taxes & rates' })).toHaveCount(0); // setup is for the owner and manager
+    await r.getByRole('tab', { name: 'Check in' }).click();
+    await expect(r.getByRole('option', { name: /^204/ })).toHaveCount(1, { timeout: 8000 });
+    await r.getByLabel('Room', { exact: true }).selectOption({ label: '204 · Deluxe' }, { timeout: 8000 });
+    await expect(r.getByLabel('Rate per night in ₹')).toHaveValue('3200'); // from the room type
+    await r.getByLabel('Guest name').fill('Anita Sharma');
+    await r.getByLabel('Mobile number').fill('9876543210');
+    await r.getByLabel('Advance taken in ₹').fill('2000');
+    await r.getByLabel('Advance paid by').selectOption('upi');
+    await r.getByRole('button', { name: 'Check in', exact: true }).click();
+    await expect(r.getByTestId('stay-code')).toHaveText(/^\d{4}$/);
+    await r.getByRole('button', { name: 'Open the bill' }).click();
+    // 1 night at 3,200 + 5% = 3,360; the advance of 2,000 leaves 1,360
+    await expect(r.getByTestId('folio')).toContainText('Anita Sharma');
+    await expect(r.getByTestId('folio-totals')).toContainText('CGST 2.5% + SGST 2.5%');
+    await expect(r.getByTestId('folio-balance')).toHaveText('₹1,360.00');
+    // a charge added at the desk (laundry has no tax set yet): 250 more
+    await r.getByRole('button', { name: '+ Add a charge' }).click();
+    await r.getByLabel('What for').fill('Laundry, 5 shirts');
+    await r.getByLabel('Price of one, in ₹').fill('250');
+    await r.getByRole('button', { name: 'Add to the bill' }).click();
+    await expect(r.getByText('Charge added.')).toBeVisible();
+    await expect(r.getByTestId('folio-balance')).toHaveText('₹1,610.00');
+    // check-out is refused while money is due, then allowed once it is paid
+    await expect(r.getByRole('button', { name: 'Check out and make the invoice' })).toBeDisabled();
+    await r.getByRole('button', { name: '+ Record a payment' }).click();
+    await expect(r.getByLabel('Amount in ₹')).toHaveValue('1610');
+    await r.getByRole('button', { name: 'Save payment' }).click();
+    await expect(r.getByText('Payment recorded.')).toBeVisible();
+    await expect(r.getByTestId('folio-balance')).toHaveText('₹0.00');
+    r.once('dialog', (d) => void d.accept());
+    await r.getByRole('button', { name: 'Check out and make the invoice' }).click();
+    await expect(r.getByText('Checked out. The invoice is ready.')).toBeVisible();
+    // the invoice
+    const [inv] = await Promise.all([r.context().waitForEvent('page'), r.getByRole('link', { name: /Open invoice INV\// }).click()]);
+    await expect(inv.getByTestId('invoice-number')).toHaveText(/^INV\/\d{4}-\d{2}\/0001$/);
+    await expect(inv.getByTestId('invoice')).toContainText('Spice Garden Pvt Ltd');
+    await expect(inv.getByTestId('invoice')).toContainText('GSTIN 08ABCDE1234F1Z5');
+    await expect(inv.getByTestId('invoice')).toContainText('Anita Sharma');
+    await expect(inv.getByTestId('invoice-totals')).toContainText('CGST 2.5%');
+    await expect(inv.getByTestId('invoice-totals')).toContainText('₹3,610.00');
+    await inv.close();
+    // the room is free again, the guest is in the past list, and the old quick check-out stays closed for rooms with no bill
+    await r.getByRole('button', { name: '← All guests' }).click();
+    await r.getByRole('tab', { name: 'Past guests' }).click();
+    await expect(r.getByTestId('past-guests')).toContainText('Anita Sharma');
+  } finally {
+    await clean();
+    await octx.close();
+    await rctx.close();
   }
 });
 

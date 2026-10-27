@@ -3,7 +3,7 @@ import { COPY, isHelpLabel, localLabel } from '@/components/padharosaa/copy';
 import { AREAS, GROUP_TEAMS, areaHref, canOpen, homeFor, isPadHost, soundForRequest, soundsFor } from '@/lib/padharosaa/areas';
 
 describe('padharosaa addresses: owner, manager, desk (and kitchen)', () => {
-  it('there are only these screens', () => expect([...AREAS]).toEqual(['owner', 'manager', 'desk', 'kitchen', 'menu', 'settings']));
+  it('there are only these screens', () => expect([...AREAS]).toEqual(['owner', 'manager', 'desk', 'billing', 'kitchen', 'menu', 'settings']));
   it('everyone has exactly one home; reception, concierge and housekeeping all work on the desk', () => {
     expect(homeFor('owner')).toBe('owner');
     expect(homeFor('manager')).toBe('manager');
@@ -19,6 +19,8 @@ describe('padharosaa addresses: owner, manager, desk (and kitchen)', () => {
     expect(canOpen('manager', 'kitchen')).toBe(false);
     expect(canOpen('owner', 'kitchen')).toBe(false);
     expect(canOpen('desk', 'waiter')).toBe(true);
+    expect(canOpen('billing', 'waiter')).toBe(true); // the database then lets only the front office through
+    expect(canOpen('billing', 'kitchen')).toBe(false);
     for (const a of ['owner', 'manager', 'kitchen'] as const) expect(canOpen(a, 'waiter'), a).toBe(false);
     for (const a of AREAS) expect(canOpen(a, 'stranger'), a).toBe(false);
   });
