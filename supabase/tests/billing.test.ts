@@ -126,7 +126,8 @@ describe('the folio: every amount is whole paise, tax is on the total per rate',
     await db.admin(`update public.orders set total_paise = 99900, pay_method = null where restaurant_id = $1 and order_no = $2`, [w.A.rid, undecided]); // the guest has not chosen yet
     const fo = await f('204');
     expect(fo.stay.nights).toBe(2);
-    expect(fo.lines.map((l: any) => [l.src, l.amount_paise])).toEqual([['room', 640000], ['order', 62000]]);
+    // the order shows dish by dish (the chai, then the rest of the order's total as "other"); together they equal the order
+    expect(fo.lines.map((l: any) => [l.src, l.amount_paise])).toEqual([['room', 640000], ['order', 3000], ['order', 59000]]);
     expect(group(fo, 500)).toMatchObject({ taxable_paise: 702000, cgst_paise: 17550, sgst_paise: 17550, igst_paise: 0, tax_paise: 35100 });
     expect(fo).toMatchObject({ subtotal_paise: 702000, tax_paise: 35100, round_off_paise: 0, total_paise: 737100, paid_paise: 200000, balance_paise: 537100 });
   });

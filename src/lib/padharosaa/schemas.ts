@@ -225,13 +225,15 @@ export const roomSetTypeBody = z.object({ room: uuid, type: uuid.nullable() }).s
 export const checkinBody = z.object({
   room: uuid, guest: z.string().trim().min(2).max(80), mobile: z.string().max(20).nullish(), id_type: z.enum(['aadhaar', 'passport', 'driving_licence', 'voter_id', 'other']).nullish(),
   id_last4: z.string().max(4).nullish(), adults: z.number().int().min(1).max(20).default(1), company: z.string().max(120).nullish(), gstin: z.string().max(15).nullish(),
-  inter_state: z.boolean().nullish(), address: z.string().max(300).nullish(), rate_paise: paise.nullish(), out_on: day,
+  inter_state: z.boolean().nullish(), address: z.string().max(300).nullish(), rate_paise: paise.nullish(), out_on: day, in_time: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/).nullish(),
   advance_paise: z.number().int().min(0).max(100_000_000).default(0), advance_mode: payMode.nullish(),
 }).strict();
 export const chargeBody = z.object({ category: uuid, description: z.string().trim().min(1).max(120), qty: z.number().int().min(1).max(99), unit_paise: z.number().int().min(-10_000_000).max(10_000_000).refine((n) => n !== 0) }).strict();
 export const paymentBody = z.object({ kind: z.enum(['advance', 'payment', 'refund']), mode: payMode, amount_paise: z.number().int().min(1).max(100_000_000), ref: z.string().max(60).nullish() }).strict();
 export const stayUpdateBody = z.object({ rate_paise: paise.nullish(), out_on: day.nullish(), company: z.string().max(120).nullish(), gstin: z.string().max(15).nullish(), inter_state: z.boolean().nullish() }).strict();
 export const voidBody = z.object({ reason: z.string().trim().min(1).max(200) }).strict();
+export const orderSkipBody = z.object({ order: uuid, skip: z.boolean(), reason: z.string().trim().max(200).nullish() }).strict();
+export const taxRuleBody = z.object({ word: z.string().trim().min(2).max(29), rate_bp: z.number().int().min(0).max(2800), active: z.boolean() }).strict();
 export const staysQuery = z.object({ status: z.enum(['in_house', 'checked_out']) });
 
 // ---- staff push notifications (migration 0068) ----

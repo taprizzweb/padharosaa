@@ -36,6 +36,14 @@ export function FolioView({ stayId, setup, flash, onBack, onChanged }: { stayId:
   const open = s.status === 'in_house' && !d.invoice; // an invoice is a frozen copy: its stay still says in-house, the bill is closed
   const after = preview?.folio ?? f; // what it comes to if the guest leaves today
   const rest = after.balance_paise;
+  // the room-service orders that are on the bill now, one row for each order (its dishes are the lines above)
+  const orders = Object.values(f.lines.reduce<Record<string, { id: string; no: string; dishes: number; amount: number }>>((m, l) => {
+    if (l.src !== 'order' || !l.order_id) return m;
+    const o = m[l.order_id] ?? { id: l.order_id, no: /order #(\d+)/.exec(l.description)?.[1] ?? '', dishes: 0, amount: 0 };
+    o.dishes += 1; o.amount += l.amount_paise; m[l.order_id] = o;
+    return m;
+  }, {}));
+  const skipped = d.skipped_orders ?? [];
   const taxLabel = (bp: number) => (bp === 0 ? 'No tax' : pct(bp));
 
   return (
@@ -104,6 +112,26 @@ export function FolioView({ stayId, setup, flash, onBack, onChanged }: { stayId:
         </section>
       )}
 
+      {open && (orders.length > 0 || skipped.length > 0) && (
+        <section className={`mt-4 ${ns.card}`} data-testid="room-orders">
+          <h3 className="text-sm font-semibold">Room service on this bill</h3>
+          {orders.length > 0 && <ul className="mt-2 divide-y divide-stone-100 text-sm">
+            {orders.map((o) => <OrderRow key={o.id} label={`Order #${o.no} · ${o.dishes} ${o.dishes === 1 ? 'line' : 'lines'}`} amount={o.amount} busy={busy} onCross={(reason) => run(() => apiPost(`${API}/stays/${stayId}/order-skip`, { order: o.id, skip: true, reason }), `Order #${o.no} crossed out.`)} />)}
+          </ul>}
+          {skipped.length > 0 && <>
+            <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-stone-500">Crossed out (not on the bill)</p>
+            <ul className="mt-1 divide-y divide-stone-100 text-sm">
+              {skipped.map((k) => (
+                <li key={k.order_id} className="flex flex-wrap items-center justify-between gap-2 py-2">
+                  <span>Order #{k.order_no} · {rupees2(k.total_paise)}<span className="block text-xs text-stone-500">{k.reason}</span></span>
+                  <button type="button" className="text-sm font-semibold text-indigo-800 underline" disabled={busy} onClick={() => void run(() => apiPost(`${API}/stays/${stayId}/order-skip`, { order: k.order_id, skip: false }), `Order #${k.order_no} is back on the bill.`)}>Put back</button>
+                </li>
+              ))}
+            </ul>
+          </>}
+        </section>
+      )}
+
       {open && d.lines && d.lines.length > 0 && (
         <section className={`mt-4 ${ns.card}`}>
           <h3 className="text-sm font-semibold">Charges added at the desk</h3>
@@ -144,6 +172,26 @@ export function FolioView({ stayId, setup, flash, onBack, onChanged }: { stayId:
         </section>
       )}
     </div>
+  );
+}
+
+function OrderRow({ label, amount, busy, onCross }: { label: string; amount: number; busy: boolean; onCross: (reason: string) => void }) {
+  const [ask, setAsk] = useState(false);
+  const [reason, setReason] = useState('');
+  return (
+    <li className="py-2">
+      <div className="flex items-center justify-between gap-2">
+        <span>{label}</span>
+        <span className="flex items-center gap-3"><span className="tabular-nums">{rupees2(amount)}</span>
+          <button type="button" className="text-sm font-semibold text-red-800 underline" onClick={() => setAsk(!ask)}>Cross out</button></span>
+      </div>
+      {ask && (
+        <form className="mt-2 flex flex-wrap items-end gap-2" onSubmit={(e) => { e.preventDefault(); if (reason.trim()) onCross(reason.trim()); }}>
+          <Label text="Why? (the guest did not get it, ordered by mistake...)"><input className={`${field} !mt-1 w-72`} value={reason} maxLength={200} onChange={(e) => setReason(e.target.value)} /></Label>
+          <button type="submit" className={ns.danger} disabled={busy || !reason.trim()}>Cross out this order</button>
+        </form>
+      )}
+    </li>
   );
 }
 

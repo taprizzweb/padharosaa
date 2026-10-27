@@ -623,6 +623,7 @@ test('billing: the owner sets the hotel\'s own taxes, reception checks a guest i
     await q(`delete from public.bill_extras where restaurant_id = ${RID}`);
     await q(`delete from public.room_tax_slabs where restaurant_id = ${RID}`);
     await q(`delete from public.tax_rates where restaurant_id = ${RID}`);
+    await q(`delete from public.tax_rules where restaurant_id = ${RID}`);
     await q(`delete from public.charge_categories where restaurant_id = ${RID}`);
     await q(`delete from public.invoice_counters where restaurant_id = ${RID}`);
     await q(`delete from public.room_types where restaurant_id = ${RID}`);
@@ -646,6 +647,15 @@ test('billing: the owner sets the hotel\'s own taxes, reception checks a guest i
     await o.getByLabel('Tax for Room rent').selectOption({ label: 'GST 5% (5%)' });
     await o.getByRole('row', { name: /Room rent/ }).getByRole('button', { name: 'Save' }).click();
     await expect(o.getByText('Room rent saved.')).toBeVisible();
+    const rules = o.getByTestId('gst-rules');
+    await expect(rules).toContainText('No rules yet');
+    await rules.getByLabel('Word in the dish or section name').fill('Whisky');
+    await rules.getByLabel('GST for the new word').selectOption({ label: 'GST 18%' });
+    await rules.getByRole('button', { name: 'Add the rule' }).click();
+    await expect(o.getByText('Rule saved.')).toBeVisible();
+    await expect(rules.getByRole('row', { name: /whisky/ })).toBeVisible();
+    await rules.getByRole('button', { name: 'Switch off whisky' }).click();
+    await expect(rules.getByRole('button', { name: 'Switch on whisky' })).toBeVisible();
     await o.getByLabel('Name on the invoice').fill('Spice Garden Pvt Ltd');
     await o.getByLabel('Hotel GSTIN').fill('08ABCDE1234F1Z5');
     await o.getByRole('button', { name: 'Save invoice details' }).click();
@@ -858,12 +868,14 @@ test('counter billing and reports: reception bills a dish and a custom item with
     await q(`delete from public.pos_counters where restaurant_id = ${RID}`);
     await q(`update public.charge_categories set tax_rate_id = null where restaurant_id = ${RID}`);
     await q(`delete from public.tax_rates where restaurant_id = ${RID}`);
+    await q(`delete from public.tax_rules where restaurant_id = ${RID}`);
   };
   await clean();
   await q(`select private.billing_defaults(${RID}::uuid)`);
   await q(`insert into public.tax_rates (restaurant_id, name, rate_bp) values (${RID}, 'GST 5%', 500)`);
   await q(`update public.charge_categories set tax_rate_id = (select id from public.tax_rates where restaurant_id = ${RID} and name = 'GST 5%') where restaurant_id = ${RID} and kind = 'food'`);
   await q(`update public.hotel_settings set round_off = false where restaurant_id = ${RID}`);
+  await q(`insert into public.tax_rules (restaurant_id, word, rate_bp) values (${RID}, 'beer', 0)`);
   const rctx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   const octx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   const r = await rctx.newPage();
@@ -879,11 +891,19 @@ test('counter billing and reports: reception bills a dish and a custom item with
     await r.getByLabel('Price in ₹').fill('200');
     await r.getByRole('button', { name: 'Add', exact: true }).click();
     await r.getByRole('button', { name: 'More Masala tea' }).click(); // 2 teas
+    // a word rule ("beer" = no GST, set by the owner) takes the GST off that item alone
+    await r.getByLabel('Item name').fill('Kingfisher beer');
+    await r.getByLabel('Price in ₹').fill('300');
+    await r.getByRole('button', { name: 'Add', exact: true }).click();
+    await expect(r.getByTestId('pos-cart')).toContainText('Kingfisher beerno GST');
+    await expect(r.getByTestId('pos-cart')).toContainText('Masala teaGST 5%');
+    await expect(r.getByTestId('pos-totals')).toContainText('₹720.00'); // 700 + 5% of 400
+    await r.getByRole('button', { name: 'Less Kingfisher beer' }).click();
     // 2 x 100 + 200 = 400, 2.5% + 2.5% = 20, total 420
     await expect(r.getByTestId('pos-totals')).toContainText('₹400.00');
     await expect(r.getByTestId('pos-totals')).toContainText('₹420.00');
     // the desk can change the tax of this bill, add a service charge and give a discount; the screen shows the effect at once
-    await r.getByLabel('GST on this bill').selectOption({ label: 'No GST' });
+    await r.getByLabel('GST on this bill').selectOption({ label: 'No GST on this bill' });
     await expect(r.getByTestId('pos-totals')).toContainText('₹400.00');
     await r.getByLabel('Service charge %').fill('10');
     await r.getByLabel('Discount in ₹').fill('40');

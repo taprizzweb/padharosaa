@@ -26,6 +26,8 @@ export async function POST(req: Request) {
       p_gstin: b.gstin ?? null, p_inter_state: b.inter_state ?? null, p_address: b.address ?? null, p_rate_paise: b.rate_paise ?? null, p_out_on: b.out_on,
       p_advance_paise: b.advance_paise, p_advance_mode: b.advance_mode ?? null,
     });
+    // the time the guest really arrived, when the desk set one
+    if (b.in_time) await staffRpc(ctx.db, 'padh_stay_set_checkin', { p_stay: (out as { stay_id: string }).stay_id, p_time: b.in_time });
     kickChannels(); // a room is taken: tell the booking sites soon
     return jsonOk(out, ctx.requestId);
   });

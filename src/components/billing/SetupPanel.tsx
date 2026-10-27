@@ -5,6 +5,7 @@ import { apiPost } from '@/components/staff/hooks';
 import { Card, ns } from '@/components/ui/ns';
 import { parseRupeesToPaise, formatPaise } from '@/lib/money';
 import { parsePercent, pct, type BillingSetup } from '@/lib/padharosaa/billing';
+import { GstRules } from './GstRules';
 import { Label, errText, field, small, th, td, type Flash } from './common';
 
 const API = '/api/padharosaa/v1/staff/billing';
@@ -22,6 +23,7 @@ export function SetupPanel({ setup, reload, flash }: { setup: BillingSetup; relo
       <LegalCard setup={setup} save={save} />
       <RatesCard setup={setup} save={save} />
       <CategoriesCard setup={setup} save={save} />
+      <GstRules flash={flash} />
       <SlabsCard setup={setup} save={save} rateName={rateName} />
       <ExtrasCard setup={setup} save={save} />
       <RoomTypesCard setup={setup} save={save} />
