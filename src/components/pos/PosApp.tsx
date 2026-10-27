@@ -94,8 +94,8 @@ export function PosApp({ role }: { role: string }) {
           </table>
         </div>
       ) : (
-        <div className="mt-4 grid gap-4 lg:grid-cols-[1fr_22rem]">
-          <section aria-label="Menu">
+        <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_22rem]">
+          <section aria-label="Menu" className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
               <input type="search" aria-label="Search dishes" placeholder="Search dishes" value={q} onChange={(e) => setQ(e.target.value)} className="min-h-11 w-full max-w-xs rounded-lg border border-stone-300 bg-white px-3 text-sm" />
               <div className="flex gap-2 overflow-x-auto">
@@ -103,7 +103,15 @@ export function PosApp({ role }: { role: string }) {
                 {menu?.categories.map((c) => <button key={c.id} type="button" aria-pressed={cat === c.id} onClick={() => setCat(c.id)} className={`min-h-9 shrink-0 rounded-lg border px-3 text-sm font-semibold ${cat === c.id ? 'border-indigo-900 bg-indigo-900 text-white' : 'border-stone-300 bg-white'}`}>{c.name}</button>)}
               </div>
             </div>
-            <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3" data-testid="pos-dishes">
+            <div className="mt-3 rounded-xl border border-stone-200 bg-white p-3">
+              <p className={ns.label}>Something not on the menu</p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                <input aria-label="Item name" placeholder="Name" value={custom.name} maxLength={80} onChange={(e) => setCustom({ ...custom, name: e.target.value })} className="min-h-11 flex-1 rounded-lg border border-stone-300 px-3 text-sm" />
+                <input aria-label="Price in ₹" placeholder="Price ₹" inputMode="decimal" value={custom.price} onChange={(e) => setCustom({ ...custom, price: e.target.value })} className="min-h-11 w-28 rounded-lg border border-stone-300 px-3 text-sm" />
+                <button type="button" className={ns.secondary} onClick={addCustom}>Add</button>
+              </div>
+            </div>
+            <div className="mt-3 max-h-[60vh] overflow-y-auto pr-1 grid grid-cols-2 gap-2 sm:grid-cols-3" data-testid="pos-dishes">
               {items.map((i) => (
                 <button key={i.id} type="button" onClick={() => add({ item: i.id, name: i.name, unit: i.price_paise })} className={`min-h-20 rounded-xl border border-stone-200 bg-white p-3 text-left hover:border-indigo-400 ${i.available ? '' : 'opacity-60'}`}>
                   <span className="flex items-start gap-1.5"><i aria-hidden className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${DIET[i.diet] ?? 'bg-stone-400'}`} /><span className="text-sm font-semibold leading-snug">{i.name}</span></span>
@@ -111,14 +119,6 @@ export function PosApp({ role }: { role: string }) {
                 </button>
               ))}
               {menu && items.length === 0 && <p className="col-span-full text-sm text-stone-600">No dishes here. The menu is set by Taprizz; you can still add anything below.</p>}
-            </div>
-            <div className="mt-4 rounded-xl border border-stone-200 bg-white p-3">
-              <p className={ns.label}>Something not on the menu</p>
-              <div className="mt-2 flex flex-wrap gap-2">
-                <input aria-label="Item name" placeholder="Name" value={custom.name} maxLength={80} onChange={(e) => setCustom({ ...custom, name: e.target.value })} className="min-h-11 flex-1 rounded-lg border border-stone-300 px-3 text-sm" />
-                <input aria-label="Price in ₹" placeholder="Price ₹" inputMode="decimal" value={custom.price} onChange={(e) => setCustom({ ...custom, price: e.target.value })} className="min-h-11 w-28 rounded-lg border border-stone-300 px-3 text-sm" />
-                <button type="button" className={ns.secondary} onClick={addCustom}>Add</button>
-              </div>
             </div>
           </section>
           <aside className={`${ns.card} h-fit lg:sticky lg:top-20`} aria-label="Bill">

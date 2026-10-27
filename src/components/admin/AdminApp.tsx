@@ -6,6 +6,7 @@ import { ApiFailure } from '@/lib/guest/client';
 import { isPadHost } from '@/lib/padharosaa/areas';
 import { addMonths, describeExpiry, endOfDayIst, expiryOf, istDate, paiseToRupees, rupeesToPaise, startOfDayIst } from '@/lib/billing';
 import { formatPaise } from '@/lib/money';
+import { FILTER_LABEL, counts, matches, monthlyRevenue, type ClientFilter } from '@/lib/admin-summary';
 import { adminGet, adminPost, type Plan } from './AdminApi';
 import { apiGet, apiPost } from '@/components/staff/hooks';
 import { GuestLinkPanel, type LinkState } from '@/components/padharosaa/RoomsLink';
@@ -32,6 +33,7 @@ export function AdminApp() {
   const [msg, setMsg] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [q, setQ] = useState('');
+  const [filter, setFilter] = useState<ClientFilter>('all');
   const [creating, setCreating] = useState(false);
   const [bill, setBill] = useState<Row | null>(null);
   const [plans, setPlans] = useState<Plan[]>([]);
@@ -82,7 +84,8 @@ export function AdminApp() {
     setLogins({ row: r, staff: x.staff });
   };
 
-  const shown = useMemo(() => (rows ?? []).filter((r) => `${r.name} ${r.slug}`.toLowerCase().includes(q.trim().toLowerCase())), [rows, q]);
+  const shown = useMemo(() => (rows ?? []).filter((r) => matches(r, filter) && `${r.name} ${r.slug}`.toLowerCase().includes(q.trim().toLowerCase())), [rows, q, filter]);
+  const tally = useMemo(() => counts(rows ?? []), [rows]);
   const badge = (r: Row) => {
     const e = expiryOf(r.paid_until, r.auto_pause, r.grace_days);
     const tone = e.kind === 'ended' ? 'bg-red-100 text-red-900' : e.kind === 'soon' || e.kind === 'grace' ? 'bg-amber-100 text-amber-900' : 'bg-stone-100 text-stone-800';
@@ -104,6 +107,16 @@ export function AdminApp() {
       <label className="mt-3 block text-sm font-semibold">Search
         <input value={q} onChange={(e) => setQ(e.target.value)} className={inputCls} />
       </label>
+      {rows && (
+        <section aria-label="At a glance" className="mt-3 rounded-2xl border border-stone-200 bg-white p-4" data-testid="admin-glance">
+          <p className="text-sm text-stone-700">Clients pay about <strong className="text-lg text-stone-900">{formatPaise(monthlyRevenue(rows))}</strong> a month · {tally.active} active · {tally.renew} to renew soon · {tally.quiet} quiet this week</p>
+          <div role="group" aria-label="Show" className="mt-3 flex flex-wrap gap-2">
+            {(Object.keys(FILTER_LABEL) as ClientFilter[]).map((k) => (
+              <button key={k} type="button" aria-pressed={filter === k} onClick={() => setFilter(k)} className={`min-h-11 rounded-lg border px-3 text-sm font-semibold ${filter === k ? 'border-indigo-900 bg-indigo-900 text-white' : 'border-stone-300 bg-white text-stone-900'}`}>{FILTER_LABEL[k]} {tally[k]}</button>
+            ))}
+          </div>
+        </section>
+      )}
       <div className="mt-3 space-y-2" aria-live="polite">{error && <Alert>{error}</Alert>}{err && !creating && !bill && !ren && !dup && !logins && !del && <Alert>{err}</Alert>}{msg && <Notice>{msg}</Notice>}</div>
       {!rows && !error && <p className="mt-6 text-stone-700">Loading…</p>}
       <ul className="mt-4 space-y-3">
