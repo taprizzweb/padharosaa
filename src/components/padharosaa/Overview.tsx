@@ -4,6 +4,9 @@ import { useCallback, useEffect, useState } from 'react';
 import { apiGet } from '@/components/staff/hooks';
 import { Card, Stat, ns } from '@/components/ui/ns';
 import { formatPaise } from '@/lib/money';
+import { dayFromToday, rupees2 } from '@/lib/padharosaa/billing';
+import { occupancy, type Chart } from '@/lib/padharosaa/frontoffice';
+import { totals, type Report } from '@/lib/padharosaa/reports';
 
 interface Data {
   today: string; guests_in: number; rooms_with_guests: number; requests_today: number; open_now: number; waiting_now: number; urgent_today: number; done_today: number;
@@ -33,6 +36,37 @@ function Bars({ values, labels, height = 96, label }: { values: number[]; labels
   );
 }
 
+interface Kpi { occupancy: number; inHouse: number; rooms: number; arrivals: number; departures: number; dirty: number; sales: number; week: number[]; weekLabels: string[] }
+/** The hotel's day in five numbers and a week of sales. Shown only when the hotel uses rooms and billing (the calls are refused otherwise). */
+function HotelKpis() {
+  const [k, setK] = useState<Kpi | null>(null);
+  useEffect(() => {
+    let alive = true;
+    void (async () => {
+      try {
+        const today = dayFromToday(0);
+        const [chart, rep] = await Promise.all([apiGet<Chart>('/api/padharosaa/v1/staff/frontoffice/chart?days=1'), apiGet<Report>(`/api/padharosaa/v1/staff/reports?from=${dayFromToday(-6)}&to=${today}`)]);
+        const t = totals({ ...rep, days: rep.days.slice(-1) });
+        if (alive) setK({ occupancy: occupancy(chart.summary), inHouse: chart.summary.in_house, rooms: chart.summary.rooms, arrivals: chart.summary.arrivals, departures: chart.summary.departures, dirty: chart.summary.dirty, sales: t.sales, week: rep.days.map((d) => d.room + d.food + d.other), weekLabels: rep.days.map((d) => d.day.slice(8)) });
+      } catch { /* not a rooms-and-billing hotel: show nothing */ }
+    })();
+    return () => { alive = false; };
+  }, []);
+  if (!k) return null;
+  return (
+    <div data-testid="hotel-kpis" className="mt-4">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+        <Stat label="Occupancy" value={`${k.occupancy}%`} sub={`${k.inHouse} of ${k.rooms} rooms`} />
+        <Stat label="Sales today" value={rupees2(k.sales)} sub="before tax" />
+        <Stat label="Arriving" value={k.arrivals} sub="today" />
+        <Stat label="Leaving" value={k.departures} sub="today" />
+        <Stat label="To clean" value={k.dirty} tone={k.dirty ? 'warn' : 'plain'} />
+      </div>
+      <Card title="Sales, last 7 days" hint="Rooms, food and other, before tax."><Bars values={k.week} labels={k.weekLabels} label="Sales per day, last 7 days" /></Card>
+    </div>
+  );
+}
+
 export function Overview() {
   const [d, setD] = useState<Data | null>(null);
   const [err, setErr] = useState(false);
@@ -43,6 +77,7 @@ export function Overview() {
   const slow = (d.avg_accept_minutes ?? 0) > 10;
   return (
     <div data-testid="overview">
+      <HotelKpis />
       <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
         <Stat label="Guests in" value={d.guests_in} sub={`${d.rooms_with_guests} room${d.rooms_with_guests === 1 ? '' : 's'}`} />
         <Stat label="Requests" value={d.requests_today} sub={`today · ${d.done_today} done`} />

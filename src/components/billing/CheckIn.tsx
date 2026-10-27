@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { apiPost } from '@/components/staff/hooks';
 import { ns } from '@/components/ui/ns';
 import { PAY_MODES, dayFromToday, nightsBetween, rupees2, type BillingSetup, type StayRow } from '@/lib/padharosaa/billing';
@@ -10,7 +10,7 @@ import { Label, errText, field, type Flash } from './common';
 const ID_TYPES = [['aadhaar', 'Aadhaar'], ['passport', 'Passport'], ['driving_licence', 'Driving licence'], ['voter_id', 'Voter ID'], ['other', 'Other']] as const;
 
 /** A guest arrives: the room, who they are, the rate, the planned last day and the advance. The guest app login is made in the same step. */
-export function CheckIn({ setup, inHouse, flash, onDone, onOpen }: { setup: BillingSetup; inHouse: StayRow[]; flash: Flash; onDone: () => void; onOpen: (stayId: string) => void }) {
+export function CheckIn({ presetRoom, setup, inHouse, flash, onDone, onOpen }: { presetRoom?: string | null; setup: BillingSetup; inHouse: StayRow[]; flash: Flash; onDone: () => void; onOpen: (stayId: string) => void }) {
   const taken = useMemo(() => new Set(inHouse.map((s) => s.room)), [inHouse]);
   const free = setup.rooms.filter((r) => r.active && !taken.has(r.number));
   const tomorrow = dayFromToday(1);
@@ -24,6 +24,10 @@ export function CheckIn({ setup, inHouse, flash, onDone, onOpen }: { setup: Bill
     const t = type(r?.room_type_id ?? null);
     setF((p) => ({ ...p, room: id, rate: t ? String(t.rate_paise / 100) : p.rate }));
   };
+  useEffect(() => {
+    if (presetRoom && free.some((r) => r.id === presetRoom)) pick(presetRoom);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only when the link's room or the loaded setup changes, never while the desk is typing
+  }, [presetRoom, setup]);
   const ratePaise = f.rate.trim() ? parseRupeesToPaise(f.rate) : null;
   const advPaise = f.advance.trim() ? parseRupeesToPaise(f.advance) : 0;
   const nights = nightsBetween(dayFromToday(0), f.outOn);

@@ -150,7 +150,7 @@ function BookingForm({ chart, draft, existing, flash, onClose, onSaved }: { char
         <Label text="Adults"><input className={field} inputMode="numeric" value={f.adults} onChange={(e) => set('adults', e.target.value)} /></Label>
         <Label text="Advance taken in ₹"><input className={field} inputMode="decimal" value={f.advance} onChange={(e) => set('advance', e.target.value)} /></Label>
         <Label text="Advance paid by"><select className={field} value={f.mode} onChange={(e) => set('mode', e.target.value)}>{PAY_MODES.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></Label>
-        <Label text="Booked through" hint="Phone, walk-in, Booking.com…"><input className={field} value={f.source} maxLength={40} onChange={(e) => set('source', e.target.value)} /></Label>
+        <Label text="Booked through" hint="Tap a name, or type your own."><input className={field} list="booking-sources" value={f.source} maxLength={40} onChange={(e) => set('source', e.target.value)} /><datalist id="booking-sources">{['Walk-in', 'Phone', 'WhatsApp', 'Booking.com', 'MakeMyTrip', 'Agoda', 'Goibibo', 'Airbnb', 'Travel agent', 'Company'].map((x) => <option key={x} value={x} />)}</datalist></Label>
         <Label text="Notes"><input className={field} value={f.notes} maxLength={300} onChange={(e) => set('notes', e.target.value)} /></Label>
       </div>
       <div className="mt-4 flex flex-wrap gap-2">

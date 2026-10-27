@@ -1,20 +1,21 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { apiGet } from '@/components/staff/hooks';
+import { apiGet, apiPost } from '@/components/staff/hooks';
 import { Stat } from '@/components/ui/ns';
 import { errText } from '@/components/billing/common';
 import { occupancy, type Chart } from '@/lib/padharosaa/frontoffice';
 import { Housekeeping } from './Housekeeping';
 import { Reservations, type Draft } from './Reservations';
+import { RoomBoard } from './RoomBoard';
 import { RoomChart } from './RoomChart';
 
 const API = '/api/padharosaa/v1/staff/frontoffice';
-type Tab = 'chart' | 'bookings' | 'housekeeping';
+type Tab = 'status' | 'chart' | 'bookings' | 'housekeeping';
 
 /** Rooms: the chart of every room by day, advance bookings, and the cleaning status of each room. */
 export function RoomsApp({ role }: { role: string }) {
-  const [tab, setTab] = useState<Tab>('chart');
+  const [tab, setTab] = useState<Tab>('status');
   const [chart, setChart] = useState<Chart | null>(null);
   const [start, setStart] = useState<string | null>(null);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
@@ -27,9 +28,15 @@ export function RoomsApp({ role }: { role: string }) {
   useEffect(() => { const id = new URLSearchParams(location.search).get('booking'); if (id && /^[0-9a-f-]{36}$/i.test(id)) { setDraft({ edit: id }); setTab('bookings'); } }, []);
   useEffect(() => { const i = setInterval(() => { if (!document.hidden) void load(); }, 30_000); return () => clearInterval(i); }, [load]);
 
+  const [pad, setPad] = useState(false);
+  useEffect(() => { setPad(/^padharosaa\./i.test(location.host)); }, []);
+  const to = (a: string) => (pad ? `/${a}` : `/padharosaa/${a}`);
+  const mark = async (room: { id: string }, status: 'clean' | 'cleaning') => {
+    try { await apiPost(`${API}/housekeeping`, { room: room.id, status, note: null }); await load(); } catch (e) { flash(false, errText(e, 'The room could not be updated.')); }
+  };
   const book = (d: Draft) => { setDraft(d); setTab('bookings'); };
   const s = chart?.summary;
-  const tabs: [Tab, string][] = [['chart', 'Room chart'], ['bookings', 'Bookings'], ['housekeeping', `Housekeeping${s && s.dirty ? ` (${s.dirty} dirty)` : ''}`]];
+  const tabs: [Tab, string][] = [['status', 'Room status'], ['chart', 'Calendar'], ['bookings', 'Bookings'], ['housekeeping', `Housekeeping${s && s.dirty ? ` (${s.dirty} dirty)` : ''}`]];
   return (
     <div className="mx-auto max-w-6xl px-4 pb-24 pt-3 text-stone-900">
       {msg && <p role={msg.ok ? 'status' : 'alert'} className={`mb-3 rounded-xl p-3 text-sm font-semibold ${msg.ok ? 'bg-emerald-50 text-emerald-950' : 'bg-red-50 text-red-900'}`}>{msg.text}</p>}
@@ -50,6 +57,7 @@ export function RoomsApp({ role }: { role: string }) {
       </div>
       {!chart ? <p className="mt-6" role="status">…</p> : (
         <>
+          {tab === 'status' && <RoomBoard chart={chart} to={to} onMark={(room, status) => void mark(room, status)} />}
           {tab === 'chart' && <RoomChart chart={chart} onShift={(n) => setStart(addShift(chart.from, n))} onToday={() => setStart(null)} onBook={book} />}
           {tab === 'bookings' && <Reservations chart={chart} role={role} draft={draft} clearDraft={() => setDraft(null)} flash={flash} onChanged={() => void load()} />}
           {tab === 'housekeeping' && <Housekeeping chart={chart} flash={flash} onChanged={() => void load()} />}

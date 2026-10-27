@@ -31,7 +31,12 @@ export function BillingApp({ role }: { role: string }) {
     } catch (e) { flash(false, errText(e, 'The guest list could not be loaded.')); }
   }, [flash]);
   useEffect(() => { void loadSetup(); void loadStays(); }, [loadSetup, loadStays]);
-  useEffect(() => { const id = new URLSearchParams(location.search).get('stay'); if (id && /^[0-9a-f-]{36}$/i.test(id)) setStayId(id); }, []);
+  const [presetRoom, setPresetRoom] = useState<string | null>(null);
+  useEffect(() => {
+    const sp = new URLSearchParams(location.search);
+    const id = sp.get('stay'); if (id && /^[0-9a-f-]{36}$/i.test(id)) setStayId(id);
+    const room = sp.get('checkin'); if (room && /^[0-9a-f-]{36}$/i.test(room)) { setPresetRoom(room); setTab('checkin'); }
+  }, []);
   useEffect(() => { const i = setInterval(() => { if (!document.hidden) void loadStays(); }, 30_000); return () => clearInterval(i); }, [loadStays]);
 
   const open = (id: string) => { setStayId(id); setTab('house'); };
@@ -56,7 +61,7 @@ export function BillingApp({ role }: { role: string }) {
       ) : (
         <>
           {tab === 'house' && <Stays rows={inHouse} onOpen={open} />}
-          {tab === 'checkin' && <CheckIn setup={setup} inHouse={inHouse ?? []} flash={flash} onDone={() => void loadStays()} onOpen={open} />}
+          {tab === 'checkin' && <CheckIn presetRoom={presetRoom} setup={setup} inHouse={inHouse ?? []} flash={flash} onDone={() => void loadStays()} onOpen={open} />}
           {tab === 'past' && <Stays rows={past} past onOpen={open} />}
           {tab === 'setup' && canSetup && <SetupPanel setup={setup} reload={loadSetup} flash={flash} />}
         </>

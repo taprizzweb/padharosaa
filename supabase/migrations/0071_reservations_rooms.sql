@@ -178,7 +178,7 @@ begin
     'bars', coalesce((select jsonb_agg(b) from (
       select jsonb_build_object('kind', 'stay', 'id', s.id, 'room_id', s.room_id, 'guest', s.guest_name, 'from', (s.check_in_at at time zone coalesce(h.timezone, 'Asia/Kolkata'))::date, 'to', s.check_out_on) as b
         from public.stays s cross join (select timezone from public.hotel_settings where restaurant_id = v_rid) h
-       where s.restaurant_id = v_rid and s.status = 'in_house' and s.check_out_on > v_from
+       where s.restaurant_id = v_rid and s.status = 'in_house' and s.check_out_on >= v_from
       union all
       select jsonb_build_object('kind', 'booking', 'id', r.id, 'room_id', r.room_id, 'type_id', r.room_type_id, 'guest', r.guest_name, 'from', r.check_in_on, 'to', r.check_out_on, 'seq', r.seq)
         from public.reservations r where r.restaurant_id = v_rid and r.status = 'booked' and r.check_in_on < v_to and r.check_out_on > v_from) q), '[]'::jsonb),

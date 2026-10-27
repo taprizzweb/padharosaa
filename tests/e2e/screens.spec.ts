@@ -95,3 +95,27 @@ for (const [label, size] of [['phone', { width: 390, height: 844 }], ['laptop', 
     await c2.close();
   });
 }
+
+// the hotel modules, with a few rooms, a booking and a price change in place
+for (const [label, size] of [['phone', { width: 390, height: 844 }], ['laptop', { width: 1280, height: 800 }]] as const) {
+  test(`hotel modules on a ${label}`, async ({ browser }) => {
+    await q(`insert into public.room_types (restaurant_id, name, rate_paise) values (${RID}, 'Deluxe', 300000), (${RID}, 'Suite', 520000) on conflict do nothing`);
+    for (const [no, t] of [['101', 'Deluxe'], ['102', 'Deluxe'], ['103', 'Deluxe'], ['201', 'Suite'], ['202', 'Suite']] as const) {
+      await q(`insert into public.rooms (restaurant_id, number) values (${RID}, '${no}') on conflict do nothing`);
+      await q(`update public.rooms set room_type_id = (select id from public.room_types where restaurant_id = ${RID} and name = '${t}') where restaurant_id = ${RID} and number = '${no}'`);
+    }
+    await q(`update public.rooms set hk_status = 'dirty' where restaurant_id = ${RID} and number = '102'`);
+    const ctx = await browser.newContext({ viewport: size });
+    const o = await ctx.newPage();
+    await signIn(o, 'owner@spice-garden.demo', /\/padharosaa\/owner$/, '/padharosaa/owner');
+    for (const [name, path] of [['rooms', 'rooms'], ['rates', 'rates'], ['channels', 'channels'], ['pos', 'pos'], ['inventory', 'inventory'], ['reports', 'reports']] as const) {
+      await o.goto(`/padharosaa/${path}`);
+      if (name === 'rates') await o.getByTestId('rate-types').getByRole('button').first().click();
+      await shot(o, `40-${label}-${name}`);
+    }
+    await o.goto('/padharosaa/rooms');
+    await o.getByRole('tab', { name: 'Calendar' }).click();
+    await shot(o, `41-${label}-rooms-calendar`);
+    await ctx.close();
+  });
+}

@@ -529,6 +529,8 @@ test('the owner console opens on an Overview of today; the desk and the console 
     await expect(o.getByText('Guests in', { exact: true })).toBeVisible();
     await expect(o.getByText('Requests', { exact: true })).toBeVisible();
     await expect(o.getByRole('img', { name: 'Requests by hour today' })).toBeVisible();
+    await expect(o.getByTestId('hotel-kpis')).toContainText('Occupancy'); // the hotel's own numbers on top
+    await expect(o.getByRole('img', { name: 'Sales per day, last 7 days' })).toBeVisible();
     await o.getByRole('button', { name: 'Dark mode' }).click();
     await expect(o.locator('html')).toHaveClass(/ns-dark/);
     await o.goto('/padharosaa/desk'); // the choice is remembered on this device
@@ -728,7 +730,13 @@ test('rooms: reception books a room, checks the booking in, sees it on the chart
     await r.getByRole('navigation', { name: 'Screens' }).getByRole('link', { name: 'Rooms' }).click();
     await expect(r).toHaveURL(/\/padharosaa\/rooms$/);
     await expect(r.getByTestId('rooms-summary')).toBeVisible();
+    // the status board: every room as a card, a vacant one is a tap from check-in
+    const bc = r.getByTestId('board-room').filter({ hasText: '204' });
+    await expect(bc).toContainText('Vacant');
+    await expect(bc.getByRole('link', { name: 'Check in' })).toBeVisible();
+    await r.getByRole('tab', { name: 'Calendar' }).click();
     await expect(r.getByTestId('chart-row').filter({ hasText: '204' })).toBeVisible();
+    await r.getByRole('tab', { name: 'Bookings' }).click();
     // a booking for today with an advance
     await r.getByRole('button', { name: 'New booking' }).click();
     await r.getByLabel('Guest name').fill('Chart Guest');
@@ -758,6 +766,9 @@ test('rooms: reception books a room, checks the booking in, sees it on the chart
     await expect(r.getByTestId('folio-totals')).toContainText('₹');
     // the chart shows the guest as a bar; housekeeping: mark a room dirty, start cleaning, mark clean
     await r.getByRole('navigation', { name: 'Screens' }).getByRole('link', { name: 'Rooms' }).click();
+    await expect(r.getByTestId('board-room').filter({ hasText: '204' })).toContainText('Chart Guest'); // the status board shows who is in the room
+    await expect(r.getByTestId('board-room').filter({ hasText: '204' })).toContainText('Occupied');
+    await r.getByRole('tab', { name: 'Calendar' }).click();
     await expect(r.getByTestId('room-chart').getByRole('link', { name: 'Chart Guest' })).toBeVisible();
     await r.getByRole('tab', { name: /^Housekeeping/ }).click();
     const card = r.getByTestId('hk-card').filter({ hasText: '205' });
