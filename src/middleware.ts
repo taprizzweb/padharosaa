@@ -4,7 +4,7 @@ import { newNonce, securityHeaders } from '@/lib/security/csp';
 
 // Edge-safe: only reads NEXT_PUBLIC_* values (inlined at build time). The full env check runs at boot
 // in instrumentation.ts.
-const PROTECTED = /^\/(staff|dash|admin|account|padharosaa\/(desk|billing|manage|owner|manager|kitchen|menu|settings))(\/|$)/;
+const PROTECTED = /^\/(staff|dash|admin|account|padharosaa\/(desk|billing|qr|manage|owner|manager|kitchen|menu|settings))(\/|$)/;
 // padharosaa.<domain>: the clean role addresses are rewritten onto the real pages. '/orders' is the menu live screen (kitchen food orders).
 const PAD_ROUTES: Record<string, string> = {
   '/': '/padharosaa/login', '/login': '/padharosaa/login', '/orders': '/staff',

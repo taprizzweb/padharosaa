@@ -4,6 +4,7 @@ import { AreaNav } from '@/components/padharosaa/AreaNav';
 import { DeskApp } from '@/components/padharosaa/DeskApp';
 import { StaffApp, type StaffMe } from '@/components/staff/StaffApp';
 import { BillingApp } from '@/components/billing/BillingApp';
+import { QrSheet } from '@/components/padharosaa/QrSheet';
 import { ManageApp } from '@/components/padharosaa/ManageApp';
 import { StaffSettings } from '@/components/padharosaa/StaffSettings';
 import { publicEnv } from '@/env';
@@ -32,6 +33,7 @@ export async function renderArea(area: Area) {
     const env = publicEnv();
     return <ManageApp role={m.role} restaurant={m.restaurant} supabase={{ url: env.NEXT_PUBLIC_SUPABASE_URL, anonKey: env.NEXT_PUBLIC_SUPABASE_ANON_KEY }} />;
   }
+  if (area === 'qr') return <QrSheet hotel={m.restaurant.name} />;
   if (area === 'billing') return <BillingApp role={m.role} hotel={m.restaurant.name} />;
   if (area === 'settings') {
     const meta = me as { display_name?: string; name?: string };

@@ -852,6 +852,48 @@ test('local guides: the hotel adds a guide, the guest finds the tile, sees the c
   }
 });
 
+test('room QR codes: the sheet has one code per room, a room link opens the guest page with the room filled in, and reception cannot open the sheet', async ({ browser }) => {
+  test.setTimeout(120_000);
+  await q(`insert into public.rooms (restaurant_id, number) values (${RID}, '204'), (${RID}, '205') on conflict do nothing`);
+  const octx = await browser.newContext({ viewport: { width: 1100, height: 900 } });
+  const gctx = await browser.newContext({ viewport: { width: 375, height: 800 } });
+  const o = await octx.newPage();
+  const g = await gctx.newPage();
+  try {
+    await signIn(o, 'owner@spice-garden.demo', /\/padharosaa\/owner$/, '/padharosaa/owner');
+    await o.getByRole('tab', { name: 'Start' }).click();
+    await o.getByRole('link', { name: 'Open the QR sheet' }).click();
+    await expect(o).toHaveURL(/\/padharosaa\/qr$/);
+    const active = Number((await q<{ n: string }>(`select count(*)::text as n from public.rooms where restaurant_id = ${RID} and active`))[0]!.n);
+    await expect(o.getByTestId('qr-card')).toHaveCount(active);
+    await expect(o.getByRole('img', { name: 'QR code for room 204' })).toBeVisible();
+    await o.getByText(/Choose rooms/).click();
+    await o.getByRole('button', { name: 'None' }).click();
+    await o.getByLabel('204', { exact: true }).check();
+    await expect(o.getByTestId('qr-card')).toHaveCount(1);
+    await o.getByRole('radio', { name: 'One code for the hotel' }).check();
+    await expect(o.getByTestId('qr-card')).toHaveCount(1);
+    await expect(o.getByTestId('qr-card')).toContainText('type your room number');
+    // a room link opens the login with the room already in it; the plain link does not
+    await g.goto(`${second}&r=204`);
+    await expect(g.getByLabel('Room number')).toHaveValue('204');
+    await g.goto(second);
+    await expect(g.getByLabel('Room number')).toHaveValue('');
+    await g.goto(`${second}&r=%3Cscript%3E`);
+    await expect(g.getByLabel('Room number')).toHaveValue(''); // a room that is not a room number is ignored
+    // reception is not allowed in
+    const rctx = await browser.newContext();
+    const r = await rctx.newPage();
+    await signIn(r, 'waiter@spice-garden.demo', /\/padharosaa\/desk$/, '/padharosaa/desk');
+    await r.goto('/padharosaa/qr');
+    await expect(r).toHaveURL(/\/padharosaa\/desk$/);
+    await rctx.close();
+  } finally {
+    await octx.close();
+    await gctx.close();
+  }
+});
+
 test('a public demo hotel: one link, no sign-in, and the demo answers itself; a normal hotel has no demo link', async ({ browser }) => {
   test.setTimeout(150_000); // the demo answers after about 20 seconds
   const ctx = await browser.newContext({ viewport: { width: 375, height: 800 } });

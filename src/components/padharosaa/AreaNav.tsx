@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { AlarmControl } from './AlarmControl';
 
-export type NavCurrent = 'owner' | 'manager' | 'desk' | 'billing' | 'kitchen' | 'menu' | 'settings';
+export type NavCurrent = 'owner' | 'manager' | 'desk' | 'billing' | 'qr' | 'kitchen' | 'menu' | 'settings';
 
 /** Owner and manager see every screen of the hotel: the console, the one reception desk, and the kitchen display when the hotel has one. */
 export function AreaNav({ role, current, kitchenDisplay = false, alarm = true }: { role: string; current: NavCurrent; kitchenDisplay?: boolean; alarm?: boolean }) {

@@ -57,7 +57,7 @@ interface ReqView {
 type Screen = { s: 'home' } | { s: 'services' } | { s: 'checkout' } | { s: 'stay' } | { s: 'help' } | { s: 'dining' } | { s: 'guide' } | { s: 'plan' } | { s: 'lguides' } | { s: 'buffet' } | { s: 'track'; id: string };
 
 
-export function PadGuestApp({ slug, qrKey, imageBase }: { slug: string; qrKey: string | null; imageBase: string }) {
+export function PadGuestApp({ slug, qrKey, room = null, imageBase }: { slug: string; qrKey: string | null; room?: string | null; imageBase: string }) {
   const [me, setMe] = useState<Me | null | undefined>(undefined);
   const [home, setHome] = useState<Home | null>(null);
   const [lang, setLang] = useState<Lang>('en');
@@ -107,7 +107,7 @@ export function PadGuestApp({ slug, qrKey, imageBase }: { slug: string; qrKey: s
       <div className="mx-auto flex min-h-dvh max-w-md flex-col">
         {me === undefined && <p className="p-8 text-center" role="status">…</p>}
         {me === null && farewell && <FarewellScreen f={farewell} c={c} again={() => setFarewell(null)} />}
-        {me === null && !farewell && <Login slug={slug} qrKey={qrKey} c={c} lang={lang} setLang={setLang} imageBase={imageBase} onDone={async () => { const r = await api<Me>('sessions/me'); if (r.ok) { setMe(r.data); await loadHome(); } }} />}
+        {me === null && !farewell && <Login slug={slug} qrKey={qrKey} room={room} c={c} lang={lang} setLang={setLang} imageBase={imageBase} onDone={async () => { const r = await api<Me>('sessions/me'); if (r.ok) { setMe(r.data); await loadHome(); } }} />}
         {me && home && (
           <>
             <div key={screen.s} className="screen-in flex flex-1 flex-col">
@@ -132,11 +132,11 @@ export function PadGuestApp({ slug, qrKey, imageBase }: { slug: string; qrKey: s
   );
 }
 
-function Login({ slug, qrKey, c, lang, setLang, onDone, imageBase }: { slug: string; qrKey: string | null; c: Copy; lang: Lang; setLang: (l: Lang) => void; onDone: () => Promise<void>; imageBase: string }) {
+function Login({ slug, qrKey, room, c, lang, setLang, onDone, imageBase }: { slug: string; qrKey: string | null; room: string | null; c: Copy; lang: Lang; setLang: (l: Lang) => void; onDone: () => Promise<void>; imageBase: string }) {
   const [hotel, setHotel] = useState<{ name: string; brand_color: string | null; logo_path: string | null; hero_path?: string | null; verification_level?: string } | null>(null);
   const [err, setErr] = useState<string | null>(qrKey ? null : 'needKey');
   const [busy, setBusy] = useState(false);
-  const f = useRef({ name: '', mobile: '', room: '', stay: '', consent: false });
+  const f = useRef({ name: '', mobile: '', room: room ?? '', stay: '', consent: false });
   const [, force] = useState(0);
   useEffect(() => {
     if (!qrKey) return;
@@ -156,7 +156,7 @@ function Login({ slug, qrKey, c, lang, setLang, onDone, imageBase }: { slug: str
   };
   const field = (k: 'name' | 'mobile' | 'room' | 'stay', label: string, props: { inputMode?: 'numeric' | 'tel'; maxLength?: number } = {}) => (
     <label className="block text-sm font-semibold">{label}
-      <input className="mt-1 min-h-12 w-full rounded-xl border bg-white px-3 text-base text-stone-900" style={{ borderColor: 'var(--tint)' }} {...props}
+      <input className="mt-1 min-h-12 w-full rounded-xl border bg-white px-3 text-base text-stone-900" style={{ borderColor: 'var(--tint)' }} {...props} defaultValue={k === 'room' ? room ?? '' : undefined}
         onChange={(e) => { f.current[k] = e.target.value; force((n) => n + 1); }} />
     </label>
   );

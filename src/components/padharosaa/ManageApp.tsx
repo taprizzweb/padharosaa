@@ -83,6 +83,7 @@ export function ManageApp({ role, restaurant, supabase }: { role: string; restau
       <VerificationCard s={s} save={save} flash={flash} />
       <CheckoutPanel flash={flash} />
       <GuestLinkPanel slug={restaurant.slug} flash={flash} load={() => apiGet<LinkState>('/api/padharosaa/v1/staff/qr')} create={(password) => apiPost<{ link: string }>('/api/padharosaa/v1/staff/qr/rotate', { password })} />
+      <Card title="Print QR codes" hint="One code for the whole hotel, or a code for every room that already knows the room number. Print them and stick them in the rooms."><Link className={`${btnCls} inline-flex items-center`} href="/padharosaa/qr" prefetch={false}>Open the QR sheet</Link></Card>
         </>
       )}
       {tab === 'hotel' && (
