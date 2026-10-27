@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { StaffShell } from '@/components/padharosaa/StaffShell';
 import { DeskApp } from '@/components/padharosaa/DeskApp';
 import { StaffApp, type StaffMe } from '@/components/staff/StaffApp';
+import { InventoryApp } from '@/components/inventory/InventoryApp';
 import { RoomsApp } from '@/components/frontoffice/RoomsApp';
 import { BillingApp } from '@/components/billing/BillingApp';
 import { QrSheet } from '@/components/padharosaa/QrSheet';
@@ -36,6 +37,7 @@ export async function renderArea(area: Area) {
   const content = (() => {
     if (area === 'owner' || area === 'manager') return <ManageApp role={m.role} restaurant={m.restaurant} supabase={supabase} />;
     if (area === 'qr') return <QrSheet hotel={m.restaurant.name} />;
+    if (area === 'inventory') return <InventoryApp role={m.role} />;
     if (area === 'rooms') return <RoomsApp role={m.role} />;
     if (area === 'billing') return <BillingApp role={m.role} />;
     if (area === 'settings') return <StaffSettings role={m.role} name={meta.display_name ?? meta.name ?? '—'} email={data.user.email ?? null} />;

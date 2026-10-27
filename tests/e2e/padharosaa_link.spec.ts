@@ -778,6 +778,54 @@ test('rooms: reception books a room, checks the booking in, sees it on the chart
   }
 });
 
+test('inventory: the owner adds an item and stocks it, the kitchen records use and waste, low stock is flagged and an impossible use is refused', async ({ browser }) => {
+  test.setTimeout(150_000);
+  await q(`delete from public.inventory_items where restaurant_id = ${RID}`);
+  const octx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  const kctx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  const o = await octx.newPage();
+  const k = await kctx.newPage();
+  try {
+    await signIn(o, 'owner@spice-garden.demo', /\/padharosaa\/owner$/, '/padharosaa/owner');
+    await o.getByRole('navigation', { name: 'Screens' }).getByRole('link', { name: 'Inventory' }).click();
+    await expect(o).toHaveURL(/\/padharosaa\/inventory$/);
+    await o.getByRole('button', { name: 'Add an item' }).click();
+    await o.getByLabel('Name', { exact: true }).fill('Basmati rice');
+    await o.getByLabel('Counted in').fill('kg');
+    await o.getByLabel('Tell me when it falls to').fill('10');
+    await o.getByRole('button', { name: 'Save', exact: true }).click();
+    const row = o.getByTestId('inv-row').filter({ hasText: 'Basmati rice' });
+    await expect(row).toBeVisible();
+    await row.getByRole('button', { name: 'Stock in' }).click();
+    await o.getByLabel('Quantity (kg)').fill('25');
+    await o.getByLabel('Total cost in ₹').fill('1500');
+    await o.getByRole('button', { name: 'Save', exact: true }).click();
+    await expect(row).toContainText('25 kg');
+    await expect(o.getByTestId('inv-summary')).toContainText('₹1,500.00');
+    // the kitchen can record use and waste, but not stock in
+    await signIn(k, 'kitchen@spice-garden.demo', /\/padharosaa\/kitchen$/, '/padharosaa/kitchen');
+    await k.getByRole('navigation', { name: 'Screens' }).getByRole('link', { name: 'Inventory' }).click();
+    const kr = k.getByTestId('inv-row').filter({ hasText: 'Basmati rice' });
+    await expect(kr.getByRole('button', { name: 'Stock in' })).toHaveCount(0);
+    await kr.getByRole('button', { name: 'Used' }).click();
+    await k.getByLabel('Quantity (kg)').fill('100');
+    await k.getByRole('button', { name: 'Save', exact: true }).click();
+    await expect(k.getByText(/Only 25 kg is in stock/)).toBeVisible();
+    await k.getByLabel('Quantity (kg)').fill('16');
+    await k.getByRole('button', { name: 'Save', exact: true }).click();
+    await expect(kr).toContainText('9 kg');
+    await expect(kr).toContainText('Low');
+    await expect(k.getByTestId('inv-summary')).toContainText('Running low');
+    await kr.getByRole('button', { name: 'History' }).click();
+    await expect(k.getByTestId('inv-log')).toContainText('Used -16 kg');
+    await expect(k.getByTestId('inv-log')).toContainText('Stock in +25 kg');
+  } finally {
+    await q(`delete from public.inventory_items where restaurant_id = ${RID}`);
+    await octx.close();
+    await kctx.close();
+  }
+});
+
 test('the alarm keeps ringing when reception moves to another screen, and a waiting request shows a banner there', async ({ browser }) => {
   test.setTimeout(120_000);
   await q(`insert into public.rooms (restaurant_id, number) values (${RID}, '204') on conflict do nothing`);

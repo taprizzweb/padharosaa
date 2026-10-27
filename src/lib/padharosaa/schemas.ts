@@ -260,3 +260,9 @@ export const hkBody = z.object({ room: uuid, status: z.enum(['clean', 'dirty', '
 export const chartQuery = z.object({ from: day.nullish(), days: z.coerce.number().int().min(1).max(31).default(14) });
 export const reservationsQuery = z.object({ scope: z.enum(['upcoming', 'today', 'past']) });
 export const searchQuery = z.object({ q: z.string().trim().min(2).max(40) });
+
+// ---- inventory (migration 0072) ----
+export const invItemBody = z.object({
+  id: uuid.nullish(), name: z.string().trim().min(1).max(60), unit: z.string().trim().min(1).max(12), category: z.string().max(40).nullish(), min_qty: z.number().min(0).max(1_000_000), active: z.boolean(),
+}).strict();
+export const invMoveBody = z.object({ item: uuid, kind: z.enum(['in', 'out', 'waste', 'adjust']), qty: z.number().min(0).max(1_000_000), cost_paise: z.number().int().min(0).max(100_000_000).nullish(), note: z.string().max(120).nullish() }).strict();

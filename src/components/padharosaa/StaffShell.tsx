@@ -11,6 +11,7 @@ const PATHS: Record<NavIcon, string> = {
   dashboard: 'M3 13h8V3H3zm0 8h8v-6H3zm10 0h8V11h-8zm0-18v6h8V3z',
   desk: 'M12 22a2 2 0 0 0 2-2h-4a2 2 0 0 0 2 2m6-6V11a6 6 0 0 0-5-5.9V4a1 1 0 0 0-2 0v1.1A6 6 0 0 0 6 11v5l-2 2v1h16v-1z',
   rooms: 'M3 20V8l9-5 9 5v12h-6v-6H9v6zM7 10v2h2v-2zm8 0v2h2v-2z',
+  inventory: 'M20 8 12 3 4 8v10l8 4 8-4zm-8 2.2L7.5 8 12 5.8 16.5 8zM6 9.7l5 2.5v7l-5-2.5zm7 9.5v-7l5-2.5v7z',
   billing: 'M6 2h12a1 1 0 0 1 1 1v19l-3-2-2 2-2-2-2 2-2-2-3 2V3a1 1 0 0 1 1-1m2 5v2h8V7zm0 4v2h8v-2z',
   menu: 'M4 6h16v2H4zm0 5h16v2H4zm0 5h10v2H4z',
   kitchen: 'M6 2v8a3 3 0 0 0 2 2.8V22h2V12.8A3 3 0 0 0 12 10V2h-2v6H9V2H7v6H6V2zm10 0c-2 1.5-3 4-3 7v4h3v9h2V2z',
