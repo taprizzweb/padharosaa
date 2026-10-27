@@ -2,12 +2,12 @@
 // food order arrives), plus /kitchen for hotels that say they have a separate kitchen display. Pure rules, shared by the pages, the
 // sign-in redirect and the middleware. The database still decides what each person can actually see or do; this only decides which
 // page is "theirs". Reception and every other staff member also get /menu (the sold-out switches) and /settings (their own account).
-export const AREAS = ['owner', 'manager', 'desk', 'billing', 'rooms', 'inventory', 'qr', 'kitchen', 'menu', 'settings'] as const;
+export const AREAS = ['owner', 'manager', 'desk', 'billing', 'rooms', 'pos', 'inventory', 'reports', 'qr', 'kitchen', 'menu', 'settings'] as const;
 export type Area = (typeof AREAS)[number];
 
 export const isArea = (v: string): v is Area => (AREAS as readonly string[]).includes(v);
 
-export const AREA_TITLE: Record<Area, string> = { owner: 'Owner', manager: 'Manager', desk: 'Reception desk', billing: 'Billing', rooms: 'Rooms', inventory: 'Inventory', qr: 'QR codes', kitchen: 'Kitchen', menu: 'Menu', settings: 'Settings' };
+export const AREA_TITLE: Record<Area, string> = { owner: 'Owner', manager: 'Manager', desk: 'Reception desk', billing: 'Billing', rooms: 'Rooms', pos: 'Counter billing', inventory: 'Inventory', reports: 'Reports', qr: 'QR codes', kitchen: 'Kitchen', menu: 'Menu', settings: 'Settings' };
 
 /** Which team's requests a filter chip shows. The owner and manager see every team's requests; the desk starts on all of them. */
 export type Group = 'all' | 'reception' | 'housekeeping' | 'kitchen' | 'manager';
@@ -27,8 +27,9 @@ export function canOpen(area: Area, role: string): boolean {
   const home = homeFor(role);
   if (!home) return false;
   if (area === 'desk' || area === 'menu' || area === 'settings') return true; // every active staff member can open the desk (they see what their role allows)
-  if (area === 'billing' || area === 'rooms') return role === 'owner' || role === 'manager' || role === 'waiter'; // the database lets only the front office through
+  if (area === 'billing' || area === 'rooms' || area === 'pos') return role === 'owner' || role === 'manager' || role === 'waiter'; // the database lets only the front office through
   if (area === 'inventory') return role === 'owner' || role === 'manager' || role === 'kitchen';
+  if (area === 'reports') return role === 'owner' || role === 'manager';
   if (area === 'qr') return role === 'owner' || role === 'manager';
   if (area === 'kitchen') return role === 'kitchen' || role === 'owner' || role === 'manager';
   if (area === 'manager') return role === 'owner' || role === 'manager';

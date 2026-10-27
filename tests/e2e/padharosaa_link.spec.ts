@@ -289,7 +289,7 @@ test('the owner sets opening and closing time; after closing a guest sees it and
 test('reception sees only the desk, the menu (sold-out switches) and settings, and no console, dashboard or team tools', async ({ page }) => {
   await signIn(page, 'waiter@spice-garden.demo', /\/padharosaa\/desk$/, '/padharosaa/desk');
   const nav = page.getByRole('navigation', { name: 'Screens' });
-  await expect(nav.getByRole('link')).toHaveText(['Reception desk', 'Rooms', 'Billing', 'Menu', 'Settings']);
+  await expect(nav.getByRole('link')).toHaveText(['Reception desk', 'Rooms', 'Billing', 'Counter billing', 'Menu', 'Settings']);
   await expect(page.getByRole('heading', { name: 'Opening and closing time for requests' })).toHaveCount(0);
   await nav.getByRole('link', { name: 'Menu' }).click();
   await expect(page).toHaveURL(/\/padharosaa\/menu$/);
@@ -826,6 +826,73 @@ test('inventory: the owner adds an item and stocks it, the kitchen records use a
   }
 });
 
+test('counter billing and reports: reception bills a dish and a custom item with 5% GST, the bill prints, the owner sees it in the report; a bill can be cancelled', async ({ browser }) => {
+  test.setTimeout(150_000);
+  const clean = async () => {
+    await q(`delete from public.pos_bills where restaurant_id = ${RID}`);
+    await q(`delete from public.pos_counters where restaurant_id = ${RID}`);
+    await q(`update public.charge_categories set tax_rate_id = null where restaurant_id = ${RID}`);
+    await q(`delete from public.tax_rates where restaurant_id = ${RID}`);
+  };
+  await clean();
+  await q(`select private.billing_defaults(${RID}::uuid)`);
+  await q(`insert into public.tax_rates (restaurant_id, name, rate_bp) values (${RID}, 'GST 5%', 500)`);
+  await q(`update public.charge_categories set tax_rate_id = (select id from public.tax_rates where restaurant_id = ${RID} and name = 'GST 5%') where restaurant_id = ${RID} and kind = 'food'`);
+  await q(`update public.hotel_settings set round_off = false where restaurant_id = ${RID}`);
+  const rctx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  const octx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  const r = await rctx.newPage();
+  const o = await octx.newPage();
+  try {
+    await signIn(r, 'waiter@spice-garden.demo', /\/padharosaa\/desk$/, '/padharosaa/desk');
+    await r.getByRole('navigation', { name: 'Screens' }).getByRole('link', { name: 'Counter billing' }).click();
+    await expect(r).toHaveURL(/\/padharosaa\/pos$/);
+    await r.getByLabel('Item name').fill('Masala tea');
+    await r.getByLabel('Price in ₹').fill('100');
+    await r.getByRole('button', { name: 'Add', exact: true }).click();
+    await r.getByLabel('Item name').fill('Cold coffee');
+    await r.getByLabel('Price in ₹').fill('200');
+    await r.getByRole('button', { name: 'Add', exact: true }).click();
+    await r.getByRole('button', { name: 'More Masala tea' }).click(); // 2 teas
+    // 2 x 100 + 200 = 400, 2.5% + 2.5% = 20, total 420
+    await expect(r.getByTestId('pos-totals')).toContainText('₹400.00');
+    await expect(r.getByTestId('pos-totals')).toContainText('₹420.00');
+    await r.getByLabel('Table or note').fill('Table 4');
+    await r.getByLabel('Paid by', { exact: true }).selectOption('upi');
+    await r.getByRole('button', { name: 'Make the bill' }).click();
+    await expect(r.getByTestId('receipt-number')).toHaveText(/^POS\/\d{4}-\d{2}\/0001$/);
+    await expect(r.getByTestId('receipt-total')).toHaveText('₹420.00');
+    await expect(r.getByTestId('receipt')).toContainText('2 × ₹100.00');
+    await r.getByRole('button', { name: 'Back to billing' }).click();
+    await r.getByRole('tab', { name: "Today's bills" }).click();
+    await expect(r.getByTestId('pos-row')).toContainText('Table 4');
+    await expect(r.getByRole('button', { name: 'Cancel' })).toHaveCount(0); // only the owner and manager cancel a bill
+    // the owner: reports and cancelling
+    await signIn(o, 'owner@spice-garden.demo', /\/padharosaa\/owner$/, '/padharosaa/owner');
+    await o.getByRole('navigation', { name: 'Screens' }).getByRole('link', { name: 'Reports' }).click();
+    await o.getByRole('button', { name: 'Today', exact: true }).click();
+    await expect(o.getByTestId('report-cards')).toContainText('₹400.00'); // sales before tax
+    await expect(o.getByTestId('report-cards')).toContainText('₹420.00'); // money collected
+    await o.getByRole('navigation', { name: 'Screens' }).getByRole('link', { name: 'Counter billing' }).click();
+    await o.getByRole('tab', { name: "Today's bills" }).click();
+    o.once('dialog', (d) => void d.accept('wrong order'));
+    await o.getByRole('button', { name: 'Cancel' }).click();
+    await expect(o.getByText('Bill cancelled.')).toBeVisible();
+    await expect(o.getByTestId('pos-row')).toContainText('cancelled');
+    await o.getByRole('navigation', { name: 'Screens' }).getByRole('link', { name: 'Reports' }).click();
+    await o.getByRole('button', { name: 'Today', exact: true }).click();
+    await expect(o.getByTestId('report-cards')).not.toContainText('₹420.00');
+    // reception cannot open the reports
+    await r.goto('/padharosaa/reports');
+    await expect(r).not.toHaveURL(/\/padharosaa\/reports$/);
+  } finally {
+    await clean();
+    await q(`update public.hotel_settings set round_off = true where restaurant_id = ${RID}`);
+    await rctx.close();
+    await octx.close();
+  }
+});
+
 test('the alarm keeps ringing when reception moves to another screen, and a waiting request shows a banner there', async ({ browser }) => {
   test.setTimeout(120_000);
   await q(`insert into public.rooms (restaurant_id, number) values (${RID}, '204') on conflict do nothing`);
@@ -843,7 +910,7 @@ test('the alarm keeps ringing when reception moves to another screen, and a wait
     await r.getByTestId('alarm-toggle').click();
     await expect(r.getByTestId('alarm-toggle')).toHaveText(/Alarm is on/);
     await r.evaluate(() => { (window as unknown as { __same: string }).__same = 'still this page'; }); // a full reload would lose this
-    await r.getByRole('navigation', { name: 'Screens' }).getByRole('link', { name: 'Billing' }).click();
+    await r.getByRole('navigation', { name: 'Screens' }).getByRole('link', { name: 'Billing', exact: true }).click();
     await expect(r).toHaveURL(/\/padharosaa\/billing$/);
     await expect(r.getByTestId('alarm-toggle')).toHaveText(/Alarm is on/);
     expect(await r.evaluate(() => (window as unknown as { __same?: string }).__same)).toBe('still this page');
@@ -861,7 +928,7 @@ test('the alarm keeps ringing when reception moves to another screen, and a wait
     // turning it off sticks across screens too
     await r.getByTestId('alarm-toggle').click();
     await expect(r.getByTestId('alarm-toggle')).toHaveText(/Alarm is off/);
-    await r.getByRole('navigation', { name: 'Screens' }).getByRole('link', { name: 'Billing' }).click();
+    await r.getByRole('navigation', { name: 'Screens' }).getByRole('link', { name: 'Billing', exact: true }).click();
     await expect(r.getByTestId('alarm-toggle')).toHaveText(/Alarm is off/);
   } finally {
     await q(`delete from public.requests where restaurant_id = ${RID}`);

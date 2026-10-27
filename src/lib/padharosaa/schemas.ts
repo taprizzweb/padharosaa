@@ -266,3 +266,11 @@ export const invItemBody = z.object({
   id: uuid.nullish(), name: z.string().trim().min(1).max(60), unit: z.string().trim().min(1).max(12), category: z.string().max(40).nullish(), min_qty: z.number().min(0).max(1_000_000), active: z.boolean(),
 }).strict();
 export const invMoveBody = z.object({ item: uuid, kind: z.enum(['in', 'out', 'waste', 'adjust']), qty: z.number().min(0).max(1_000_000), cost_paise: z.number().int().min(0).max(100_000_000).nullish(), note: z.string().max(120).nullish() }).strict();
+
+// ---- counter billing and reports (migration 0073) ----
+const posLine = z.object({ item: uuid.nullish(), name: z.string().trim().min(1).max(80).nullish(), qty: z.number().int().min(1).max(99), unit_paise: z.number().int().min(1).max(10_000_000).nullish() }).strict()
+  .refine((l) => !!l.item || (!!l.name && !!l.unit_paise), { message: 'a dish or a name and price' });
+export const posCreateBody = z.object({ lines: z.array(posLine).min(1).max(60), label: z.string().max(40).nullish(), customer: z.string().max(80).nullish(), mode: z.enum(['cash', 'card', 'upi', 'bank', 'room']), stay: uuid.nullish() }).strict();
+export const posVoidBody = z.object({ id: uuid, reason: z.string().trim().min(1).max(200) }).strict();
+export const posListQuery = z.object({ day: day.nullish() });
+export const reportQuery = z.object({ from: day, to: day });

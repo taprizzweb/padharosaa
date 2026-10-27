@@ -3,14 +3,16 @@ import { canOpen, type Area } from './areas';
 // The side menu of the staff software: what each role sees, in groups. Pure rules; the pages and the database still decide what a person may do.
 export type NavItem = { area: Area; label: string; icon: NavIcon };
 export type NavGroup = { title: string; items: NavItem[] };
-export type NavIcon = 'dashboard' | 'desk' | 'billing' | 'rooms' | 'inventory' | 'menu' | 'kitchen' | 'qr' | 'settings';
+export type NavIcon = 'dashboard' | 'desk' | 'billing' | 'rooms' | 'inventory' | 'pos' | 'reports' | 'menu' | 'kitchen' | 'qr' | 'settings';
 
 const ALL: NavItem[] = [
   { area: 'desk', label: 'Reception desk', icon: 'desk' },
   { area: 'rooms', label: 'Rooms', icon: 'rooms' },
   { area: 'billing', label: 'Billing', icon: 'billing' },
+  { area: 'pos', label: 'Counter billing', icon: 'pos' },
   { area: 'kitchen', label: 'Kitchen', icon: 'kitchen' },
   { area: 'inventory', label: 'Inventory', icon: 'inventory' },
+  { area: 'reports', label: 'Reports', icon: 'reports' },
   { area: 'menu', label: 'Menu', icon: 'menu' },
   { area: 'qr', label: 'QR codes', icon: 'qr' },
   { area: 'settings', label: 'Settings', icon: 'settings' },
@@ -22,11 +24,11 @@ export function navFor(role: string, opts: { kitchenDisplay?: boolean } = {}): N
   const pick = (areas: Area[]) => ALL.filter((i) => areas.includes(i.area) && canOpen(i.area, role) && (i.area !== 'kitchen' || role === 'kitchen' || (boss && !!opts.kitchenDisplay)));
   const groups: NavGroup[] = [];
   if (boss) groups.push({ title: 'Hotel', items: [{ area: role === 'owner' ? 'owner' : 'manager', label: 'Dashboard', icon: 'dashboard' }] });
-  const work = pick(['desk', 'rooms', 'billing', 'kitchen', 'inventory']);
+  const work = pick(['desk', 'rooms', 'billing', 'pos', 'kitchen', 'inventory', 'reports']);
   if (work.length) groups.push({ title: 'Operations', items: work });
   const setup = pick(['menu', 'qr', 'settings']);
   if (setup.length) groups.push({ title: boss ? 'Setup' : 'More', items: setup });
   return groups;
 }
 
-export const titleFor = (area: string): string => ({ owner: 'Dashboard', manager: 'Dashboard', desk: 'Reception desk', rooms: 'Rooms', inventory: 'Inventory', billing: 'Billing', qr: 'QR codes', kitchen: 'Kitchen', menu: 'Menu', settings: 'Settings' } as Record<string, string>)[area] ?? 'Padharosaa';
+export const titleFor = (area: string): string => ({ owner: 'Dashboard', manager: 'Dashboard', desk: 'Reception desk', rooms: 'Rooms', inventory: 'Inventory', pos: 'Counter billing', reports: 'Reports', billing: 'Billing', qr: 'QR codes', kitchen: 'Kitchen', menu: 'Menu', settings: 'Settings' } as Record<string, string>)[area] ?? 'Padharosaa';
