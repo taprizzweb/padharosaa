@@ -47,8 +47,7 @@ begin
   return new;
 end $$;
 revoke all on function private.room_dirty_on_checkout() from public, anon, authenticated;
-drop trigger if exists stays_room_dirty on public.stays;
-create trigger stays_room_dirty after update of status on public.stays for each row execute function private.room_dirty_on_checkout();
+create or replace trigger stays_room_dirty after update of status on public.stays for each row execute function private.room_dirty_on_checkout();
 
 create or replace function private.hotel_today(p_rid uuid) returns date
 language plpgsql stable security definer set search_path = '' as $$

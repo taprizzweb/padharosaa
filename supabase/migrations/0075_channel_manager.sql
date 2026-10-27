@@ -89,8 +89,7 @@ begin
   return null;
 end $$;
 revoke all on function private.trg_channel_reservation() from public, anon, authenticated;
-drop trigger if exists channel_reservation on public.reservations;
-create trigger channel_reservation after insert or update or delete on public.reservations for each row execute function private.trg_channel_reservation();
+create or replace trigger channel_reservation after insert or update or delete on public.reservations for each row execute function private.trg_channel_reservation();
 
 create or replace function private.trg_channel_stay() returns trigger
 language plpgsql security definer set search_path = '' as $$
@@ -104,8 +103,7 @@ begin
   return null;
 end $$;
 revoke all on function private.trg_channel_stay() from public, anon, authenticated;
-drop trigger if exists channel_stay on public.stays;
-create trigger channel_stay after insert or update on public.stays for each row execute function private.trg_channel_stay();
+create or replace trigger channel_stay after insert or update on public.stays for each row execute function private.trg_channel_stay();
 
 create or replace function private.trg_channel_room() returns trigger
 language plpgsql security definer set search_path = '' as $$
@@ -118,8 +116,7 @@ begin
   return null;
 end $$;
 revoke all on function private.trg_channel_room() from public, anon, authenticated;
-drop trigger if exists channel_room on public.rooms;
-create trigger channel_room after update on public.rooms for each row execute function private.trg_channel_room();
+create or replace trigger channel_room after update on public.rooms for each row execute function private.trg_channel_room();
 
 create or replace function private.trg_channel_rate() returns trigger
 language plpgsql security definer set search_path = '' as $$
@@ -129,8 +126,7 @@ begin
   return null;
 end $$;
 revoke all on function private.trg_channel_rate() from public, anon, authenticated;
-drop trigger if exists channel_rate on public.room_rates;
-create trigger channel_rate after insert or update or delete on public.room_rates for each row execute function private.trg_channel_rate();
+create or replace trigger channel_rate after insert or update or delete on public.room_rates for each row execute function private.trg_channel_rate();
 
 create or replace function private.trg_channel_type() returns trigger
 language plpgsql security definer set search_path = '' as $$
@@ -140,8 +136,7 @@ begin
   return null;
 end $$;
 revoke all on function private.trg_channel_type() from public, anon, authenticated;
-drop trigger if exists channel_type on public.room_types;
-create trigger channel_type after update on public.room_types for each row execute function private.trg_channel_type();
+create or replace trigger channel_type after update on public.room_types for each row execute function private.trg_channel_type();
 
 -- ---------- staff: set up and watch ----------
 create or replace function public.padh_channel_get() returns jsonb
