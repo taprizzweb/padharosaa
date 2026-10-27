@@ -237,3 +237,10 @@ export const staysQuery = z.object({ status: z.enum(['in_house', 'checked_out'])
 // ---- staff push notifications (migration 0068) ----
 const pushSub = z.object({ endpoint: z.string().url().max(1000), expirationTime: z.number().nullish(), keys: z.object({ p256dh: z.string().max(200), auth: z.string().max(100) }).strict() }).strict();
 export const staffPushBody = z.object({ subscription: pushSub.nullable(), endpoint: z.string().url().max(1000).nullish() }).strict();
+
+// ---- local guides (migration 0070) ----
+export const lguideBody = z.object({
+  id: uuid.nullish(), name: z.string().trim().min(1).max(80), title: z.string().max(80).nullish(), about: z.string().max(500).nullish(), languages: z.string().max(100).nullish(),
+  charges: z.string().max(160).nullish(), phone: z.string().max(25).nullish(), whatsapp: z.string().max(25).nullish(), instagram: z.string().max(100).nullish(), linkedin: z.string().max(300).nullish(),
+  active: z.boolean(), sort: z.number().int().min(0).max(10000).default(100),
+}).strict();

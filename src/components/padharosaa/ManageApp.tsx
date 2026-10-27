@@ -12,6 +12,7 @@ import { ThemeToggle } from '@/components/ui/ns';
 import { BuffetManager } from './BuffetManager';
 import { GuideManager } from './GuideManager';
 import { CheckoutPanel } from './CheckoutPanel';
+import { LocalGuidesManager } from './LocalGuidesManager';
 import { StayCodeTool } from './StayCode';
 import { GuestLinkPanel, RoomsCard, type LinkState } from './RoomsLink';
 import { prettyPhone } from '@/lib/padharosaa/phone';
@@ -109,6 +110,7 @@ export function ManageApp({ role, restaurant, supabase }: { role: string; restau
         <>
       <BuffetManager flash={flash} />
       <GuideManager flash={flash} />
+      <LocalGuidesManager flash={flash} />
         </>
       )}
       {tab === 'team' && <><TeamCard canImport={role === 'owner'} flash={flash} /></>}

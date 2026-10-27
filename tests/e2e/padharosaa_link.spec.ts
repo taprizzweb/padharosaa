@@ -800,6 +800,58 @@ test('an offer: the manager types it, picks "Tonight", saves, and the guest sees
   }
 });
 
+test('local guides: the hotel adds a guide, the guest finds the tile, sees the charges and can call, WhatsApp or open Instagram; hiding the guide removes the tile', async ({ browser }) => {
+  test.setTimeout(120_000);
+  await q(`insert into public.rooms (restaurant_id, number) values (${RID}, '204') on conflict do nothing`);
+  await q(`delete from public.local_guides where restaurant_id = ${RID}`);
+  const octx = await browser.newContext({ viewport: { width: 1100, height: 900 } });
+  const gctx = await browser.newContext({ viewport: { width: 375, height: 800 } });
+  const o = await octx.newPage();
+  const g = await gctx.newPage();
+  try {
+    await g.goto(second);
+    await g.getByLabel('Your name').fill('Guide Guest');
+    await g.getByRole('button', { name: 'Accept cookies' }).click();
+    await g.getByLabel('Mobile number').fill('9855550202');
+    await g.getByLabel('Room number').fill('204');
+    await g.getByRole('button', { name: 'Enter' }).click();
+    await expect(g.getByText('Namaste, Guide')).toBeVisible();
+    await expect(g.getByText('Local guides', { exact: true })).toHaveCount(0); // nothing listed: no empty tile
+    await signIn(o, 'owner@spice-garden.demo', /\/padharosaa\/owner$/, '/padharosaa/owner');
+    await o.getByRole('tab', { name: 'Buffet & guide' }).click();
+    await o.getByRole('button', { name: '+ Add a guide' }).click();
+    await o.getByLabel('Name', { exact: true }).fill('Ravi Sharma');
+    await o.getByLabel('What they do').fill('Heritage walk guide');
+    await o.getByLabel('Charges (optional)').fill('₹1,500 for 3 hours');
+    await o.getByLabel('Phone', { exact: true }).fill('98290 11223');
+    await o.getByLabel('Instagram').fill('https://www.instagram.com/ravi.walks/');
+    await o.getByRole('button', { name: 'Add the guide' }).click();
+    await expect(o.getByText('Guide added.')).toBeVisible();
+    await expect(o.getByTestId('lguide-list')).toContainText('Ravi Sharma');
+    await g.reload();
+    await g.getByText('Local guides', { exact: true }).click();
+    const card = g.getByTestId('local-guide');
+    await expect(card).toContainText('Ravi Sharma');
+    await expect(card).toContainText('Heritage walk guide');
+    await expect(card).toContainText('₹1,500 for 3 hours');
+    await expect(card.getByRole('link', { name: 'Call' })).toHaveAttribute('href', 'tel:+919829011223');
+    expect(await card.getByRole('link', { name: 'WhatsApp' }).getAttribute('href')).toMatch(/^https:\/\/wa\.me\/919829011223\?text=.*Spice%20Garden.*204/);
+    await expect(card.getByRole('link', { name: 'Instagram' })).toHaveAttribute('href', 'https://www.instagram.com/ravi.walks/');
+    await expect(card.getByRole('link', { name: 'LinkedIn' })).toHaveCount(0); // not given: not shown
+    // hide it
+    await o.getByRole('button', { name: 'Hide' }).click();
+    await expect(o.getByText('Ravi Sharma is hidden from guests.')).toBeVisible();
+    await g.reload();
+    await expect(g.getByText('Namaste, Guide')).toBeVisible();
+    await expect(g.getByText('Local guides', { exact: true })).toHaveCount(0);
+  } finally {
+    await q(`delete from public.local_guides where restaurant_id = ${RID}`);
+    await q(`delete from public.guest_sessions where restaurant_id = ${RID} and guest_name = 'Guide Guest'`);
+    await octx.close();
+    await gctx.close();
+  }
+});
+
 test('a public demo hotel: one link, no sign-in, and the demo answers itself; a normal hotel has no demo link', async ({ browser }) => {
   test.setTimeout(150_000); // the demo answers after about 20 seconds
   const ctx = await browser.newContext({ viewport: { width: 375, height: 800 } });

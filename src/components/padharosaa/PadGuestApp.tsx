@@ -7,6 +7,7 @@ import { buildTheme, themeVars } from '@/lib/padharosaa/theme';
 import { COPY, LANGS, fill, isHelpLabel, localLabel, type Copy, type Lang } from './copy';
 import { BuffetAlerts } from './BuffetAlerts';
 import { BuffetScreen, GuideScreen, PlanScreen } from './GuideScreens';
+import { LocalGuidesScreen } from './LocalGuides';
 import { Btn, BrandPill, CookieNotice, Header, Hero, Icon, IconBox, PoweredPill, api, safeUrl, telHref, time, type IconName } from './shared';
 
 interface Look { name: string; brand_color: string | null; logo_path: string | null; hero_path: string | null }
@@ -53,7 +54,7 @@ interface ReqView {
   request: { id: string; label: string; status: string; dismissed_reason: string | null; created_at: string; accepted_at: string | null; completed_at: string | null; version: number; resolution: string | null; followup_asked: boolean };
   updates: { at: string; key: string; params: Record<string, string> | null }[];
 }
-type Screen = { s: 'home' } | { s: 'services' } | { s: 'checkout' } | { s: 'stay' } | { s: 'help' } | { s: 'dining' } | { s: 'guide' } | { s: 'plan' } | { s: 'buffet' } | { s: 'track'; id: string };
+type Screen = { s: 'home' } | { s: 'services' } | { s: 'checkout' } | { s: 'stay' } | { s: 'help' } | { s: 'dining' } | { s: 'guide' } | { s: 'plan' } | { s: 'lguides' } | { s: 'buffet' } | { s: 'track'; id: string };
 
 
 export function PadGuestApp({ slug, qrKey, imageBase }: { slug: string; qrKey: string | null; imageBase: string }) {
@@ -65,7 +66,9 @@ export function PadGuestApp({ slug, qrKey, imageBase }: { slug: string; qrKey: s
   const c = COPY[lang];
   const [dine, setDine] = useState<{ room_dining: boolean } | null>(null);
   const [planCount, setPlanCount] = useState(0);
+  const [lguideCount, setLguideCount] = useState(0); // people guides the hotel lists; the tile only shows when there are some
   useEffect(() => { if (screen.s === 'home') void api<{ items: unknown[] }>('plan').then((p) => { if (p.ok) setPlanCount(p.data.items.length); }); }, [screen.s]);
+  useEffect(() => { if (screen.s === 'home') void api<{ guides: unknown[] }>('local-guides').then((p) => { if (p.ok) setLguideCount(p.data.guides.length); }); }, [screen.s]);
   const closed = hours && !hours.open ? (hours.start ? fill(c.closedNow, { at: clock12(hours.start) }) : c.closedNoTime) : null;
 
   const loadHours = useCallback(async () => { const r = await api<{ open: boolean; start: string | null; end: string | null }>('hours'); if (r.ok) setHours(r.data); }, []);
@@ -108,11 +111,12 @@ export function PadGuestApp({ slug, qrKey, imageBase }: { slug: string; qrKey: s
         {me && home && (
           <>
             <div key={screen.s} className="screen-in flex flex-1 flex-col">
-            {screen.s === 'home' && <HomeScreen me={me} home={home} c={c} closed={closed} dine={dine} planCount={planCount} go={setScreen} imageBase={imageBase} lang={lang} setLang={setLang} />}
+            {screen.s === 'home' && <HomeScreen me={me} home={home} c={c} closed={closed} dine={dine} planCount={planCount} lguideCount={lguideCount} go={setScreen} imageBase={imageBase} lang={lang} setLang={setLang} />}
             {screen.s === 'checkout' && <Checkout c={c} closed={closed} onClosed={() => void loadHours()} back={() => setScreen({ s: 'home' })} done={(id) => { void loadHome(); setScreen({ s: 'track', id }); }} />}
             {screen.s === 'services' && <Services c={c} closed={closed} onClosed={() => void loadHours()} back={() => setScreen({ s: 'home' })} done={(id) => { void loadHome(); setScreen({ s: 'track', id }); }} />}
             {screen.s === 'guide' && <GuideScreen c={c} back={() => setScreen({ s: 'home' })} goPlan={() => setScreen({ s: 'plan' })} />}
             {screen.s === 'plan' && <PlanScreen c={c} back={() => setScreen({ s: 'home' })} goGuide={() => setScreen({ s: 'guide' })} />}
+            {screen.s === 'lguides' && <LocalGuidesScreen c={c} back={() => setScreen({ s: 'home' })} hotel={home.look.name} room={me.room} />}
             {screen.s === 'buffet' && <BuffetScreen c={c} back={() => setScreen({ s: 'home' })} />}
             {screen.s === 'dining' && <DiningScreen c={c} back={() => setScreen({ s: 'home' })} />}
             {screen.s === 'help' && <HelpDialog c={c} closed={closed} onClosed={() => void loadHours()} close={() => setScreen({ s: 'home' })} done={(id) => { void loadHome(); setScreen({ s: 'track', id }); }} />}
@@ -192,7 +196,7 @@ function Tile({ icon, title, sub, onClick, big, wide }: { icon: IconName; title:
   );
 }
 
-function HomeScreen({ me, home, c, closed, dine, planCount, go, imageBase, lang, setLang }: { me: Me; home: Home; c: Copy; closed: string | null; dine: { room_dining: boolean } | null; planCount: number; go: (s: Screen) => void; imageBase: string; lang: Lang; setLang: (l: Lang) => void }) {
+function HomeScreen({ me, home, c, closed, dine, planCount, lguideCount, go, imageBase, lang, setLang }: { me: Me; home: Home; c: Copy; closed: string | null; dine: { room_dining: boolean } | null; planCount: number; lguideCount: number; go: (s: Screen) => void; imageBase: string; lang: Lang; setLang: (l: Lang) => void }) {
   const b = home.buffet;
   const logo = home.look.logo_path ? `${imageBase}${home.look.logo_path}` : null;
   const photo = home.look.hero_path ? `${imageBase}${home.look.hero_path}` : null;
@@ -231,6 +235,7 @@ function HomeScreen({ me, home, c, closed, dine, planCount, go, imageBase, lang,
         <Tile icon="wifi" title={c.stay} sub={c.staySub} onClick={() => go({ s: 'stay' })} />
         {planCount > 0 && <Tile icon="plan" title={c.planTile} sub={fill(c.planTileSub, { n: planCount })} onClick={() => go({ s: 'plan' })} />}
         <Tile icon="guide" title={c.guideTitle} sub={c.guideSub} onClick={() => go({ s: 'guide' })} />
+        {lguideCount > 0 && <Tile icon="person" title={c.lguidesTile} sub={c.lguidesSub} onClick={() => go({ s: 'lguides' })} />}
       </div>
       <div className="relative z-10 px-5 pt-3">
         <button type="button" onClick={() => go({ s: 'help' })} className="flex min-h-[68px] w-full items-center gap-3.5 rounded-3xl p-3.5 text-left shadow-sm transition active:scale-[0.985]" style={{ background: '#F8EBCB', color: '#7a4e0a' }}>
