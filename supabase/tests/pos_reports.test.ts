@@ -10,8 +10,8 @@ const errU = (uid: string, sql: string, params: unknown[] = []) => db.asErr('aut
 const day = async (n: number) => (await db.admin<{ d: string }>(`select to_char((now() at time zone 'Asia/Kolkata')::date + $1::int, 'YYYY-MM-DD') as d`, [n]))[0]!.d;
 let dish: string;
 let roomId: string;
-const create = (uid: string, lines: unknown, mode = 'cash', stay: string | null = null, label: string | null = 'Table 4') =>
-  asU(uid, `select public.padh_pos_create($1,$2,null,$3,$4::uuid) as r`, [JSON.stringify(lines), label, mode, stay]);
+const create = (uid: string, lines: unknown, mode = 'cash', stay: string | null = null, label: string | null = 'Table 4', o: { tax?: number | null; service?: number; discount?: number } = {}) =>
+  asU(uid, `select public.padh_pos_bill($1,$2,null,$3,$4::uuid,$5::int,$6::int,$7::int) as r`, [JSON.stringify(lines), label, mode, stay, o.tax ?? null, o.service ?? 0, o.discount ?? 0]);
 
 beforeAll(async () => {
   db = await createTestDb();
@@ -50,11 +50,28 @@ describe('counter billing', () => {
   });
   it('bad bills are refused: empty, bad quantity, unknown payment mode, a room bill with no guest', async () => {
     for (const lines of [[], [{ name: 'X', qty: 0, unit_paise: 100 }], [{ name: 'X', qty: 1, unit_paise: 0 }], [{ qty: 1, unit_paise: 100 }], [{ item: '00000000-0000-0000-0000-000000000000', qty: 1 }]]) {
-      expect((await errU(w.A.waiter, `select public.padh_pos_create($1,null,null,'cash',null)`, [JSON.stringify(lines)]))?.code).toBe('GM015');
+      expect((await errU(w.A.waiter, `select public.padh_pos_bill($1,null,null,'cash',null,null,0,0)`, [JSON.stringify(lines)]))?.code).toBe('GM015');
     }
-    expect((await errU(w.A.waiter, `select public.padh_pos_create($1,null,null,'crypto',null)`, [JSON.stringify([{ name: 'X', qty: 1, unit_paise: 100 }])]))?.code).toBe('GM015');
-    expect((await errU(w.A.waiter, `select public.padh_pos_create($1,null,null,'room',null)`, [JSON.stringify([{ name: 'X', qty: 1, unit_paise: 100 }])]))?.code).toBe('GM015');
-    expect((await errU(w.A.waiter, `select public.padh_pos_create('not json',null,null,'cash',null)`))?.code).toBe('GM015');
+    expect((await errU(w.A.waiter, `select public.padh_pos_bill($1,null,null,'crypto',null,null,0,0)`, [JSON.stringify([{ name: 'X', qty: 1, unit_paise: 100 }])]))?.code).toBe('GM015');
+    expect((await errU(w.A.waiter, `select public.padh_pos_bill($1,null,null,'room',null,null,0,0)`, [JSON.stringify([{ name: 'X', qty: 1, unit_paise: 100 }])]))?.code).toBe('GM015');
+    expect((await errU(w.A.waiter, `select public.padh_pos_bill('not json',null,null,'cash',null,null,0,0)`))?.code).toBe('GM015');
+  });
+  it('a discount comes off first, the service charge is added, and the tax is worked out on both: 1,000 - 100 + 10% = 990, +5% = 1,039.50 -> 1,040', async () => {
+    const b = await create(w.A.waiter, [{ name: 'Thali', qty: 10, unit_paise: 10000 }], 'cash', null, 'Table 9', { service: 1000, discount: 10000 });
+    const g = await asU(w.A.waiter, `select public.padh_pos_get($1::uuid) as r`, [b.id]);
+    expect(g).toMatchObject({ subtotal_paise: 100000, discount_paise: 10000, service_bp: 1000, service_paise: 9000, tax_bp: 500, tax_paise: 4950, round_paise: 50, total_paise: 104000 });
+  });
+  it('the desk can choose no tax, or one of the hotel\'s own rates; a rate the hotel does not have is refused; a discount of everything is refused', async () => {
+    const none = await create(w.A.waiter, [{ name: 'Water', qty: 1, unit_paise: 2000 }], 'cash', null, null, { tax: 0 });
+    expect((await asU(w.A.waiter, `select public.padh_pos_get($1::uuid) as r`, [none.id])).tax_paise).toBe(0);
+    const twelve = await create(w.A.waiter, [{ name: 'Juice', qty: 1, unit_paise: 10000 }], 'cash', null, null, { tax: 1200 });
+    expect((await asU(w.A.waiter, `select public.padh_pos_get($1::uuid) as r`, [twelve.id])).tax_paise).toBe(1200);
+    await expect(create(w.A.waiter, [{ name: 'X', qty: 1, unit_paise: 10000 }], 'cash', null, null, { tax: 777 })).rejects.toMatchObject({ code: 'GM015' });
+    await expect(create(w.A.waiter, [{ name: 'X', qty: 1, unit_paise: 10000 }], 'cash', null, null, { discount: 10000 })).rejects.toMatchObject({ code: 'GM015' });
+    await expect(create(w.A.waiter, [{ name: 'X', qty: 1, unit_paise: 10000 }], 'cash', null, null, { service: 5000 })).rejects.toMatchObject({ code: 'GM015' });
+  });
+  it('the old five-argument function can no longer be called by staff', async () => {
+    expect((await errU(w.A.waiter, `select public.padh_pos_create('[]',null,null,'cash',null)`))?.code).toBe('42501');
   });
   it('the kitchen and strangers cannot bill', async () => {
     for (const uid of [w.A.kitchen, w.stranger]) expect((await errU(uid, `select public.padh_pos_menu()`))?.code).toBe('GM011');
@@ -88,9 +105,10 @@ describe('reports', () => {
     const t = await day(0);
     const r = await asU(w.A.owner, `select public.padh_report($1::date,$1::date) as r`, [t]);
     expect(r.days).toHaveLength(1);
-    expect(r.days[0]).toMatchObject({ day: t, food: 64000 + 5550, pos_bills: 2, rooms_sold: 1 });
-    expect(r.by_mode).toEqual({ cash: 67200, upi: 5800 });
-    expect(r.days[0].collected).toBe(73000);
+    // the first two bills, then the three made in the tax and discount tests (sales after discount and with service charge: 99,000 + 2,000 + 10,000)
+    expect(r.days[0]).toMatchObject({ day: t, food: 64000 + 5550 + 111000, pos_bills: 5, rooms_sold: 1 });
+    expect(r.by_mode).toEqual({ cash: 67200 + 104000 + 2000 + 11200, upi: 5800 });
+    expect(r.days[0].collected).toBe(190200);
     expect(r.rooms).toBeGreaterThanOrEqual(1);
   });
   it('an invoice counts as room, food and other sales on the day it was issued', async () => {

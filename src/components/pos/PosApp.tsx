@@ -4,14 +4,14 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { apiGet, apiPost } from '@/components/staff/hooks';
 import { ns } from '@/components/ui/ns';
 import { Label, errText, field, small, td, th } from '@/components/billing/common';
-import { PAY_MODES, payModeLabel, rupees2, type StayRow } from '@/lib/padharosaa/billing';
+import { PAY_MODES, parsePercent, payModeLabel, rupees2, type StayRow } from '@/lib/padharosaa/billing';
 import { parseRupeesToPaise } from '@/lib/money';
 
 const API = '/api/padharosaa/v1/staff';
 interface MenuItem { id: string; name: string; price_paise: number; diet: string; available: boolean }
-interface Menu { tax_bp: number; categories: { id: string; name: string; items: MenuItem[] }[] }
+interface Menu { tax_bp: number; tax_rates: { id: string; name: string; rate_bp: number }[]; categories: { id: string; name: string; items: MenuItem[] }[] }
 interface BillRow { id: string; number: string; label: string | null; customer: string | null; total_paise: number; pay_mode: string; status: string; created_at: string; guest: string | null; room: string | null }
-interface Bill { number: string; at: string; label: string | null; customer: string | null; lines: { name: string; qty: number; unit_paise: number; amount_paise: number }[]; subtotal_paise: number; tax_bp: number; tax_paise: number; round_paise: number; total_paise: number; pay_mode: string; status: string; void_reason: string | null; room: string | null; guest: string | null; hotel: { name: string; legal_name: string | null; gstin: string | null; address: string | null } }
+interface Bill { number: string; at: string; label: string | null; customer: string | null; lines: { name: string; qty: number; unit_paise: number; amount_paise: number }[]; subtotal_paise: number; discount_paise: number; service_bp: number; service_paise: number; tax_bp: number; tax_paise: number; round_paise: number; total_paise: number; pay_mode: string; status: string; void_reason: string | null; room: string | null; guest: string | null; hotel: { name: string; legal_name: string | null; gstin: string | null; address: string | null } }
 type CartLine = { key: string; item?: string; name: string; unit: number; qty: number };
 const DIET: Record<string, string> = { veg: 'bg-emerald-600', nonveg: 'bg-red-600', egg: 'bg-amber-500', jain: 'bg-lime-600' };
 const half = (t: number, bp: number) => Math.floor((t * bp + 10000) / 20000);
@@ -30,6 +30,10 @@ export function PosApp({ role }: { role: string }) {
   const [stay, setStay] = useState('');
   const [guests, setGuests] = useState<StayRow[]>([]);
   const [custom, setCustom] = useState({ name: '', price: '' });
+  const [tax, setTax] = useState('default'); // 'default' = the hotel's rate for food, 'none', or a rate in basis points
+  const [servicePct, setServicePct] = useState('');
+  const [discount, setDiscount] = useState('');
+  const [kot, setKot] = useState<{ lines: { name: string; qty: number }[]; label: string; at: Date } | null>(null);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const [bill, setBill] = useState<Bill | null>(null);
@@ -46,7 +50,13 @@ export function PosApp({ role }: { role: string }) {
   useEffect(() => { if (tab === 'bills') void loadBills(); }, [tab, loadBills]);
 
   const sub = cart.reduce((a, l) => a + l.unit * l.qty, 0);
-  const tax = menu && menu.tax_bp > 0 ? 2 * half(sub, menu.tax_bp) : 0;
+  const discPaise = discount.trim() ? parseRupeesToPaise(discount) : 0;
+  const serviceBp = servicePct.trim() ? parsePercent(servicePct) : 0;
+  const taxBp = tax === 'none' ? 0 : tax === 'default' ? menu?.tax_bp ?? 0 : Number(tax);
+  const inputsOk = discPaise !== null && discPaise < Math.max(sub, 1) && serviceBp !== null && serviceBp <= 3000;
+  const net = Math.max(0, sub - (discPaise ?? 0));
+  const servicePaise = serviceBp ? Math.floor((net * serviceBp + 5000) / 10000) : 0;
+  const taxPaise = taxBp > 0 ? 2 * half(net + servicePaise, taxBp) : 0;
   const add = (l: Omit<CartLine, 'qty' | 'key'>) => setCart((c) => { const i = c.findIndex((x) => x.item && x.item === l.item); if (i >= 0) return c.map((x, j) => (j === i ? { ...x, qty: Math.min(99, x.qty + 1) } : x)); return [...c, { ...l, qty: 1, key: `${Date.now()}${c.length}` }]; });
   const bump = (key: string, d: number) => setCart((c) => c.map((x) => (x.key === key ? { ...x, qty: x.qty + d } : x)).filter((x) => x.qty > 0));
   const items = useMemo(() => (menu?.categories ?? []).filter((c) => !cat || c.id === cat).flatMap((c) => c.items).filter((i) => !q.trim() || i.name.toLowerCase().includes(q.trim().toLowerCase())), [menu, cat, q]);
@@ -55,9 +65,10 @@ export function PosApp({ role }: { role: string }) {
   const pay = async () => {
     setBusy(true);
     try {
-      const r = await apiPost<{ id: string; number: string }>(`${API}/pos/create`, { lines: cart.map((l) => (l.item ? { item: l.item, qty: l.qty } : { name: l.name, qty: l.qty, unit_paise: l.unit })), label: label.trim() || null, customer: customer.trim() || null, mode, stay: mode === 'room' ? stay : null });
+      const r = await apiPost<{ id: string; number: string }>(`${API}/pos/create`, { lines: cart.map((l) => (l.item ? { item: l.item, qty: l.qty } : { name: l.name, qty: l.qty, unit_paise: l.unit })), label: label.trim() || null, customer: customer.trim() || null, mode, stay: mode === 'room' ? stay : null,
+        tax_bp: tax === 'default' ? null : taxBp, service_bp: serviceBp ?? 0, discount_paise: discPaise ?? 0 });
       setBill(await apiGet<Bill>(`${API}/pos/bill?id=${r.id}`));
-      setCart([]); setLabel(''); setCustomer(''); setStay(''); setMode('cash'); setMsg(null);
+      setCart([]); setLabel(''); setCustomer(''); setStay(''); setMode('cash'); setMsg(null); setDiscount(''); setServicePct(''); setTax('default');
     } catch (e) { flash(false, errText(e, 'The bill could not be made. Please check it and try again.')); }
     setBusy(false);
   };
@@ -69,6 +80,7 @@ export function PosApp({ role }: { role: string }) {
   };
 
   if (bill) return <Receipt bill={bill} onClose={() => setBill(null)} />;
+  if (kot) return <KotSlip kot={kot} onClose={() => setKot(null)} />;
   return (
     <div className="mx-auto max-w-6xl px-4 pb-24 pt-3 text-stone-900">
       {msg && <p role={msg.ok ? 'status' : 'alert'} className={`mb-3 rounded-xl p-3 text-sm font-semibold ${msg.ok ? 'bg-emerald-50 text-emerald-950' : 'bg-red-50 text-red-900'}`}>{msg.text}</p>}
@@ -135,17 +147,27 @@ export function PosApp({ role }: { role: string }) {
             </ul>
             <dl className="mt-3 space-y-1 text-sm" data-testid="pos-totals">
               <div className="flex justify-between"><dt>Items</dt><dd>{rupees2(sub)}</dd></div>
-              {menu && menu.tax_bp > 0 && <div className="flex justify-between"><dt>CGST + SGST {menu.tax_bp / 200}% each</dt><dd>{rupees2(tax)}</dd></div>}
-              <div className="flex justify-between border-t border-stone-200 pt-1 text-base font-semibold"><dt>To pay</dt><dd>{rupees2(sub + tax)}</dd></div>
+              {(discPaise ?? 0) > 0 && <div className="flex justify-between"><dt>Discount</dt><dd>− {rupees2(discPaise ?? 0)}</dd></div>}
+              {servicePaise > 0 && <div className="flex justify-between"><dt>Service charge {servicePct}%</dt><dd>{rupees2(servicePaise)}</dd></div>}
+              {taxBp > 0 && <div className="flex justify-between"><dt>CGST {taxBp / 200}% + SGST {taxBp / 200}%</dt><dd>{rupees2(taxPaise)}</dd></div>}
+              <div className="flex justify-between border-t border-stone-200 pt-1 text-base font-semibold"><dt>To pay</dt><dd>{rupees2(net + servicePaise + taxPaise)}</dd></div>
               <p className="text-xs text-stone-500">Rounded to the rupee on the bill if your hotel does that.</p>
             </dl>
+            <div className="mt-3 grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
+              <Label text="GST on this bill"><select aria-label="GST on this bill" className={field} value={tax} onChange={(e) => setTax(e.target.value)}><option value="default">{menu && menu.tax_bp > 0 ? `Usual: ${menu.tax_bp / 100}%` : 'Usual: no GST set'}</option>{menu?.tax_rates.map((t) => <option key={t.id} value={t.rate_bp}>{t.name}</option>)}<option value="none">No GST</option></select></Label>
+              <Label text="Service charge %" hint="Optional"><input className={field} inputMode="decimal" value={servicePct} onChange={(e) => setServicePct(e.target.value)} /></Label>
+              <Label text="Discount in ₹" hint="Optional, off the items"><input className={field} inputMode="decimal" value={discount} onChange={(e) => setDiscount(e.target.value)} /></Label>
+            </div>
             <div className="mt-3 grid gap-3">
               <Label text="Table or note"><input className={field} value={label} maxLength={40} onChange={(e) => setLabel(e.target.value)} /></Label>
               <Label text="Customer name (optional)"><input className={field} value={customer} maxLength={80} onChange={(e) => setCustomer(e.target.value)} /></Label>
               <Label text="Paid by"><select aria-label="Paid by" className={field} value={mode} onChange={(e) => setMode(e.target.value)}>{PAY_MODES.filter(([k]) => k !== 'company').map(([k, l]) => <option key={k} value={k}>{l}</option>)}<option value="room" disabled={guests.length === 0}>Put on a room bill</option></select></Label>
               {mode === 'room' && <Label text="Room"><select aria-label="Room bill" className={field} value={stay} onChange={(e) => setStay(e.target.value)}><option value="">Choose the guest…</option>{guests.map((g) => <option key={g.id} value={g.id}>Room {g.room} · {g.guest_name}</option>)}</select></Label>}
             </div>
-            <button type="button" className={`${ns.primary} mt-4 w-full`} disabled={busy || cart.length === 0 || (mode === 'room' && !stay)} onClick={() => void pay()}>{busy ? 'Making the bill…' : 'Make the bill'}</button>
+            <div className="mt-4 grid gap-2">
+              <button type="button" className={`${ns.primary} w-full`} disabled={busy || cart.length === 0 || (mode === 'room' && !stay) || !inputsOk} onClick={() => void pay()}>{busy ? 'Making the bill…' : 'Make the bill'}</button>
+              <button type="button" className={`${ns.secondary} w-full`} disabled={cart.length === 0} onClick={() => setKot({ lines: cart.map((l) => ({ name: l.name, qty: l.qty })), label: label.trim(), at: new Date() })}>Print KOT for the kitchen</button>
+            </div>
           </aside>
         </div>
       )}
@@ -156,8 +178,9 @@ export function PosApp({ role }: { role: string }) {
 function Receipt({ bill, onClose }: { bill: Bill; onClose: () => void }) {
   return (
     <div className="mx-auto max-w-md px-4 pb-24 pt-4 text-stone-900">
-      <div className="mb-3 flex gap-2 print:hidden"><button type="button" className={ns.primary} onClick={() => window.print()}>Print</button><button type="button" className={ns.secondary} onClick={onClose}>Back to billing</button></div>
-      <article className="rounded-xl border border-stone-300 bg-white p-5 text-sm" data-testid="receipt">
+      <ThermalPage />
+      <div className="mb-3 flex gap-2 print:hidden"><button type="button" className={ns.primary} onClick={() => window.print()}>Print the bill (roll)</button><button type="button" className={ns.secondary} onClick={onClose}>Back to billing</button></div>
+      <article className="thermal rounded-xl border border-stone-300 bg-white p-5 text-sm" data-testid="receipt">
         <header className="text-center">
           <p className="text-lg font-semibold">{bill.hotel.legal_name ?? bill.hotel.name}</p>
           {bill.hotel.address && <p className="text-xs text-stone-600">{bill.hotel.address}</p>}
@@ -171,12 +194,36 @@ function Receipt({ bill, onClose }: { bill: Bill; onClose: () => void }) {
         </tbody></table>
         <dl className="mt-3 space-y-1 border-t border-stone-300 pt-2">
           <div className="flex justify-between"><dt>Items</dt><dd>{rupees2(bill.subtotal_paise)}</dd></div>
+          {bill.discount_paise > 0 && <div className="flex justify-between"><dt>Discount</dt><dd>− {rupees2(bill.discount_paise)}</dd></div>}
+          {bill.service_paise > 0 && <div className="flex justify-between"><dt>Service charge {bill.service_bp / 100}%</dt><dd>{rupees2(bill.service_paise)}</dd></div>}
           {bill.tax_paise > 0 && <div className="flex justify-between"><dt>CGST {bill.tax_bp / 200}% + SGST {bill.tax_bp / 200}%</dt><dd>{rupees2(bill.tax_paise)}</dd></div>}
           {bill.round_paise !== 0 && <div className="flex justify-between"><dt>Round off</dt><dd>{rupees2(bill.round_paise)}</dd></div>}
           <div className="flex justify-between text-base font-semibold"><dt>Total</dt><dd data-testid="receipt-total">{rupees2(bill.total_paise)}</dd></div>
           <div className="flex justify-between text-xs text-stone-600"><dt>Paid by</dt><dd>{bill.pay_mode === 'room' ? 'Put on the room bill' : payModeLabel(bill.pay_mode)}</dd></div>
         </dl>
         <p className="mt-4 text-center text-xs text-stone-500">Thank you. Please visit again.</p>
+      </article>
+    </div>
+  );
+}
+
+/** While a roll slip is on the screen, the printer gets a narrow page (80 mm, like the machine at the counter) and nothing else. */
+function ThermalPage() {
+  return <style>{`@media print { @page { size: 80mm auto; margin: 3mm; } body { background: #fff !important; } .thermal { border: 0 !important; box-shadow: none !important; padding: 0 !important; font-size: 11px !important; width: 100% !important; } }`}</style>;
+}
+
+/** The slip for the kitchen: what to cook, for which table, and when. No prices. */
+function KotSlip({ kot, onClose }: { kot: { lines: { name: string; qty: number }[]; label: string; at: Date }; onClose: () => void }) {
+  return (
+    <div className="mx-auto max-w-sm px-4 pb-24 pt-4 text-stone-900">
+      <ThermalPage />
+      <div className="mb-3 flex gap-2 print:hidden"><button type="button" className={ns.primary} onClick={() => window.print()}>Print KOT (roll)</button><button type="button" className={ns.secondary} onClick={onClose}>Back to billing</button></div>
+      <article className="thermal rounded-xl border border-stone-300 bg-white p-5 text-sm" data-testid="kot">
+        <p className="text-center text-lg font-bold tracking-wide">KOT</p>
+        <p className="mt-1 flex justify-between text-xs"><b>{kot.label || 'Counter'}</b><span>{kot.at.toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}</span></p>
+        <ul className="mt-3 divide-y divide-dashed divide-stone-400 text-base">
+          {kot.lines.map((l, i) => <li key={i} className="flex justify-between gap-3 py-1.5"><span>{l.name}</span><b>× {l.qty}</b></li>)}
+        </ul>
       </article>
     </div>
   );

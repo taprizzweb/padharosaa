@@ -36,7 +36,7 @@ export function dayFromToday(n: number, now: Date = new Date(), tz = 'Asia/Kolka
 }
 /** whole nights between two YYYY-MM-DD days (at least 1) */
 export const nightsBetween = (from: string, to: string): number => Math.max(1, Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000));
-export const dateLabel = (iso: string, tz = 'Asia/Kolkata'): string => new Intl.DateTimeFormat('en-IN', { timeZone: tz, day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(iso.length === 10 ? `${iso}T00:00:00Z` : iso));
+export const dateLabel = (iso: string | null | undefined, tz = 'Asia/Kolkata'): string => (iso ? new Intl.DateTimeFormat('en-IN', { timeZone: tz, day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(iso.length === 10 ? `${iso}T00:00:00Z` : iso)) : '—');
 
 export const PAY_MODES = [['cash', 'Cash'], ['upi', 'UPI'], ['card', 'Card'], ['bank', 'Bank transfer'], ['company', 'Bill to company']] as const;
 export const payModeLabel = (m: string): string => PAY_MODES.find(([k]) => k === m)?.[1] ?? m;

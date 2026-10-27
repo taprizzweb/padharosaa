@@ -249,6 +249,7 @@ describe('payments and check-out', () => {
     expect((await errU(w.A.waiter, `select public.padh_stay_checkout($1::uuid)`, [stay['204']]))?.code).toBe('GM019');
     expect((await db.admin<any>(`select count(*)::int as n from public.stay_codes where room_id = $1 and (valid_until is null or valid_until > now())`, [room['204']]))[0].n).toBe(0);
     const inHouse = await asU(w.A.waiter, `select public.padh_stays_list('in_house') as r`);
+    expect(inHouse.every((x: any) => /^\d{4}-\d{2}-\d{2}$/.test(x.check_out_on) && Number(x.nights) >= 1)).toBe(true); // the screen shows these: they were once empty and crashed it
     expect(inHouse.map((s: any) => s.room).sort()).toEqual(['206', '207', '208', '210']);
     const out = await asU(w.A.waiter, `select public.padh_stays_list('checked_out') as r`);
     expect(out.map((s: any) => [s.room, s.invoice_number.endsWith('0001') || s.invoice_number.endsWith('0002')])).toEqual([['204', true], ['205', true]]);

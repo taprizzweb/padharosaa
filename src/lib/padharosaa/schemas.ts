@@ -270,7 +270,8 @@ export const invMoveBody = z.object({ item: uuid, kind: z.enum(['in', 'out', 'wa
 // ---- counter billing and reports (migration 0073) ----
 const posLine = z.object({ item: uuid.nullish(), name: z.string().trim().min(1).max(80).nullish(), qty: z.number().int().min(1).max(99), unit_paise: z.number().int().min(1).max(10_000_000).nullish() }).strict()
   .refine((l) => !!l.item || (!!l.name && !!l.unit_paise), { message: 'a dish or a name and price' });
-export const posCreateBody = z.object({ lines: z.array(posLine).min(1).max(60), label: z.string().max(40).nullish(), customer: z.string().max(80).nullish(), mode: z.enum(['cash', 'card', 'upi', 'bank', 'room']), stay: uuid.nullish() }).strict();
+export const posCreateBody = z.object({ lines: z.array(posLine).min(1).max(60), label: z.string().max(40).nullish(), customer: z.string().max(80).nullish(), mode: z.enum(['cash', 'card', 'upi', 'bank', 'room']), stay: uuid.nullish(),
+  tax_bp: z.number().int().min(0).max(10000).nullish(), service_bp: z.number().int().min(0).max(3000).default(0), discount_paise: z.number().int().min(0).max(10_000_000).default(0) }).strict();
 export const posVoidBody = z.object({ id: uuid, reason: z.string().trim().min(1).max(200) }).strict();
 export const posListQuery = z.object({ day: day.nullish() });
 export const reportQuery = z.object({ from: day, to: day });
@@ -287,3 +288,6 @@ export const rateOnQuery = z.object({ type: uuid, day });
 const extId = z.string().trim().regex(/^[A-Za-z0-9-]{8,64}$/);
 export const channelSaveBody = z.object({ property_id: extId.nullish(), enabled: z.boolean() }).strict();
 export const channelMapBody = z.object({ type: uuid, ext_room_type_id: extId.nullish(), ext_rate_plan_id: extId.nullish() }).strict();
+
+// ---- reset a trial hotel (migration 0077) ----
+export const resetBody = z.object({ scope: z.enum(['activity', 'everything']), confirm: z.literal('RESET') }).strict();

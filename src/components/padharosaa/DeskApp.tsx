@@ -57,6 +57,9 @@ export function DeskApp({ role, start = 'all' }: { role: string; start?: Group }
   const [note, setNote] = useState<{ ok: boolean; text: string } | null>(null);
   const flash = useCallback((ok: boolean, text: string) => setNote({ ok, text }), []);
   const [, tick] = useState(0);
+  // a room tapped on the Rooms board opens the desk with only that room's requests and orders
+  const [roomOnly, setRoomOnly] = useState<string | null>(null);
+  useEffect(() => { const r = new URLSearchParams(location.search).get('room'); if (r && /^[A-Za-z0-9 -]{1,10}$/.test(r)) setRoomOnly(r); }, []);
 
   const load = useCallback(async () => {
     try {
@@ -79,7 +82,7 @@ export function DeskApp({ role, start = 'all' }: { role: string; start?: Group }
   const allOpen = useMemo(() => (reqs ?? []).filter((r) => OPEN.includes(r.status) && (!mineOnly || r.assigned_to === me)), [reqs, mineOnly, me]);
   const doneToday = useMemo(() => (reqs ?? []).filter((r) => !OPEN.includes(r.status)).sort((a, b) => Date.parse(b.completed_at ?? b.created_at) - Date.parse(a.completed_at ?? a.created_at)), [reqs]);
   const mineCount = useMemo(() => (reqs ?? []).filter((r) => OPEN.includes(r.status) && r.assigned_to === me).length, [reqs, me]);
-  const open = useMemo(() => { const t = privileged ? GROUP_TEAMS[group] : null; return t ? allOpen.filter((r) => t.includes(r.team)) : allOpen; }, [allOpen, group, privileged]);
+  const open = useMemo(() => { const t = privileged ? GROUP_TEAMS[group] : null; const byTeam = t ? allOpen.filter((r) => t.includes(r.team)) : allOpen; return roomOnly ? byTeam.filter((r) => r.room.toUpperCase() === roomOnly.toUpperCase()) : byTeam; }, [allOpen, group, privileged, roomOnly]);
 
   // the alarm is not part of this page: it keeps ringing when reception goes to the manager console or billing. The desk only hands it what it fetched.
   useEffect(() => {
@@ -121,15 +124,17 @@ export function DeskApp({ role, start = 'all' }: { role: string; start?: Group }
       {(mineCount > 0 || mineOnly) && (
         <div className="mt-3"><button type="button" aria-pressed={mineOnly} onClick={() => setMineOnly(!mineOnly)} className={`min-h-11 rounded-lg border px-3 text-sm font-semibold ${mineOnly ? 'border-indigo-900 bg-indigo-900 text-white' : 'border-stone-300 bg-white text-stone-900'}`}>Only mine ({mineCount})</button></div>
       )}
+      {roomOnly && <p className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl bg-indigo-50 p-3 text-sm font-semibold text-indigo-950" data-testid="room-filter">Showing room {roomOnly} only <button type="button" className="min-h-9 rounded-lg border border-indigo-300 bg-white px-3" onClick={() => setRoomOnly(null)}>Show every room</button></p>}
       {note && <p role={note.ok ? 'status' : 'alert'} className={`mt-3 rounded-xl p-3 text-sm font-semibold ${note.ok ? 'bg-emerald-50 text-emerald-950' : 'bg-red-50 text-red-900'}`}>{note.text}</p>}
       {err && <p role="alert" className="mt-3 rounded-xl bg-red-50 p-3 text-sm font-semibold text-red-900">{err}</p>}
       {(() => {
         // one list for everything: guest requests and food orders together, urgent first, then the longest-waiting first
         const orderGroup = privileged ? GROUP_TEAMS[group] : null;
-        const shownOrders = orderGroup && group !== 'kitchen' ? [] : orders;
+        const inRoom = (label: string) => !roomOnly || label.trim().toUpperCase() === `ROOM ${roomOnly}`.toUpperCase();
+        const shownOrders = (orderGroup && group !== 'kitchen' ? [] : orders).filter((o) => inRoom(o.table_label));
         const items = [
           ...open.map((r) => ({ key: `r${r.id}`, urgent: r.urgent, at: r.created_at, node: <Card key={`r${r.id}`} r={r} role={role} me={me} people={canAssign ? people : null} refreshPeople={loadPeople} roomDining={alerts?.room_dining ?? true} muted={muted.has(r.team)} act={act} /> })),
-          ...(orderGroup && group !== 'all' && group !== 'reception' ? [] : calls).map((c) => ({ key: `c${c.id}`, urgent: false, at: c.created_at, node: <TableCallDesk key={`c${c.id}`} r={c} session={sessions.find((x) => x.id === c.session_id)} a={callActions} /> })),
+          ...(orderGroup && group !== 'all' && group !== 'reception' ? [] : calls).filter((c) => inRoom(c.table_label)).map((c) => ({ key: `c${c.id}`, urgent: false, at: c.created_at, node: <TableCallDesk key={`c${c.id}`} r={c} session={sessions.find((x) => x.id === c.session_id)} a={callActions} /> })),
           ...shownOrders.map((o) => ({ key: `o${o.id}`, urgent: false, at: o.created_at, node: <OrderCardDesk key={`o${o.id}`} o={o} role={role} roomDining={orderRoomDining} a={orderActions} /> })),
         ].sort((x, y) => Number(y.urgent) - Number(x.urgent) || new Date(x.at).getTime() - new Date(y.at).getTime());
         return (

@@ -17,6 +17,7 @@ interface Row {
 }
 interface StaffRow { user_id: string; role: string; display_name: string; active: boolean; email: string | null }
 interface AuditEntry { id: number; created_at: string; action: string; entity: string; actor_role: string | null; details: Record<string, unknown> | null }
+const moreBtn = 'inline-flex min-h-11 items-center justify-center rounded-lg border border-stone-200 bg-white px-3 text-sm font-medium text-stone-700 hover:bg-stone-100 disabled:opacity-50';
 const smallBtn = 'inline-flex min-h-11 items-center justify-center rounded-lg border border-stone-300 bg-white px-3 text-sm font-semibold text-stone-900 hover:bg-stone-100 disabled:opacity-50';
 
 const PERIOD: Record<string, string> = { monthly: 'per month', yearly: 'per year', one_time: 'one time' };
@@ -138,15 +139,19 @@ export function AdminApp() {
             <div className="mt-3 flex flex-wrap gap-2">
               <button type="button" className={smallBtn} disabled={busy} onClick={() => void run(() => adminPost('set-status', { id: r.id, status: r.status === 'active' ? 'suspended' : 'active' }), r.status === 'active' ? `${r.name} is suspended: guests cannot order and staff cannot make changes.` : `${r.name} is active again.`)}>{r.status === 'active' ? `Suspend ${r.name}` : `Activate ${r.name}`}</button>
               <button type="button" className={smallBtn} onClick={() => void openBilling(r)} aria-label={`Plan and billing for ${r.name}`}>Plan &amp; dates</button>
-              <button type="button" className={smallBtn} onClick={() => { setErr(null); setRen(r); setRenName(r.name); }} aria-label={`Rename ${r.name}`}>Rename</button>
-              <button type="button" className={smallBtn} onClick={() => { setErr(null); setDup(r); setDf({ name: `${r.name} copy`, slug: '', owner_name: '', owner_email: '' }); }} aria-label={`Duplicate ${r.name}`}>Duplicate</button>
-              <button type="button" className={smallBtn} onClick={async () => { setAudit({ row: r, entries: null }); try { const x = await adminGet<{ entries: AuditEntry[] }>(`audit?id=${r.id}`); setAudit({ row: r, entries: x.entries }); } catch (e) { setAudit(null); setErr(errText(e)); } }} aria-label={`Activity log for ${r.name}`}>Activity log</button>
-              <button type="button" className={smallBtn} onClick={async () => { setErr(null); setMailFor(null); setLogins({ row: r, staff: null }); try { await loadLogins(r); } catch (e) { setLogins(null); setErr(errText(e)); } }} aria-label={`Logins of ${r.name}`}>Logins</button>
               <button type="button" className={smallBtn} onClick={async () => { setPadMsg(null); setPad({ row: r, enabled: null }); try { await apiGet(`/api/padharosaa/v1/platform/hotels/${r.id}/qr`); setPad({ row: r, enabled: true }); } catch { setPad({ row: r, enabled: false }); } }} aria-label={`Padharosaa hotel of ${r.name}`}>Padharosaa</button>
               <button type="button" className={smallBtn} disabled={busy} onClick={async () => { setErr(null); const ok = await run(() => adminPost('menu-open', { id: r.id })); if (ok !== null) window.location.assign('/dash/menu'); }} aria-label={`Edit the menu of ${r.name}`}>Edit menu</button>
-              <a className={smallBtn} href={`/api/admin/export?id=${r.id}`} download aria-label={`Export data of ${r.name}`}>Export data</a>
-              <button type="button" className={smallBtn} onClick={() => { setErr(null); setDel(r); setTyped(''); }} aria-label={`Delete ${r.name}`}>Delete…</button>
             </div>
+            <details className="mt-2"><summary className="min-h-11 cursor-pointer py-2 text-sm font-semibold text-stone-600">More: rename, copy, logins, activity, export, delete</summary>
+            <div className="flex flex-wrap gap-2 pb-1">
+              <button type="button" className={moreBtn} onClick={() => { setErr(null); setRen(r); setRenName(r.name); }} aria-label={`Rename ${r.name}`}>Rename</button>
+              <button type="button" className={moreBtn} onClick={() => { setErr(null); setDup(r); setDf({ name: `${r.name} copy`, slug: '', owner_name: '', owner_email: '' }); }} aria-label={`Duplicate ${r.name}`}>Duplicate</button>
+              <button type="button" className={moreBtn} onClick={async () => { setAudit({ row: r, entries: null }); try { const x = await adminGet<{ entries: AuditEntry[] }>(`audit?id=${r.id}`); setAudit({ row: r, entries: x.entries }); } catch (e) { setAudit(null); setErr(errText(e)); } }} aria-label={`Activity log for ${r.name}`}>Activity log</button>
+              <button type="button" className={moreBtn} onClick={async () => { setErr(null); setMailFor(null); setLogins({ row: r, staff: null }); try { await loadLogins(r); } catch (e) { setLogins(null); setErr(errText(e)); } }} aria-label={`Logins of ${r.name}`}>Logins</button>
+              <a className={moreBtn} href={`/api/admin/export?id=${r.id}`} download aria-label={`Export data of ${r.name}`}>Export data</a>
+              <button type="button" className={moreBtn} onClick={() => { setErr(null); setDel(r); setTyped(''); }} aria-label={`Delete ${r.name}`}>Delete…</button>
+            </div>
+            </details>
           </li>
         ))}
       </ul>

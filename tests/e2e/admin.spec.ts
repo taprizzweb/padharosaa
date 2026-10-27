@@ -3,6 +3,7 @@ import AxeBuilder from '@axe-core/playwright';
 import { readFile } from 'node:fs/promises';
 import { completeSignIn, q } from './helpers';
 import { DEMO_PASSWORD } from '../../supabase/tests/helpers/local-supabase';
+const openMore = (page: Page) => page.evaluate(() => document.querySelectorAll('details').forEach((d) => { d.open = true; })); // the less used buttons of a hotel sit under "More"
 
 type AxePage = ConstructorParameters<typeof AxeBuilder>[0]['page'];
 const SHOTS = 'test-results/shots';
@@ -136,6 +137,7 @@ test.describe('platform admin', () => {
     await dialog(page).getByRole('button', { name: 'Create restaurant and owner login' }).click();
     await dialog(page).getByRole('button', { name: 'I have saved it' }).click();
 
+    await openMore(page);
     await page.getByLabel(`Logins of Cafe ${slug}`).click();
     await expect(dialog(page)).toContainText(wrong);
     await dialog(page).getByRole('button', { name: 'Change email of Olive Owner' }).click();
@@ -148,6 +150,7 @@ test.describe('platform admin', () => {
 
     // add a kitchen login from the same screen
     await dialog(page).getByRole('button', { name: 'I have saved it' }).click();
+    await openMore(page);
     await page.getByLabel(`Logins of Cafe ${slug}`).click();
     await dialog(page).getByRole('button', { name: 'Add login' }).click();
     await dialog(page).getByLabel('Name', { exact: true }).fill('Kim Kitchen');
@@ -156,6 +159,7 @@ test.describe('platform admin', () => {
     await dialog(page).getByRole('button', { name: 'Create login' }).click();
     await expect(dialog(page)).toContainText('shown only once');
     await dialog(page).getByRole('button', { name: 'I have saved it' }).click();
+    await openMore(page);
     await page.getByLabel(`Logins of Cafe ${slug}`).click();
     await expect(dialog(page)).toContainText('Kim Kitchen · kitchen');
 
@@ -276,12 +280,14 @@ test.describe('platform admin', () => {
     await q(`insert into public.items (restaurant_id, category_id, name_en, price_paise, diet) values ($1, $2, 'Tikka', 28000, 'veg'), ($1, $2, 'Kebab', 24000, 'nonveg')`, [r0!.id, cat!.id]);
     const c = card_(page, slug);
 
+    await openMore(page);
     await c.getByRole('button', { name: /^Rename Cafe/ }).click();
     await dialog(page).getByLabel('Restaurant name').fill(`Renamed ${slug}`);
     await dialog(page).getByRole('button', { name: 'Save name' }).click();
     await expect(c).toContainText(`Renamed ${slug}`);
     expect((await q<{ slug: string }>(`select slug from public.restaurants where id = $1`, [r0!.id]))[0]!.slug).toBe(slug); // address unchanged
 
+    await openMore(page);
     await c.getByLabel(/^Logins of/).click();
     await dialog(page).getByRole('button', { name: 'Rename Olive' }).click();
     await dialog(page).getByLabel('New name').fill('Olive Owner');
@@ -332,12 +338,14 @@ test.describe('platform admin', () => {
     await expect(c).toContainText('Plan: standard');
     await expect(c.getByTestId('expiry')).toContainText('Ended');
 
+    await openMore(page);
     await c.getByRole('button', { name: /Activity log for/ }).click();
     await expect(dialog(page)).toContainText('restaurant created');
     await expect(dialog(page)).toContainText('restaurant status');
     await expect(dialog(page)).toContainText('restaurant plan');
     await dialog(page).getByRole('button', { name: 'Close' }).click();
 
+    await openMore(page);
     const [download] = await Promise.all([page.waitForEvent('download'), c.getByRole('link', { name: /Export data of/ }).click()]);
     const data = JSON.parse(await readFile((await download.path())!, 'utf8'));
     expect(data.restaurant.slug).toBe(slug);

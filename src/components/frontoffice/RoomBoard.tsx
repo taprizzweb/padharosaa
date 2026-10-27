@@ -11,7 +11,7 @@ const FILTER_LABEL: Record<Filter, string> = { all: 'All', occupied: 'Occupied',
 const TONE = { occupied: 'border-indigo-300 bg-indigo-50', vacant: 'border-emerald-300 bg-emerald-50', dirty: 'border-red-300 bg-red-50', out_of_order: 'border-stone-300 bg-stone-100', cleaning: 'border-amber-300 bg-amber-50' } as const;
 
 /** Every room on one screen, grouped by type and coloured by state, with today's arrivals and departures beside it. A vacant room is one tap from check-in. */
-export function RoomBoard({ chart, to, onMark }: { chart: Chart; to: (a: string) => string; onMark: (room: ChartRoom, status: 'clean' | 'cleaning') => void }) {
+export function RoomBoard({ chart, to, onMark, waiting = {}, canQr = false }: { chart: Chart; to: (a: string) => string; onMark: (room: ChartRoom, status: 'clean' | 'cleaning') => void; waiting?: Record<string, { n: number; urgent: boolean }>; canQr?: boolean }) {
   const [filter, setFilter] = useState<Filter>('all');
   const stayOf = useMemo(() => new Map(chart.bars.filter((b): b is Extract<ChartBar, { kind: 'stay' }> => b.kind === 'stay').map((b) => [b.room_id, b])), [chart.bars]);
   const stateOf = (r: ChartRoom): keyof typeof TONE => (r.hk_status === 'out_of_order' ? 'out_of_order' : r.occupied ? 'occupied' : r.hk_status === 'dirty' ? 'dirty' : r.hk_status === 'cleaning' ? 'cleaning' : 'vacant');
@@ -41,15 +41,19 @@ export function RoomBoard({ chart, to, onMark }: { chart: Chart; to: (a: string)
                 {rooms.map((r) => {
                   const s = stateOf(r);
                   const stay = stayOf.get(r.id);
+                  const w = waiting[r.number];
                   return (
-                    <div key={r.id} data-testid="board-room" className={`rounded-xl border p-3 ${TONE[s]}`}>
+                    <div key={r.id} data-testid="board-room" data-waiting={w ? w.n : 0} className={`relative rounded-xl border p-3 ${w ? 'animate-pulse border-red-600 bg-red-100 ring-2 ring-red-500' : TONE[s]}`}>
+                      {w && <Link href={`${to('desk')}?room=${encodeURIComponent(r.number)}`} prefetch={false} aria-label={`Room ${r.number}: ${w.n} request${w.n === 1 ? '' : 's'} waiting. Open them`} className="absolute inset-0 z-10 rounded-xl" />}
+                      {w && <p className="relative z-20 mb-1 inline-block rounded bg-red-700 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-white">{w.n} request{w.n === 1 ? '' : 's'}{w.urgent ? ' · URGENT' : ''}</p>}
                       <div className="flex items-baseline justify-between gap-1"><p className="text-xl font-semibold">{r.number}</p><p className="text-[10px] font-semibold uppercase tracking-wide text-stone-600">{s === 'occupied' ? 'Occupied' : s === 'vacant' ? 'Vacant' : HK_LABEL[r.hk_status]}</p></div>
                       {stay ? (
                         <Link href={`${to('billing')}?stay=${stay.id}`} prefetch={false} className="mt-1 block min-h-9 text-sm font-semibold underline-offset-2 hover:underline">{stay.guest}<span className="block text-xs font-normal text-stone-600">until {dateLabel(stay.to)}</span></Link>
                       ) : s === 'out_of_order' ? <p className="mt-1 text-xs text-stone-700">{r.hk_note ?? 'Not in service'}</p>
                         : s === 'dirty' ? <button type="button" className={`${ns.secondary} mt-1 !min-h-9 !px-2 text-xs`} onClick={() => onMark(r, 'clean')}>Mark clean</button>
                         : s === 'cleaning' ? <button type="button" className={`${ns.secondary} mt-1 !min-h-9 !px-2 text-xs`} onClick={() => onMark(r, 'clean')}>Done cleaning</button>
-                        : <Link href={`${to('billing')}?checkin=${r.id}`} prefetch={false} className="mt-1 inline-flex min-h-9 items-center rounded-lg bg-emerald-700 px-2.5 text-xs font-semibold text-white">Check in</Link>}
+                        : <Link href={`${to('billing')}?checkin=${r.id}`} prefetch={false} className="relative z-20 mt-1 inline-flex min-h-9 items-center rounded-lg bg-emerald-700 px-2.5 text-xs font-semibold text-white">Check in</Link>}
+                      {canQr && <Link href={`${to('qr')}?room=${encodeURIComponent(r.number)}`} prefetch={false} className="relative z-20 mt-1 block text-[11px] font-semibold text-stone-600 underline">QR code of this room</Link>}
                     </div>
                   );
                 })}

@@ -16,7 +16,7 @@ export function QrSheet({ hotel }: { hotel: string }) {
   const [images, setImages] = useState<Record<string, string>>({});
   useEffect(() => {
     void apiGet<{ link: string | null }>('/api/padharosaa/v1/staff/qr').then((r) => setLink(r.link)).catch(() => setLink(null));
-    void apiGet<{ rooms: Room[] }>('/api/padharosaa/v1/staff/rooms').then((r) => setRooms(r.rooms.filter((x) => x.active))).catch(() => setRooms([]));
+    void apiGet<{ rooms: Room[] }>('/api/padharosaa/v1/staff/rooms').then((r) => { const act = r.rooms.filter((x) => x.active); setRooms(act); const want = new URLSearchParams(location.search).get('room'); if (want && act.some((x) => x.number === want)) setPicked(new Set([want])); }).catch(() => setRooms([]));
   }, []);
   const chosen = useMemo(() => (mode === 'hotel' ? [] : rooms.filter((r) => !picked || picked.has(r.number))), [mode, rooms, picked]);
   const items = useMemo(() => (!link ? [] : mode === 'hotel' ? [{ key: 'hotel', label: null as string | null, url: link }] : chosen.map((r) => ({ key: r.number, label: r.number, url: roomLink(link, r.number) }))), [link, mode, chosen]);

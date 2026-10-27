@@ -26,9 +26,10 @@ export function navFor(role: string, opts: { kitchenDisplay?: boolean } = {}): N
   const pick = (areas: Area[]) => ALL.filter((i) => areas.includes(i.area) && canOpen(i.area, role) && (i.area !== 'kitchen' || role === 'kitchen' || (boss && !!opts.kitchenDisplay)));
   const groups: NavGroup[] = [];
   if (boss) groups.push({ title: 'Hotel', items: [{ area: role === 'owner' ? 'owner' : 'manager', label: 'Dashboard', icon: 'dashboard' }] });
-  const work = pick(['desk', 'rooms', 'rates', 'channels', 'billing', 'pos', 'kitchen', 'inventory', 'reports']);
+  const work = pick(['desk', 'rooms', 'channels', 'billing', 'pos', 'kitchen', 'inventory', 'reports']);
   if (work.length) groups.push({ title: 'Operations', items: work });
-  const setup = pick(['menu', 'qr', 'settings']);
+  // the hotel's menu is edited by Taprizz only, and the QR sheet lives in the console (Start): the owner and manager do not need either in the side menu
+  const setup = pick(boss ? ['settings'] : ['menu', 'settings']);
   if (setup.length) groups.push({ title: boss ? 'Setup' : 'More', items: setup });
   return groups;
 }

@@ -12,7 +12,7 @@ const API = '/api/padharosaa/v1/staff/inventory';
 interface Item { id: string; name: string; unit: string; category: string | null; min_qty: number; active: boolean; stock: number; low: boolean; last_at: string | null; used_30: number; spent_30: number }
 interface Move { id: string; kind: 'in' | 'out' | 'waste' | 'adjust'; delta: number; cost_paise: number | null; note: string | null; at: string; by: string | null }
 type Kind = Move['kind'];
-const KIND_LABEL: Record<Kind, string> = { in: 'Stock in', out: 'Used', waste: 'Wasted', adjust: 'Count' };
+const KIND_LABEL: Record<Kind, string> = { in: 'Stock added', out: 'Used', waste: 'Spoiled', adjust: 'Counted' };
 const num = (n: number): string => String(Math.round(n * 1000) / 1000);
 
 /** Stock of supplies: what is on the shelf, what is running low, what was used or wasted, and what was bought. */
@@ -44,6 +44,7 @@ export function InventoryApp({ role }: { role: string }) {
           <Stat label="Bought, last 30 days" value={rupees2(spent)} />
         </div>
       )}
+      {items && items.length > 0 && !act && !edit && !log && <p className="mt-3 text-sm text-stone-600">Add stock when something comes in. Press Use when the kitchen or housekeeping takes some. Spoiled is for what is thrown away. If the shelf count is different, use Set exact count.</p>}
       {act ? <MovePanel item={act.item} kind={act.kind} flash={flash} onClose={() => setAct(null)} onDone={() => { setAct(null); void load(); }} />
         : edit ? <ItemForm item={edit === 'new' ? null : edit} flash={flash} onClose={() => setEdit(null)} onDone={() => { setEdit(null); void load(); }} />
         : log ? (
@@ -77,16 +78,16 @@ export function InventoryApp({ role }: { role: string }) {
                       <td className={`${td} text-right`}>{num(i.used_30)} {i.unit}</td>
                       <td className={`${td} text-right`}>
                         {i.active && <span className="flex flex-wrap justify-end gap-1.5">
-                          <button type="button" className={small} onClick={() => setAct({ item: i, kind: 'out' })}>Used</button>
-                          <button type="button" className={small} onClick={() => setAct({ item: i, kind: 'waste' })}>Waste</button>
-                          {boss && <button type="button" className={small} onClick={() => setAct({ item: i, kind: 'in' })}>Stock in</button>}
-                          {boss && <button type="button" className={small} onClick={() => setAct({ item: i, kind: 'adjust' })}>Count</button>}
+                          <button type="button" className={small} onClick={() => setAct({ item: i, kind: 'out' })}>Use</button>
+                          <button type="button" className={small} onClick={() => setAct({ item: i, kind: 'waste' })}>Spoiled</button>
+                          {boss && <button type="button" className={small} onClick={() => setAct({ item: i, kind: 'in' })}>Add stock</button>}
+                          {boss && <button type="button" className={small} onClick={() => setAct({ item: i, kind: 'adjust' })}>Set exact count</button>}
                         </span>}
                         <span className="mt-1 flex justify-end gap-3 text-xs font-semibold"><button type="button" className="underline" onClick={() => void open(i)}>History</button>{boss && <button type="button" className="underline" onClick={() => setEdit(i)}>Edit</button>}</span>
                       </td>
                     </tr>
                   ))}
-                  {items && shown.length === 0 && <tr><td colSpan={4} className="px-3 py-6 text-center text-stone-600">{items.length === 0 ? (boss ? 'No items yet. Add rice, oil, towels, soap… whatever you want to keep count of.' : 'No items yet. The owner or manager adds them.') : 'Nothing matches.'}</td></tr>}
+                  {items && shown.length === 0 && <tr><td colSpan={4} className="px-3 py-6 text-center text-stone-600">{items.length === 0 ? (boss ? 'No items yet. Press Add an item and add rice, oil, towels, soap… anything you want to keep count of. Example: Rice · counted in kg · warn me below 10.' : 'No items yet. The owner or manager adds them.') : 'Nothing matches.'}</td></tr>}
                 </tbody>
               </table>
             </div>
@@ -117,7 +118,7 @@ function MovePanel({ item, kind, flash, onClose, onDone }: { item: Item; kind: K
       <h2 className="text-base font-semibold tracking-tight">{item.name}: {KIND_LABEL[kind].toLowerCase()}</h2>
       <p className="mt-1 text-sm text-stone-600">In stock now: {num(item.stock)} {item.unit}</p>
       <div className="mt-3 grid gap-3 sm:grid-cols-2">
-        <Label text={kind === 'adjust' ? `Counted on the shelf (${item.unit})` : `Quantity (${item.unit})`}><input className={field} inputMode="decimal" value={qty} onChange={(e) => setQty(e.target.value)} /></Label>
+        <Label text={kind === 'adjust' ? `Counted on the shelf (${item.unit})` : `How much (${item.unit})`}><input className={field} inputMode="decimal" value={qty} onChange={(e) => setQty(e.target.value)} /></Label>
         {kind === 'in' && <Label text="Total cost in ₹" hint="Optional."><input className={field} inputMode="decimal" value={cost} onChange={(e) => setCost(e.target.value)} /></Label>}
         <Label text={kind === 'in' ? 'Supplier or note' : 'Note'}><input className={field} value={note} maxLength={120} onChange={(e) => setNote(e.target.value)} /></Label>
       </div>
@@ -145,7 +146,7 @@ function ItemForm({ item, flash, onClose, onDone }: { item: Item | null; flash: 
         <Label text="Name"><input className={field} value={f.name} maxLength={60} onChange={(e) => setF({ ...f, name: e.target.value })} /></Label>
         <Label text="Counted in" hint="kg, ltr, pcs, packet…"><input className={field} value={f.unit} maxLength={12} onChange={(e) => setF({ ...f, unit: e.target.value })} /></Label>
         <Label text="Group" hint="Optional: Dry goods, Linen, Toiletries…"><input className={field} value={f.category} maxLength={40} onChange={(e) => setF({ ...f, category: e.target.value })} /></Label>
-        <Label text="Tell me when it falls to" hint="0 = no alert."><input className={field} inputMode="decimal" value={f.min} onChange={(e) => setF({ ...f, min: e.target.value })} /></Label>
+        <Label text="Warn me when stock is below" hint="Example: 10. Leave 0 for no warning."><input className={field} inputMode="decimal" value={f.min} onChange={(e) => setF({ ...f, min: e.target.value })} /></Label>
       </div>
       {item && <label className="mt-3 flex min-h-11 items-center gap-2 text-sm font-semibold"><input type="checkbox" checked={f.active} onChange={(e) => setF({ ...f, active: e.target.checked })} />Still in use</label>}
       <div className="mt-4 flex gap-2"><button type="submit" className={ns.primary} disabled={!ok || busy}>{busy ? 'Saving…' : 'Save'}</button><button type="button" className={ns.secondary} onClick={onClose}>Back</button></div>

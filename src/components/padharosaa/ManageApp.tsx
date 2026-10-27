@@ -7,6 +7,7 @@ import { ImageCropper } from '@/components/dash/ImageCropper';
 import { apiGet, apiPost } from '@/components/staff/hooks';
 import { ApiFailure } from '@/lib/guest/client';
 import { Overview } from './Overview';
+import { ResetTrial } from './ResetTrial';
 import { BuffetManager } from './BuffetManager';
 import { GuideManager } from './GuideManager';
 import { CheckoutPanel } from './CheckoutPanel';
@@ -45,6 +46,7 @@ export function ManageApp({ role, restaurant, supabase }: { role: string; restau
   const flash = (ok: boolean, text: string) => { setMsg({ ok, text }); window.scrollTo({ top: 0, behavior: 'smooth' }); };
 
   const [tab, setTab] = useState<'overview' | 'start' | 'hotel' | 'ops' | 'content' | 'team'>('overview');
+  const [overviewKey, setOverviewKey] = useState(0);
   const [loadErr, setLoadErr] = useState<false | 'forbidden' | 'failed'>(false);
   const load = useCallback(async () => {
     try {
@@ -71,7 +73,7 @@ export function ManageApp({ role, restaurant, supabase }: { role: string; restau
           <button key={k} type="button" role="tab" aria-selected={tab === k} onClick={() => setTab(k)} className={`-mb-px min-h-11 shrink-0 border-b-2 px-0.5 text-sm font-semibold ${tab === k ? 'border-indigo-900 text-indigo-950' : 'border-transparent text-stone-500'}`}>{label}</button>
         ))}
       </div>
-      {tab === 'overview' && <Overview />}
+      {tab === 'overview' && <><Overview key={overviewKey} />{role === 'owner' && <ResetTrial onDone={() => setOverviewKey((k) => k + 1)} />}</>}
       {tab === 'start' && (
         <>
       <Checklist s={s} insta={insta} />
@@ -92,6 +94,7 @@ export function ManageApp({ role, restaurant, supabase }: { role: string; restau
       )}
       {tab === 'ops' && (
         <>
+      <p className="mt-4 text-sm text-stone-700">Here you decide how requests and room orders are handled: <b>food to rooms</b>, <b>how guests pay</b>, <b>when requests are accepted</b> and <b>who receives them</b>.</p>
       <Card title="Room dining" hint="Switch off if your hotel does not serve food to rooms. Then 'Room delivery' is never offered, and the desk can only choose Takeaway.">
         <label className="flex min-h-11 items-center gap-3 font-semibold"><input type="checkbox" className="h-5 w-5" checked={s.room_dining} onChange={(e) => void save('dining', { room_dining: e.target.checked })} />Our hotel serves food to rooms</label>
         <label className="flex min-h-11 items-center gap-3 font-semibold"><input type="checkbox" className="h-5 w-5" checked={!!s.kitchen_display} onChange={(e) => void save('kitchen-display', { kitchen_display: e.target.checked })} />We have a separate kitchen display</label>
@@ -283,7 +286,8 @@ function WifiVouchersCard({ flash }: { flash: (ok: boolean, text: string) => voi
   const [text, setText] = useState('');
   const [st, setSt] = useState<{ free: number; given: number } | null>(null);
   const [busy, setBusy] = useState(false);
-  const load = useCallback(async () => { try { setSt(await apiGet('/api/padharosaa/v1/staff/wifi-vouchers')); } catch { /* the card simply shows no count */ } }, []);
+  const [off, setOff] = useState(false);
+  const load = useCallback(async () => { try { setSt(await apiGet('/api/padharosaa/v1/staff/wifi-vouchers')); setOff(false); } catch { setOff(true); } }, []);
   useEffect(() => { void load(); }, [load]);
   const add = async () => {
     const { ok, bad } = parseVoucherLines(text);
@@ -296,6 +300,7 @@ function WifiVouchersCard({ flash }: { flash: (ok: boolean, text: string) => voi
     } catch (e) { flash(false, `The list could not be saved${e instanceof ApiFailure ? ` (${e.status} ${e.key})` : ''}. Please try again.`); }
     setBusy(false);
   };
+  if (off) return <Card title="Wi-Fi login for each guest" hint="Some hotels have a Wi-Fi system that gives every guest their own username and password. This part is not switched on for your hotel yet. Your single Wi-Fi name and password above work as usual."><p className="text-sm text-stone-600">Nothing to do here for now.</p></Card>;
   return (
     <Card title="Wi-Fi login for each guest" hint="Only if your Wi-Fi gives every guest their own login (a username and a password). Paste the list from your Wi-Fi system: one login per line, the username and the password separated by a space or a comma. Each guest gets the next unused one on the Stay & Wi-Fi screen. Leave this empty to show the single Wi-Fi name and password above.">
       {st && (st.free + st.given > 0) && <p className={`text-sm font-semibold ${st.free < 10 ? 'text-red-800' : 'text-stone-800'}`} data-testid="wifi-stock">{st.free} unused · {st.given} given to guests{st.free < 10 ? '. Running low: add more.' : ''}</p>}

@@ -226,7 +226,7 @@ test('in a hotel only the Taprizz admin edits the menu: the owner has no edit op
     await signIn(page, 'owner@spice-garden.demo', /\/padharosaa\/owner$/, '/padharosaa/owner');
     const nav = page.getByRole('navigation', { name: 'Screens' });
     await expect(nav.getByRole('link', { name: /add or delete dishes/ })).toHaveCount(0);
-    await expect(nav.getByRole('link', { name: 'Menu' })).toBeVisible();
+    await expect(nav.getByRole('link', { name: 'Menu' })).toHaveCount(0); // the hotel's menu is the Taprizz admin's: no side-menu entry for the owner
     await page.goto('/dash/menu');
     await expect(page).toHaveURL(/\/dash\/settings$/);
     await expect(page.getByRole('link', { name: 'Menu', exact: true })).toHaveCount(0);
@@ -289,7 +289,7 @@ test('the owner sets opening and closing time; after closing a guest sees it and
 test('reception sees only the desk, the menu (sold-out switches) and settings, and no console, dashboard or team tools', async ({ page }) => {
   await signIn(page, 'waiter@spice-garden.demo', /\/padharosaa\/desk$/, '/padharosaa/desk');
   const nav = page.getByRole('navigation', { name: 'Screens' });
-  await expect(nav.getByRole('link')).toHaveText(['Reception desk', 'Rooms', 'Prices', 'Billing', 'Counter billing', 'Menu', 'Settings']);
+  await expect(nav.getByRole('link')).toHaveText(['Reception desk', 'Rooms', 'Billing', 'Counter billing', 'Menu', 'Settings']);
   await expect(page.getByRole('heading', { name: 'Opening and closing time for requests' })).toHaveCount(0);
   await nav.getByRole('link', { name: 'Menu' }).click();
   await expect(page).toHaveURL(/\/padharosaa\/menu$/);
@@ -778,6 +778,20 @@ test('rooms: reception books a room, checks the booking in, sees it on the chart
     await expect(card).toContainText('Being cleaned');
     await card.getByRole('button', { name: 'Mark clean' }).click();
     await expect(card).toContainText('Clean');
+    // a guest asks for something in room 204: the card blinks red on the board, and a tap opens the desk on that room only
+    const sid = (await q<{ id: string }>(`insert into public.guest_sessions (restaurant_id, room_id, guest_name, mobile_cc, mobile_enc, mobile_hash, token_hash, status)
+      select ${RID}, id, 'Blink Guest', '+91', '\\x01', decode(md5(random()::text) || md5(random()::text), 'hex'), decode(md5(random()::text) || md5(random()::text), 'hex'), 'active' from public.rooms where restaurant_id = ${RID} and number = '205' returning id`))[0]!.id;
+    await q(`select public.padh_guest_create_request('${sid}','housekeeping','Extra pillows',null,false,gen_random_uuid()::text)`);
+    await r.getByRole('tab', { name: 'Room status' }).click();
+    const blink = r.getByTestId('board-room').filter({ hasText: '205' });
+    await expect(blink).toHaveAttribute('data-waiting', '1', { timeout: 20_000 });
+    await blink.getByRole('link', { name: /request.* waiting/ }).click();
+    await expect(r).toHaveURL(/\/padharosaa\/desk\?room=205/);
+    await expect(r.getByTestId('room-filter')).toContainText('room 205 only');
+    await expect(r.getByText('Extra pillows').first()).toBeVisible();
+    await r.getByRole('button', { name: 'Show every room' }).click();
+    await expect(r.getByTestId('room-filter')).toHaveCount(0);
+    await r.goto('/padharosaa/rooms');
     // the search box in the top bar
     await r.getByLabel('Search guests, rooms, bookings, invoices').fill('chart');
     await r.getByTestId('search-results').getByRole('link', { name: /Chart Guest/ }).first().click();
@@ -803,12 +817,12 @@ test('inventory: the owner adds an item and stocks it, the kitchen records use a
     await o.getByRole('button', { name: 'Add an item' }).click();
     await o.getByLabel('Name', { exact: true }).fill('Basmati rice');
     await o.getByLabel('Counted in').fill('kg');
-    await o.getByLabel('Tell me when it falls to').fill('10');
+    await o.getByLabel('Warn me when stock is below').fill('10');
     await o.getByRole('button', { name: 'Save', exact: true }).click();
     const row = o.getByTestId('inv-row').filter({ hasText: 'Basmati rice' });
     await expect(row).toBeVisible();
-    await row.getByRole('button', { name: 'Stock in' }).click();
-    await o.getByLabel('Quantity (kg)').fill('25');
+    await row.getByRole('button', { name: 'Add stock' }).click();
+    await o.getByLabel('How much (kg)').fill('25');
     await o.getByLabel('Total cost in ₹').fill('1500');
     await o.getByRole('button', { name: 'Save', exact: true }).click();
     await expect(row).toContainText('25 kg');
@@ -817,19 +831,19 @@ test('inventory: the owner adds an item and stocks it, the kitchen records use a
     await signIn(k, 'kitchen@spice-garden.demo', /\/padharosaa\/kitchen$/, '/padharosaa/kitchen');
     await k.getByRole('navigation', { name: 'Screens' }).getByRole('link', { name: 'Inventory' }).click();
     const kr = k.getByTestId('inv-row').filter({ hasText: 'Basmati rice' });
-    await expect(kr.getByRole('button', { name: 'Stock in' })).toHaveCount(0);
-    await kr.getByRole('button', { name: 'Used' }).click();
-    await k.getByLabel('Quantity (kg)').fill('100');
+    await expect(kr.getByRole('button', { name: 'Add stock' })).toHaveCount(0);
+    await kr.getByRole('button', { name: 'Use', exact: true }).click();
+    await k.getByLabel('How much (kg)').fill('100');
     await k.getByRole('button', { name: 'Save', exact: true }).click();
     await expect(k.getByText(/Only 25 kg is in stock/)).toBeVisible();
-    await k.getByLabel('Quantity (kg)').fill('16');
+    await k.getByLabel('How much (kg)').fill('16');
     await k.getByRole('button', { name: 'Save', exact: true }).click();
     await expect(kr).toContainText('9 kg');
     await expect(kr).toContainText('Low');
     await expect(k.getByTestId('inv-summary')).toContainText('Running low');
     await kr.getByRole('button', { name: 'History' }).click();
     await expect(k.getByTestId('inv-log')).toContainText('Used -16 kg');
-    await expect(k.getByTestId('inv-log')).toContainText('Stock in +25 kg');
+    await expect(k.getByTestId('inv-log')).toContainText('Stock added +25 kg');
   } finally {
     await q(`delete from public.inventory_items where restaurant_id = ${RID}`);
     await octx.close();
@@ -868,6 +882,23 @@ test('counter billing and reports: reception bills a dish and a custom item with
     // 2 x 100 + 200 = 400, 2.5% + 2.5% = 20, total 420
     await expect(r.getByTestId('pos-totals')).toContainText('₹400.00');
     await expect(r.getByTestId('pos-totals')).toContainText('₹420.00');
+    // the desk can change the tax of this bill, add a service charge and give a discount; the screen shows the effect at once
+    await r.getByLabel('GST on this bill').selectOption({ label: 'No GST' });
+    await expect(r.getByTestId('pos-totals')).toContainText('₹400.00');
+    await r.getByLabel('Service charge %').fill('10');
+    await r.getByLabel('Discount in ₹').fill('40');
+    await expect(r.getByTestId('pos-totals')).toContainText('₹396.00'); // 400 - 40 + 10% of 360
+    await r.getByLabel('Service charge %').fill('');
+    await r.getByLabel('Discount in ₹').fill('');
+    await r.getByLabel('GST on this bill').selectOption({ index: 0 }); // the usual rate again
+    await expect(r.getByTestId('pos-totals')).toContainText('₹420.00');
+    // the kitchen slip: what to cook, no prices, ready for the roll printer
+    await r.getByLabel('Table or note').fill('Table 4');
+    await r.getByRole('button', { name: 'Print KOT for the kitchen' }).click();
+    await expect(r.getByTestId('kot')).toContainText('Table 4');
+    await expect(r.getByTestId('kot')).toContainText('Masala tea');
+    await expect(r.getByTestId('kot')).not.toContainText('₹');
+    await r.getByRole('button', { name: 'Back to billing' }).click();
     await r.getByLabel('Table or note').fill('Table 4');
     await r.getByLabel('Paid by', { exact: true }).selectOption('upi');
     await r.getByRole('button', { name: 'Make the bill' }).click();
@@ -921,7 +952,8 @@ test('prices: the owner opens a room type, changes one day and a range, closes d
   const r = await rctx.newPage();
   try {
     await signIn(o, 'owner@spice-garden.demo', /\/padharosaa\/owner$/, '/padharosaa/owner');
-    await o.getByRole('navigation', { name: 'Screens' }).getByRole('link', { name: 'Prices' }).click();
+    await o.getByRole('navigation', { name: 'Screens' }).getByRole('link', { name: 'Rooms', exact: true }).click();
+    await o.getByRole('tab', { name: 'Prices' }).click();
     await o.getByTestId('rate-types').getByRole('button', { name: /Deluxe/ }).click();
     const grid = o.getByTestId('rate-grid');
     await expect(grid).toBeVisible();
@@ -948,7 +980,8 @@ test('prices: the owner opens a room type, changes one day and a range, closes d
     await expect(grid.getByRole('button', { name: new RegExp(`^${day1} ₹3,000`) })).toBeVisible();
     // reception can open it but the days are not clickable
     await signIn(r, 'waiter@spice-garden.demo', /\/padharosaa\/desk$/, '/padharosaa/desk');
-    await r.goto('/padharosaa/rates');
+    await r.goto('/padharosaa/rates'); // the old address lands on Rooms > Prices
+    await expect(r).toHaveURL(/\/padharosaa\/rooms/);
     await r.getByTestId('rate-types').getByRole('button', { name: /Deluxe/ }).click();
     await expect(r.getByTestId('rate-grid').getByRole('button').first()).toBeDisabled();
     await expect(r.getByText('Only the owner and manager change prices.')).toBeVisible();
@@ -991,7 +1024,8 @@ test('channels: the owner matches a room type, switches the channel manager on a
     await expect(o.getByTestId('channel-status')).toContainText('1 change waiting'); // the first year of prices is queued for the sender
     await expect(o.getByTestId('channel-webhook')).toContainText(/\/api\/padharosaa\/v1\/channel\/webhook\/[0-9a-f]{64}$/);
     // a price change on the calendar queues too
-    await o.getByRole('navigation', { name: 'Screens' }).getByRole('link', { name: 'Prices' }).click();
+    await o.getByRole('navigation', { name: 'Screens' }).getByRole('link', { name: 'Rooms', exact: true }).click();
+    await o.getByRole('tab', { name: 'Prices' }).click();
     await o.getByTestId('rate-types').getByRole('button', { name: /Deluxe/ }).click();
     const free = o.getByTestId('rate-grid').getByRole('button', { disabled: false });
     await free.nth((await free.count()) - 1).click();
@@ -1186,6 +1220,9 @@ test('room QR codes: the sheet has one code per room, a room link opens the gues
     const rctx = await browser.newContext();
     const r = await rctx.newPage();
     await signIn(r, 'waiter@spice-garden.demo', /\/padharosaa\/desk$/, '/padharosaa/desk');
+    await o.goto('/padharosaa/qr?room=204'); // a room's own sheet: only that room
+    await expect(o.getByTestId('qr-card')).toHaveCount(1);
+    await expect(o.getByTestId('qr-card')).toContainText('Room 204');
     await r.goto('/padharosaa/qr');
     await expect(r).toHaveURL(/\/padharosaa\/desk$/);
     await rctx.close();

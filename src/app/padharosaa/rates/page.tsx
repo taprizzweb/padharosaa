@@ -1,9 +1,6 @@
-import type { Metadata } from 'next';
-import { renderArea } from '../area';
+import { redirect } from 'next/navigation';
 
-export const metadata: Metadata = { title: 'Padharosaa prices', robots: { index: false, follow: false } };
-export const dynamic = 'force-dynamic';
-
+// Prices now live inside Rooms (the Prices tab). Old bookmarks land there.
 export default function Page() {
-  return renderArea('rates');
+  redirect('/padharosaa/rooms?tab=prices');
 }
