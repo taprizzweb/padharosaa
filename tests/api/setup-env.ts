@@ -11,3 +11,4 @@ process.env.CRON_SECRET = 'cron-secret-cron-secret-cron-secret';
 process.env.AI_BASE_URL = 'https://ai.example.test/v1';
 process.env.AI_API_KEY = 'ai-test-key-ai-test-key';
 process.env.AI_MODEL = 'test-model';
+process.env.CHANNEX_API_KEY = 'channex-test-key-channex-test-key';

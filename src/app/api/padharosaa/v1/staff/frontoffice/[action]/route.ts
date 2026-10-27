@@ -4,6 +4,7 @@ import { jsonOk, staffRoute } from '@/lib/api/route';
 import { ApiError } from '@/lib/errors';
 import { limit } from '@/lib/guest/rpc';
 import { chartQuery, hkBody, rateOnQuery, ratesQuery, ratesSetBody, reservationBody, reservationCheckinBody, reservationCloseBody, reservationsQuery, searchQuery } from '@/lib/padharosaa/schemas';
+import { kickChannels } from '@/lib/padharosaa/channels';
 import { staffRpc } from '@/lib/staff/rpc';
 
 export const dynamic = 'force-dynamic';
@@ -61,6 +62,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ action:
   return staffRoute(req, { method: 'POST', schema: def?.schema }, async (ctx, body) => {
     if (!def) throw new ApiError(404, 'not_found');
     await limit(`pfw:${ctx.userId}`, 120, 60);
-    return jsonOk(await def.run(ctx.db, (body ?? {}) as Body), ctx.requestId);
+    const out = await def.run(ctx.db, (body ?? {}) as Body);
+    kickChannels(); // prices and rooms may have changed: tell the booking sites soon
+    return jsonOk(out, ctx.requestId);
   });
 }

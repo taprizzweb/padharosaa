@@ -14,6 +14,7 @@ What is built, what must be switched on, and what is still open. Read top to bot
 |---|---|---|
 | `PADHAROSAA_DATA_KEY` | every Padharosaa hotel (mobile numbers, Wi-Fi password) | `openssl rand -base64 32`. **Keep a copy in a password manager: losing it makes stored numbers unreadable.** |
 | `CRON_SECRET` | the alert worker | `openssl rand -base64 32` |
+| `CHANNEX_API_KEY` | the channel manager (prices and rooms out to Booking.com, MakeMyTrip, Agoda…; their bookings in) | from your Channex account (production key; use the staging key and `CHANNEX_BASE_URL` of their staging site to test first) |
 | `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` | buffet alerts on guests' phones | `npx web-push generate-vapid-keys`; subject is `mailto:you@yourdomain` |
 | `WHATSAPP_TOKEN`, `WHATSAPP_PHONE_ID` | WhatsApp alerts to department heads | Meta WhatsApp Business Cloud API (permanent token, phone number id) |
 | `WHATSAPP_HELP_TEMPLATE`, `WHATSAPP_TEMPLATE_LANG` | template name / language | default `padharosaa_help_alert`, `en` |

@@ -948,6 +948,60 @@ test('prices: the owner opens a room type, changes one day and a range, closes d
   }
 });
 
+test('channels: the owner matches a room type, switches the channel manager on and sees the webhook address; reception cannot open it', async ({ browser }) => {
+  test.setTimeout(120_000);
+  const clean = async () => {
+    await q(`delete from public.channel_outbox where restaurant_id = ${RID}`);
+    await q(`delete from public.channel_maps where restaurant_id = ${RID}`);
+    await q(`delete from public.channel_links where restaurant_id = ${RID}`);
+    await q(`update public.rooms set room_type_id = null where restaurant_id = ${RID}`);
+    await q(`delete from public.room_types where restaurant_id = ${RID}`);
+  };
+  await clean();
+  await q(`insert into public.room_types (restaurant_id, name, rate_paise) values (${RID}, 'Deluxe', 300000)`);
+  const octx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  const rctx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  const o = await octx.newPage();
+  const r = await rctx.newPage();
+  try {
+    await signIn(o, 'owner@spice-garden.demo', /\/padharosaa\/owner$/, '/padharosaa/owner');
+    await o.getByRole('navigation', { name: 'Screens' }).getByRole('link', { name: 'Channels' }).click();
+    await expect(o.getByTestId('channel-status')).toContainText('Switched off');
+    await expect(o.getByTestId('channel-server-missing')).toBeVisible(); // the test server has no key for the service
+    await expect(o.getByRole('button', { name: 'Switch on' })).toBeDisabled(); // nothing is matched yet
+    await o.getByLabel('Property id').fill('cccccccc-1111-2222-3333-444444444444');
+    await o.getByLabel('Room type id for Deluxe').fill('aaaaaaaa-1111-2222-3333-444444444444');
+    await o.getByLabel('Rate plan id for Deluxe').fill('bbbbbbbb-1111-2222-3333-444444444444');
+    await o.getByRole('row', { name: /Deluxe/ }).getByRole('button', { name: 'Save' }).click();
+    await expect(o.getByText('Deluxe is matched.')).toBeVisible();
+    await o.getByRole('button', { name: 'Switch on' }).click();
+    await expect(o.getByText(/Switched on/).first()).toBeVisible();
+    await expect(o.getByTestId('channel-status')).toContainText('Switched on');
+    await expect(o.getByTestId('channel-status')).toContainText('1 change waiting'); // the first year of prices is queued for the sender
+    await expect(o.getByTestId('channel-webhook')).toContainText(/\/api\/padharosaa\/v1\/channel\/webhook\/[0-9a-f]{64}$/);
+    // a price change on the calendar queues too
+    await o.getByRole('navigation', { name: 'Screens' }).getByRole('link', { name: 'Prices' }).click();
+    await o.getByTestId('rate-types').getByRole('button', { name: /Deluxe/ }).click();
+    const free = o.getByTestId('rate-grid').getByRole('button', { disabled: false });
+    await free.nth((await free.count()) - 1).click();
+    await o.getByLabel('Price per night in ₹').fill('3300');
+    await o.getByRole('button', { name: 'Save', exact: true }).click();
+    await expect(o.getByText('Saved.')).toBeVisible();
+    await o.getByRole('navigation', { name: 'Screens' }).getByRole('link', { name: 'Channels' }).click();
+    await expect(o.getByTestId('channel-status')).toContainText(/\d+ changes? waiting/);
+    await o.getByRole('button', { name: 'Switch off' }).click();
+    await expect(o.getByTestId('channel-status')).toContainText('Switched off');
+    await signIn(r, 'waiter@spice-garden.demo', /\/padharosaa\/desk$/, '/padharosaa/desk');
+    await r.goto('/padharosaa/channels');
+    await expect(r).not.toHaveURL(/\/padharosaa\/channels$/);
+  } finally {
+    await q(`delete from public.room_rates where restaurant_id = ${RID}`);
+    await clean();
+    await octx.close();
+    await rctx.close();
+  }
+});
+
 test('the alarm keeps ringing when reception moves to another screen, and a waiting request shows a banner there', async ({ browser }) => {
   test.setTimeout(120_000);
   await q(`insert into public.rooms (restaurant_id, number) values (${RID}, '204') on conflict do nothing`);

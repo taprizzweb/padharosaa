@@ -223,6 +223,7 @@ export const en = {
   'error.category_not_empty': 'This category still has dishes. Move or delete them first.',
   'error.conflict': 'That name is already in use. Please choose a different one.',
   'error.balance_due': 'The bill is not settled yet. Record the payment first, then check out.',
+  'error.channel_unavailable': 'The channel service did not accept that. Check the property id and the server key, then try again.',
   'error.stay_open': 'This room has a guest checked in. Check out from the bill so the invoice is made.',
   'error.protected': 'Owner accounts can only be changed by the platform administrator.',
   'error.password_change_required': 'Please choose your own password before continuing.',

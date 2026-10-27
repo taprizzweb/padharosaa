@@ -5,8 +5,8 @@ const flat = (role: string, kd = false) => navFor(role, { kitchenDisplay: kd }).
 
 describe('side menu', () => {
   it('owner and manager see the dashboard first and the kitchen only with a kitchen display', () => {
-    expect(flat('owner')).toEqual(['owner', 'desk', 'rooms', 'rates', 'billing', 'pos', 'inventory', 'reports', 'menu', 'qr', 'settings']);
-    expect(flat('manager', true)).toEqual(['manager', 'desk', 'rooms', 'rates', 'billing', 'pos', 'kitchen', 'inventory', 'reports', 'menu', 'qr', 'settings']);
+    expect(flat('owner')).toEqual(['owner', 'desk', 'rooms', 'rates', 'channels', 'billing', 'pos', 'inventory', 'reports', 'menu', 'qr', 'settings']);
+    expect(flat('manager', true)).toEqual(['manager', 'desk', 'rooms', 'rates', 'channels', 'billing', 'pos', 'kitchen', 'inventory', 'reports', 'menu', 'qr', 'settings']);
   });
   it('reception sees desk, rooms, billing, menu and settings only', () => {
     expect(flat('waiter')).toEqual(['desk', 'rooms', 'rates', 'billing', 'pos', 'menu', 'settings']);

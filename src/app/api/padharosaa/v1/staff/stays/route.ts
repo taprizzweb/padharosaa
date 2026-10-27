@@ -2,6 +2,7 @@ import { jsonOk, staffRoute } from '@/lib/api/route';
 import { ApiError } from '@/lib/errors';
 import { limit } from '@/lib/guest/rpc';
 import { checkinBody, staysQuery } from '@/lib/padharosaa/schemas';
+import { kickChannels } from '@/lib/padharosaa/channels';
 import { staffRpc } from '@/lib/staff/rpc';
 
 export const dynamic = 'force-dynamic';
@@ -25,6 +26,7 @@ export async function POST(req: Request) {
       p_gstin: b.gstin ?? null, p_inter_state: b.inter_state ?? null, p_address: b.address ?? null, p_rate_paise: b.rate_paise ?? null, p_out_on: b.out_on,
       p_advance_paise: b.advance_paise, p_advance_mode: b.advance_mode ?? null,
     });
+    kickChannels(); // a room is taken: tell the booking sites soon
     return jsonOk(out, ctx.requestId);
   });
 }

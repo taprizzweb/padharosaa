@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { serverEnv } from '@/env';
 import { runBuffetReminders } from '@/lib/padharosaa/push';
 import { dispatchDue } from '@/lib/padharosaa/notify';
+import { channelTick } from '@/lib/padharosaa/channels';
 
 export const dynamic = 'force-dynamic';
 
@@ -16,5 +17,6 @@ export async function GET(req: Request) {
   const cfg = env.WHATSAPP_TOKEN && env.WHATSAPP_PHONE_ID ? { token: env.WHATSAPP_TOKEN, phoneId: env.WHATSAPP_PHONE_ID, template: env.WHATSAPP_HELP_TEMPLATE, lang: env.WHATSAPP_TEMPLATE_LANG } : null;
   const sent = await dispatchDue(cfg);
   const buffetReminders = await runBuffetReminders();
-  return NextResponse.json({ ...sent, buffetReminders }, { headers: { 'cache-control': 'no-store' } });
+  const channels = await channelTick();
+  return NextResponse.json({ ...sent, buffetReminders, channels }, { headers: { 'cache-control': 'no-store' } });
 }

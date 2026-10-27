@@ -50,6 +50,9 @@ const serverSchema = publicSchema.extend({
   VAPID_PUBLIC_KEY: z.string().min(40).max(120).optional().or(z.literal('').transform(() => undefined)),
   VAPID_PRIVATE_KEY: z.string().min(20).max(120).optional().or(z.literal('').transform(() => undefined)),
   VAPID_SUBJECT: z.string().regex(/^(mailto:|https:\/\/)\S+$/).optional().or(z.literal('').transform(() => undefined)),
+  /** Channel manager (Channex). One platform key for every hotel; each hotel's own property id is set in its console. Never put the key in the database. */
+  CHANNEX_API_KEY: z.string().min(16).max(200).optional().or(z.literal('').transform(() => undefined)),
+  CHANNEX_BASE_URL: z.string().url().default('https://app.channex.io/api/v1'),
   SENTRY_DSN: z.string().url().optional().or(z.literal('').transform(() => undefined)),
   LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error']).default('info'),
 });

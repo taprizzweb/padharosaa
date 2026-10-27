@@ -30,7 +30,7 @@ export const SQL_ERRORS = {
   GM027: { status: 409, key: 'stay_open' },
 } as const;
 
-export type ErrorKey = (typeof SQL_ERRORS)[keyof typeof SQL_ERRORS]['key'] | 'not_configured' | 'location_required' | 'location_inaccurate' | 'too_far_from_restaurant' | 'origin_not_allowed' | 'unsupported_media_type' | 'payload_too_large' | 'unauthorized' | 'password_change_required' | 'invalid_credentials' | 'method_not_allowed' | 'server_error' | 'login_failed' | 'locked';
+export type ErrorKey = (typeof SQL_ERRORS)[keyof typeof SQL_ERRORS]['key'] | 'not_configured' | 'location_required' | 'location_inaccurate' | 'too_far_from_restaurant' | 'origin_not_allowed' | 'unsupported_media_type' | 'payload_too_large' | 'unauthorized' | 'password_change_required' | 'invalid_credentials' | 'method_not_allowed' | 'server_error' | 'channel_unavailable' | 'login_failed' | 'locked';
 
 export class ApiError extends Error {
   constructor(

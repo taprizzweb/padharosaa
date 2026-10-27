@@ -3,6 +3,7 @@ import { jsonOk, staffRoute } from '@/lib/api/route';
 import { ApiError } from '@/lib/errors';
 import { limit } from '@/lib/guest/rpc';
 import { chargeBody, idParam, paymentBody, stayUpdateBody } from '@/lib/padharosaa/schemas';
+import { kickChannels } from '@/lib/padharosaa/channels';
 import { staffRpc } from '@/lib/staff/rpc';
 
 export const dynamic = 'force-dynamic';
@@ -21,7 +22,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     if (action === 'charges') return jsonOk(await staffRpc(ctx.db, 'padh_folio_add', { p_stay: stay.data, p_category: b.category, p_description: b.description, p_qty: b.qty, p_unit_paise: b.unit_paise }), ctx.requestId);
     if (action === 'payments') return jsonOk(await staffRpc(ctx.db, 'padh_payment_add', { p_stay: stay.data, p_kind: b.kind, p_mode: b.mode, p_amount_paise: b.amount_paise, p_ref: b.ref ?? null }), ctx.requestId);
     if (action === 'update') return jsonOk(await staffRpc(ctx.db, 'padh_stay_update', { p_stay: stay.data, p_rate_paise: b.rate_paise ?? null, p_out_on: b.out_on ?? null, p_company: b.company ?? null, p_gstin: b.gstin ?? null, p_inter_state: b.inter_state ?? null }), ctx.requestId);
-    return jsonOk(await staffRpc(ctx.db, 'padh_stay_checkout', { p_stay: stay.data }), ctx.requestId);
+    const out = await staffRpc(ctx.db, 'padh_stay_checkout', { p_stay: stay.data });
+    kickChannels(); // the room is free again
+    return jsonOk(out, ctx.requestId);
   });
 }
 

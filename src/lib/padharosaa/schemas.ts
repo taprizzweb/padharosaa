@@ -282,3 +282,8 @@ export const ratesSetBody = z.object({
   weekdays: z.array(z.enum(['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'])).max(7).nullish(), reset: z.boolean().default(false),
 }).strict();
 export const rateOnQuery = z.object({ type: uuid, day });
+
+// ---- channel manager (migration 0075) ----
+const extId = z.string().trim().regex(/^[A-Za-z0-9-]{8,64}$/);
+export const channelSaveBody = z.object({ property_id: extId.nullish(), enabled: z.boolean() }).strict();
+export const channelMapBody = z.object({ type: uuid, ext_room_type_id: extId.nullish(), ext_rate_plan_id: extId.nullish() }).strict();
