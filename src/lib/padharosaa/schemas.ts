@@ -244,3 +244,19 @@ export const lguideBody = z.object({
   charges: z.string().max(160).nullish(), phone: z.string().max(25).nullish(), whatsapp: z.string().max(25).nullish(), instagram: z.string().max(100).nullish(), linkedin: z.string().max(300).nullish(),
   active: z.boolean(), sort: z.number().int().min(0).max(10000).default(100),
 }).strict();
+
+// ---- reservations, room chart, housekeeping, search (migration 0071) ----
+export const reservationBody = z.object({
+  id: uuid.nullish(), room: uuid.nullish(), type: uuid.nullish(), guest: z.string().trim().min(2).max(80), mobile: z.string().max(20).nullish(), adults: z.number().int().min(1).max(20).default(1),
+  check_in: day, check_out: day, rate_paise: paise.nullish(), advance_paise: z.number().int().min(0).max(100_000_000).default(0), advance_mode: payMode.nullish(),
+  source: z.string().max(40).nullish(), notes: z.string().max(300).nullish(),
+}).strict();
+export const reservationCloseBody = z.object({ id: uuid, status: z.enum(['cancelled', 'no_show']), reason: z.string().max(200).nullish() }).strict();
+export const reservationCheckinBody = z.object({
+  id: uuid, room: uuid.nullish(), id_type: z.enum(['aadhaar', 'passport', 'driving_licence', 'voter_id', 'other']).nullish(), id_last4: z.string().max(4).nullish(),
+  company: z.string().max(120).nullish(), gstin: z.string().max(15).nullish(), address: z.string().max(300).nullish(),
+}).strict();
+export const hkBody = z.object({ room: uuid, status: z.enum(['clean', 'dirty', 'cleaning', 'out_of_order']), note: z.string().max(120).nullish() }).strict();
+export const chartQuery = z.object({ from: day.nullish(), days: z.coerce.number().int().min(1).max(31).default(14) });
+export const reservationsQuery = z.object({ scope: z.enum(['upcoming', 'today', 'past']) });
+export const searchQuery = z.object({ q: z.string().trim().min(2).max(40) });

@@ -289,7 +289,7 @@ test('the owner sets opening and closing time; after closing a guest sees it and
 test('reception sees only the desk, the menu (sold-out switches) and settings, and no console, dashboard or team tools', async ({ page }) => {
   await signIn(page, 'waiter@spice-garden.demo', /\/padharosaa\/desk$/, '/padharosaa/desk');
   const nav = page.getByRole('navigation', { name: 'Screens' });
-  await expect(nav.getByRole('link')).toHaveText(['Reception desk', 'Billing', 'Menu', 'Settings']);
+  await expect(nav.getByRole('link')).toHaveText(['Reception desk', 'Rooms', 'Billing', 'Menu', 'Settings']);
   await expect(page.getByRole('heading', { name: 'Opening and closing time for requests' })).toHaveCount(0);
   await nav.getByRole('link', { name: 'Menu' }).click();
   await expect(page).toHaveURL(/\/padharosaa\/menu$/);
@@ -709,6 +709,72 @@ test('billing: the owner sets the hotel\'s own taxes, reception checks a guest i
     await clean();
     await octx.close();
     await rctx.close();
+  }
+});
+
+test('rooms: reception books a room, checks the booking in, sees it on the chart, marks a room clean and finds the guest with the search box', async ({ browser }) => {
+  test.setTimeout(150_000);
+  const clean = async () => {
+    await q(`delete from public.reservations where restaurant_id = ${RID}`);
+    await q(`delete from public.stays where restaurant_id = ${RID}`);
+    await q(`update public.rooms set hk_status = 'clean', hk_note = null where restaurant_id = ${RID}`);
+  };
+  await clean();
+  await q(`insert into public.rooms (restaurant_id, number) values (${RID}, '204'), (${RID}, '205') on conflict do nothing`);
+  const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  const r = await ctx.newPage();
+  try {
+    await signIn(r, 'waiter@spice-garden.demo', /\/padharosaa\/desk$/, '/padharosaa/desk');
+    await r.getByRole('navigation', { name: 'Screens' }).getByRole('link', { name: 'Rooms' }).click();
+    await expect(r).toHaveURL(/\/padharosaa\/rooms$/);
+    await expect(r.getByTestId('rooms-summary')).toBeVisible();
+    await expect(r.getByTestId('chart-row').filter({ hasText: '204' })).toBeVisible();
+    // a booking for today with an advance
+    await r.getByRole('button', { name: 'New booking' }).click();
+    await r.getByLabel('Guest name').fill('Chart Guest');
+    await r.getByLabel('Mobile number').fill('9811122233');
+    await r.getByLabel('Room', { exact: true }).selectOption({ label: '204' });
+    await r.getByLabel('Rate per night in ₹').fill('2500');
+    await r.getByLabel('Advance taken in ₹').fill('1000');
+    await r.getByLabel('Advance paid by').selectOption('upi');
+    await r.getByRole('button', { name: 'Save booking' }).click();
+    await expect(r.getByText(/Booking B\d+ saved\./)).toBeVisible();
+    await expect(r.getByTestId('booking-row')).toContainText('Chart Guest');
+    // the same room cannot be booked twice for the same night
+    await r.getByRole('button', { name: 'New booking' }).click();
+    await r.getByLabel('Guest name').fill('Clash Guest');
+    await r.getByLabel('Room', { exact: true }).selectOption({ label: '204' });
+    await r.getByLabel('Rate per night in ₹').fill('2500');
+    await r.getByRole('button', { name: 'Save booking' }).click();
+    await expect(r.getByText(/not free on those dates/)).toBeVisible();
+    await r.getByRole('button', { name: 'Back' }).click();
+    // check the booking in: the advance lands on the bill
+    await r.getByRole('button', { name: 'Check in', exact: true }).click();
+    await r.getByRole('button', { name: 'Check in', exact: true }).click();
+    await expect(r.getByTestId('stay-code')).toHaveText(/^\d{4}$/);
+    await r.getByRole('link', { name: 'Open the bill' }).click();
+    await expect(r).toHaveURL(/\/padharosaa\/billing\?stay=/);
+    await expect(r.getByTestId('folio')).toContainText('Chart Guest');
+    await expect(r.getByTestId('folio-totals')).toContainText('₹');
+    // the chart shows the guest as a bar; housekeeping: mark a room dirty, start cleaning, mark clean
+    await r.getByRole('navigation', { name: 'Screens' }).getByRole('link', { name: 'Rooms' }).click();
+    await expect(r.getByTestId('room-chart').getByRole('link', { name: 'Chart Guest' })).toBeVisible();
+    await r.getByRole('tab', { name: /^Housekeeping/ }).click();
+    const card = r.getByTestId('hk-card').filter({ hasText: '205' });
+    await card.getByRole('button', { name: 'Mark dirty' }).click();
+    await expect(card).toContainText('Dirty');
+    await card.getByRole('button', { name: 'Start cleaning' }).click();
+    await expect(card).toContainText('Being cleaned');
+    await card.getByRole('button', { name: 'Mark clean' }).click();
+    await expect(card).toContainText('Clean');
+    // the search box in the top bar
+    await r.getByLabel('Search guests, rooms, bookings, invoices').fill('chart');
+    await r.getByTestId('search-results').getByRole('link', { name: /Chart Guest/ }).first().click();
+    await expect(r).toHaveURL(/\/padharosaa\/billing\?stay=/);
+    await expect(r.getByTestId('folio')).toContainText('Chart Guest');
+  } finally {
+    await clean();
+    await ctx.close();
   }
 });
 

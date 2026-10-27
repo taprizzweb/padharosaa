@@ -5,10 +5,12 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { ThemeToggle } from '@/components/ui/ns';
 import { navFor, titleFor, type NavIcon } from '@/lib/padharosaa/nav';
 import { AlarmControl } from './AlarmControl';
+import { GlobalSearch } from './GlobalSearch';
 
 const PATHS: Record<NavIcon, string> = {
   dashboard: 'M3 13h8V3H3zm0 8h8v-6H3zm10 0h8V11h-8zm0-18v6h8V3z',
   desk: 'M12 22a2 2 0 0 0 2-2h-4a2 2 0 0 0 2 2m6-6V11a6 6 0 0 0-5-5.9V4a1 1 0 0 0-2 0v1.1A6 6 0 0 0 6 11v5l-2 2v1h16v-1z',
+  rooms: 'M3 20V8l9-5 9 5v12h-6v-6H9v6zM7 10v2h2v-2zm8 0v2h2v-2z',
   billing: 'M6 2h12a1 1 0 0 1 1 1v19l-3-2-2 2-2-2-2 2-2-2-3 2V3a1 1 0 0 1 1-1m2 5v2h8V7zm0 4v2h8v-2z',
   menu: 'M4 6h16v2H4zm0 5h16v2H4zm0 5h10v2H4z',
   kitchen: 'M6 2v8a3 3 0 0 0 2 2.8V22h2V12.8A3 3 0 0 0 12 10V2h-2v6H9V2H7v6H6V2zm10 0c-2 1.5-3 4-3 7v4h3v9h2V2z',
@@ -28,6 +30,7 @@ export function StaffShell({ role, hotel, name, current, kitchenDisplay, childre
   const groups = navFor(role, { kitchenDisplay });
   const signOut = async () => { try { await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ scope: 'local' }) }); } finally { window.location.assign('/login'); } };
   const today = new Intl.DateTimeFormat('en-IN', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }).format(new Date());
+  const frontOffice = groups.some((g) => g.items.some((i) => i.area === 'billing'));
   const isCurrent = (a: string) => a === current;
   return (
     <div className="min-h-dvh bg-stone-100 text-stone-900 lg:flex" data-testid="staff-shell">
@@ -52,8 +55,9 @@ export function StaffShell({ role, hotel, name, current, kitchenDisplay, childre
       </aside>
       <div className="min-w-0 flex-1">
         <header className="sticky top-0 z-20 flex items-center gap-3 border-b border-stone-200 bg-white px-4 py-2.5 print:hidden">
-          <div className="min-w-0 flex-1"><h1 className="truncate text-lg font-semibold tracking-tight">{titleFor(current)}</h1><p className="text-xs text-stone-500">{today}</p></div>
-          <span className="hidden truncate text-sm text-stone-600 sm:block">{name}</span>
+          <div className="min-w-0 sm:flex-1"><h1 className="truncate text-lg font-semibold tracking-tight">{titleFor(current)}</h1><p className="text-xs text-stone-500">{today}</p></div>
+          {frontOffice && <GlobalSearch to={to} />}
+          <span className="hidden truncate text-sm text-stone-600 lg:block">{name}</span>
           <ThemeToggle />
           <button type="button" onClick={() => void signOut()} className="inline-flex min-h-11 items-center rounded-lg border border-stone-300 px-3 text-sm font-semibold text-stone-700">Sign out</button>
         </header>

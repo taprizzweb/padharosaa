@@ -31,6 +31,7 @@ export function BillingApp({ role }: { role: string }) {
     } catch (e) { flash(false, errText(e, 'The guest list could not be loaded.')); }
   }, [flash]);
   useEffect(() => { void loadSetup(); void loadStays(); }, [loadSetup, loadStays]);
+  useEffect(() => { const id = new URLSearchParams(location.search).get('stay'); if (id && /^[0-9a-f-]{36}$/i.test(id)) setStayId(id); }, []);
   useEffect(() => { const i = setInterval(() => { if (!document.hidden) void loadStays(); }, 30_000); return () => clearInterval(i); }, [loadStays]);
 
   const open = (id: string) => { setStayId(id); setTab('house'); };
