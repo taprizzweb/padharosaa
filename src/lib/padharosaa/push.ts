@@ -65,3 +65,15 @@ export async function runBuffetReminders(): Promise<number> {
 export function later(work: () => Promise<unknown>): void {
   try { after(work); } catch { /* not inside a request */ }
 }
+
+let lastReminderRun = 0;
+/**
+ * The daily buffet reminder needs a clock. The real one is a scheduler that calls /cron/notify every minute (see migration 0069); this is the
+ * safety net for when that is missing: any busy screen (the desk, a guest's home) asks, at most once a minute per server, and the database
+ * hands each hotel's reminder out only once a day.
+ */
+export function maybeRunBuffetReminders(now: number = Date.now()): void {
+  if (now - lastReminderRun < 60_000) return;
+  lastReminderRun = now;
+  later(runBuffetReminders);
+}

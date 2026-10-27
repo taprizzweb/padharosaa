@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { discoverLabel, haversineMeters, mapsDirectionsUrl, tidyPlaceName } from '@/lib/padharosaa/places';
 import { fill, type Copy } from './copy';
+import { BuffetAlerts } from './BuffetAlerts';
 import { Btn, Header, api } from './shared';
 
 interface Item { id: string; category: 'place' | 'food' | 'craft' | 'tip'; name: string; description: string | null; maps_query: string | null; link_url: string | null; address: string | null; best_time: string | null; lat: number | null; lng: number | null }
@@ -163,6 +164,7 @@ export function BuffetScreen({ c, back }: { c: Copy; back: () => void }) {
     <main className="flex-1 pb-4">
       <Header c={c} back={back} title={c.buffetTitle} />
       <div className="space-y-3 px-5">
+        <BuffetAlerts c={c} />
         {failed && <p role="alert" className="rounded-2xl bg-white p-4 text-stone-900 shadow-sm">{c.failed}</p>}
         {d && d.days.length === 0 && <p className="rounded-2xl bg-white p-4 text-stone-900 shadow-sm">{c.buffetEmpty}</p>}
         {d?.days.map((x) => (
