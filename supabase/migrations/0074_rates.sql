@@ -3,6 +3,7 @@
 -- a stop-sell or a minimum stay for any day, one day or a whole range (optionally only on some weekdays). The calendar also shows how many
 -- rooms of the type are still free each day. Nothing here changes a guest's bill: a stay keeps the rate it was checked in with.
 -- RLS is on with no policy: the app reaches the data only through the functions below. Idempotent.
+-- A day that is put back to the everyday price keeps an empty row; it holds nothing and changes nothing.
 -- Rollback: drop the functions, then room_rates.
 create table if not exists public.room_rates (
   restaurant_id uuid not null references public.restaurants (id) on delete cascade,
@@ -13,8 +14,7 @@ create table if not exists public.room_rates (
   min_stay      int check (min_stay is null or min_stay between 1 and 30),
   updated_at    timestamptz not null default now(),
   primary key (room_type_id, day),
-  constraint room_rates_type_fk foreign key (room_type_id, restaurant_id) references public.room_types (id, restaurant_id) on delete cascade,
-  check (rate_paise is not null or stop_sell or min_stay is not null)
+  constraint room_rates_type_fk foreign key (room_type_id, restaurant_id) references public.room_types (id, restaurant_id) on delete cascade
 );
 create index if not exists room_rates_hotel_idx on public.room_rates (restaurant_id, day);
 alter table public.room_rates enable row level security;
@@ -78,7 +78,9 @@ begin
   end if;
   if not private.rl_hit('padh_rates:' || v_rid::text, 400, 3600) then raise exception using errcode = 'GM007', message = 'rate_limited'; end if;
   if coalesce(p_reset, false) then
-    delete from public.room_rates where room_type_id = p_type and restaurant_id = v_rid and day between p_from and p_to and (v_wd is null or extract(isodow from day)::int = any (v_wd));
+    -- back to the everyday price: the day's row is kept but holds nothing (no price, open for sale, no minimum stay)
+    update public.room_rates set rate_paise = null, stop_sell = false, min_stay = null, updated_at = now()
+     where room_type_id = p_type and restaurant_id = v_rid and day between p_from and p_to and (v_wd is null or extract(isodow from day)::int = any (v_wd));
     get diagnostics v_n = row_count;
   else
     insert into public.room_rates (restaurant_id, room_type_id, day, rate_paise, stop_sell, min_stay)
@@ -90,7 +92,6 @@ begin
       min_stay = case when p_min is null then public.room_rates.min_stay else nullif(p_min, 0) end,
       updated_at = now();
     get diagnostics v_n = row_count;
-    delete from public.room_rates where room_type_id = p_type and day between p_from and p_to and rate_paise is null and not stop_sell and min_stay is null;
   end if;
   perform private.write_audit(v_rid, 'padh_rates_set', 'room_types', p_type::text, jsonb_build_object('from', p_from, 'to', p_to, 'rate_paise', p_rate, 'stop', p_stop, 'min', p_min, 'reset', coalesce(p_reset, false), 'days', v_n));
   return jsonb_build_object('days', v_n);

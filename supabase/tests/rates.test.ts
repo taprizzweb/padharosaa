@@ -51,13 +51,15 @@ describe('price calendar', () => {
     await set(w.A.owner, { from: 21, to: 21, rate: 280000, min: 0 });
     expect((await get()).days[21]).toMatchObject({ stop_sell: true, min_stay: null, rate_paise: 280000 });
   });
-  it('resetting puts the days back and leaves no empty rows behind', async () => {
+  it('resetting puts the days back (the row stays but holds nothing)', async () => {
     await set(w.A.owner, { from: 0, to: 40, reset: true });
     expect((await get()).days.every((x: any) => !x.custom && !x.stop_sell)).toBe(true);
-    expect((await db.admin<{ n: number }>(`select count(*)::int as n from public.room_rates`))[0]!.n).toBe(0);
+    const live = async () => (await db.admin<{ n: number }>(`select count(*)::int as n from public.room_rates where rate_paise is not null or stop_sell or min_stay is not null`))[0]!.n;
+    expect(await live()).toBe(0);
     await set(w.A.owner, { from: 3, to: 3, rate: 123 });
+    expect(await live()).toBe(1);
     await set(w.A.owner, { from: 3, to: 3, rate: null, stop: false, reset: true });
-    expect((await db.admin<{ n: number }>(`select count(*)::int as n from public.room_rates`))[0]!.n).toBe(0);
+    expect(await live()).toBe(0);
   });
   it('bad input is refused: nothing to change, backwards range, bad weekday, negative price, past dates, another hotel\'s type', async () => {
     for (const q of [`current_date,current_date,null,null,null,null,false`, `current_date + 3,current_date,100,null,null,null,false`, `current_date,current_date,100,null,null,'funday',false`, `current_date,current_date,-1,null,null,null,false`, `current_date - 10,current_date,100,null,null,null,false`, `current_date,current_date + 400,100,null,null,null,false`]) {

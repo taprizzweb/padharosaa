@@ -117,6 +117,23 @@ describe('what is queued for the sender', () => {
   });
 });
 
+describe('unlinking a room type', () => {
+  it('an unlinked type shows empty, sends nothing and takes no bookings; linking it again (even to the same ids) works', async () => {
+    await asU(w.A.owner, `select public.padh_channel_map($1::uuid,null,null) as r`, [type]);
+    let g = await asU(w.A.owner, `select public.padh_channel_get() as r`);
+    expect(g.types.find((t: any) => t.id === type)).toMatchObject({ ext_room_type_id: null, ext_rate_plan_id: null });
+    await clearOutbox();
+    await asU(w.A.owner, `select public.padh_rates_set($1::uuid,$2::date,$2::date,380000,null,null,null,false) as r`, [type, await day(12)]);
+    expect(await outbox()).toEqual([]);
+    expect((await apply({ ext_id: 'BK-UL#0', check_in: await day(50), check_out: await day(51) })).action).toBe('unmapped');
+    await asU(w.A.owner, `select public.padh_channel_map($1::uuid,$2,$3) as r`, [type, EXT_ROOM, EXT_RATE]);
+    g = await asU(w.A.owner, `select public.padh_channel_get() as r`);
+    expect(g.types.find((t: any) => t.id === type)).toMatchObject({ ext_room_type_id: EXT_ROOM, ext_rate_plan_id: EXT_RATE });
+    expect((await outbox()).length).toBeGreaterThan(0);
+    expect((await apply({ ext_id: 'BK-UL#0', check_in: await day(50), check_out: await day(51) })).action).toBe('created');
+  });
+});
+
 describe('bookings from a booking site', () => {
   it('a new booking becomes a reservation with the site\'s name; sending it again changes nothing; a change moves it; a cancel cancels it', async () => {
     const a = await apply({ check_in: await day(30), check_out: await day(32) });

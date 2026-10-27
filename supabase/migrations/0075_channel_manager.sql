@@ -26,9 +26,10 @@ create table if not exists public.channel_maps (
   room_type_id      uuid primary key,
   ext_room_type_id  text not null check (ext_room_type_id ~ '^[A-Za-z0-9-]{8,64}$'),
   ext_rate_plan_id  text not null check (ext_rate_plan_id ~ '^[A-Za-z0-9-]{8,64}$'),
-  constraint channel_maps_type_fk foreign key (room_type_id, restaurant_id) references public.room_types (id, restaurant_id) on delete cascade,
-  unique (restaurant_id, ext_room_type_id)
+  linked            boolean not null default true,
+  constraint channel_maps_type_fk foreign key (room_type_id, restaurant_id) references public.room_types (id, restaurant_id) on delete cascade
 );
+create unique index if not exists channel_maps_ext_idx on public.channel_maps (restaurant_id, ext_room_type_id) where linked;
 alter table public.channel_maps enable row level security;
 
 create table if not exists public.channel_outbox (
@@ -73,7 +74,7 @@ begin
   if p_type is null or p_from is null or p_to is null then return; end if;
   if p_to <= p_from then p_to := p_from + 1; end if;
   if p_to > p_from + 366 then p_to := p_from + 366; end if;
-  if not exists (select 1 from public.channel_links l join public.channel_maps m on m.restaurant_id = l.restaurant_id and m.room_type_id = p_type where l.restaurant_id = p_rid and l.enabled) then return; end if;
+  if not exists (select 1 from public.channel_links l join public.channel_maps m on m.restaurant_id = l.restaurant_id and m.room_type_id = p_type and m.linked where l.restaurant_id = p_rid and l.enabled) then return; end if;
   if exists (select 1 from public.channel_outbox o where o.restaurant_id = p_rid and o.room_type_id = p_type and o.done_at is null and o.picked_at is null and o.day_from <= p_from and o.day_to >= p_to) then return; end if;
   insert into public.channel_outbox (restaurant_id, room_type_id, day_from, day_to) values (p_rid, p_type, p_from, p_to);
 end $$;
@@ -82,14 +83,14 @@ revoke all on function private.channel_enqueue(uuid, uuid, date, date) from publ
 create or replace function private.trg_channel_reservation() returns trigger
 language plpgsql security definer set search_path = '' as $$
 begin
-  if tg_op <> 'INSERT' and (tg_op = 'DELETE' or old.status is distinct from new.status or old.check_in_on is distinct from new.check_in_on or old.check_out_on is distinct from new.check_out_on or old.room_type_id is distinct from new.room_type_id) then
+  if tg_op = 'UPDATE' and (old.status is distinct from new.status or old.check_in_on is distinct from new.check_in_on or old.check_out_on is distinct from new.check_out_on or old.room_type_id is distinct from new.room_type_id) then
     perform private.channel_enqueue(old.restaurant_id, old.room_type_id, old.check_in_on, old.check_out_on);
   end if;
-  if tg_op <> 'DELETE' then perform private.channel_enqueue(new.restaurant_id, new.room_type_id, new.check_in_on, new.check_out_on); end if;
+  perform private.channel_enqueue(new.restaurant_id, new.room_type_id, new.check_in_on, new.check_out_on);
   return null;
 end $$;
 revoke all on function private.trg_channel_reservation() from public, anon, authenticated;
-create or replace trigger channel_reservation after insert or update or delete on public.reservations for each row execute function private.trg_channel_reservation();
+create or replace trigger channel_reservation after insert or update on public.reservations for each row execute function private.trg_channel_reservation();
 
 create or replace function private.trg_channel_stay() returns trigger
 language plpgsql security definer set search_path = '' as $$
@@ -121,12 +122,11 @@ create or replace trigger channel_room after update on public.rooms for each row
 create or replace function private.trg_channel_rate() returns trigger
 language plpgsql security definer set search_path = '' as $$
 begin
-  if tg_op = 'DELETE' then perform private.channel_enqueue(old.restaurant_id, old.room_type_id, old.day, old.day + 1);
-  else perform private.channel_enqueue(new.restaurant_id, new.room_type_id, new.day, new.day + 1); end if;
+  perform private.channel_enqueue(new.restaurant_id, new.room_type_id, new.day, new.day + 1);
   return null;
 end $$;
 revoke all on function private.trg_channel_rate() from public, anon, authenticated;
-create or replace trigger channel_rate after insert or update or delete on public.room_rates for each row execute function private.trg_channel_rate();
+create or replace trigger channel_rate after insert or update on public.room_rates for each row execute function private.trg_channel_rate();
 
 create or replace function private.trg_channel_type() returns trigger
 language plpgsql security definer set search_path = '' as $$
@@ -148,7 +148,7 @@ begin
     'link', case when l.restaurant_id is null then null else jsonb_build_object('provider', l.provider, 'property_id', l.property_id, 'enabled', l.enabled, 'webhook_secret', l.webhook_secret,
       'last_push_at', l.last_push_at, 'last_pull_at', l.last_pull_at, 'last_error', l.last_error) end,
     'types', coalesce((select jsonb_agg(jsonb_build_object('id', t.id, 'name', t.name, 'rooms', (select count(*) from public.rooms r where r.room_type_id = t.id and r.active),
-        'ext_room_type_id', m.ext_room_type_id, 'ext_rate_plan_id', m.ext_rate_plan_id) order by t.name)
+        'ext_room_type_id', case when m.linked then m.ext_room_type_id end, 'ext_rate_plan_id', case when m.linked then m.ext_rate_plan_id end) order by t.name)
       from public.room_types t left join public.channel_maps m on m.room_type_id = t.id where t.restaurant_id = v_rid and t.active), '[]'::jsonb),
     'waiting', (select count(*) from public.channel_outbox where restaurant_id = v_rid and done_at is null and attempts < 6),
     'failed', (select count(*) from public.channel_outbox where restaurant_id = v_rid and done_at is null and attempts >= 6),
@@ -162,12 +162,12 @@ language plpgsql security definer set search_path = '' as $$
 declare v_rid uuid := private.require_hotel_staff(array['owner','manager']); v_prop text := nullif(btrim(coalesce(p_property, '')), '');
 begin
   if p_enabled is null or (v_prop is not null and v_prop !~ '^[A-Za-z0-9-]{8,64}$') or (p_enabled and v_prop is null) then raise exception using errcode = 'GM015', message = 'invalid_input'; end if;
-  if p_enabled and not exists (select 1 from public.channel_maps where restaurant_id = v_rid) then raise exception using errcode = 'GM015', message = 'invalid_input'; end if;
+  if p_enabled and not exists (select 1 from public.channel_maps where restaurant_id = v_rid and linked) then raise exception using errcode = 'GM015', message = 'invalid_input'; end if;
   insert into public.channel_links (restaurant_id, property_id, enabled) values (v_rid, v_prop, p_enabled)
   on conflict (restaurant_id) do update set property_id = excluded.property_id, enabled = excluded.enabled, last_error = null, updated_at = now();
   perform private.write_audit(v_rid, 'padh_channel_save', 'channel_links', v_rid::text, jsonb_build_object('enabled', p_enabled));
   if p_enabled then
-    perform private.channel_enqueue(v_rid, m.room_type_id, private.hotel_today(v_rid), private.hotel_today(v_rid) + 366) from public.channel_maps m where m.restaurant_id = v_rid;
+    perform private.channel_enqueue(v_rid, m.room_type_id, private.hotel_today(v_rid), private.hotel_today(v_rid) + 366) from public.channel_maps m where m.restaurant_id = v_rid and m.linked;
   end if;
   return jsonb_build_object('ok', true);
 end $$;
@@ -182,11 +182,11 @@ begin
   if not exists (select 1 from public.room_types where id = p_type and restaurant_id = v_rid) then raise exception using errcode = 'GM012', message = 'not_found'; end if;
   if (v_room is null) <> (v_rate is null) or (v_room is not null and (v_room !~ '^[A-Za-z0-9-]{8,64}$' or v_rate !~ '^[A-Za-z0-9-]{8,64}$')) then raise exception using errcode = 'GM015', message = 'invalid_input'; end if;
   if v_room is null then
-    delete from public.channel_maps where room_type_id = p_type and restaurant_id = v_rid;
+    update public.channel_maps set linked = false where room_type_id = p_type and restaurant_id = v_rid;
   else
-    if exists (select 1 from public.channel_maps where restaurant_id = v_rid and ext_room_type_id = v_room and room_type_id <> p_type) then raise exception using errcode = 'GM019', message = 'conflict'; end if;
-    insert into public.channel_maps (restaurant_id, room_type_id, ext_room_type_id, ext_rate_plan_id) values (v_rid, p_type, v_room, v_rate)
-    on conflict (room_type_id) do update set ext_room_type_id = excluded.ext_room_type_id, ext_rate_plan_id = excluded.ext_rate_plan_id;
+    if exists (select 1 from public.channel_maps where restaurant_id = v_rid and ext_room_type_id = v_room and room_type_id <> p_type and linked) then raise exception using errcode = 'GM019', message = 'conflict'; end if;
+    insert into public.channel_maps (restaurant_id, room_type_id, ext_room_type_id, ext_rate_plan_id, linked) values (v_rid, p_type, v_room, v_rate, true)
+    on conflict (room_type_id) do update set ext_room_type_id = excluded.ext_room_type_id, ext_rate_plan_id = excluded.ext_rate_plan_id, linked = true;
     perform private.channel_enqueue(v_rid, p_type, private.hotel_today(v_rid), private.hotel_today(v_rid) + 366);
   end if;
   perform private.write_audit(v_rid, 'padh_channel_map', 'room_types', p_type::text, jsonb_build_object('linked', v_room is not null));
@@ -203,7 +203,7 @@ begin
   if not exists (select 1 from public.channel_links where restaurant_id = v_rid and enabled) then raise exception using errcode = 'GM015', message = 'invalid_input'; end if;
   if not private.rl_hit('padh_channel_resync:' || v_rid::text, 20, 3600) then raise exception using errcode = 'GM007', message = 'rate_limited'; end if;
   update public.channel_outbox set attempts = 0, picked_at = null, error = null where restaurant_id = v_rid and done_at is null;
-  for m in select room_type_id from public.channel_maps where restaurant_id = v_rid loop
+  for m in select room_type_id from public.channel_maps where restaurant_id = v_rid and linked loop
     insert into public.channel_outbox (restaurant_id, room_type_id, day_from, day_to) values (v_rid, m.room_type_id, private.hotel_today(v_rid), private.hotel_today(v_rid) + 366);
     v_n := v_n + 1;
   end loop;
@@ -230,10 +230,10 @@ begin
           'min_stay', (select rr.min_stay from public.room_rates rr where rr.room_type_id = g.room_type_id and rr.day = d::date), 'free', private.type_free(g.restaurant_id, g.room_type_id, d::date)) order by d)
         from generate_series(g.d_from, g.d_to - 1, interval '1 day') d))), '[]'::jsonb)
     into v_out
-    from grp g join public.channel_links l on l.restaurant_id = g.restaurant_id and l.enabled join public.channel_maps m on m.room_type_id = g.room_type_id;
+    from grp g join public.channel_links l on l.restaurant_id = g.restaurant_id and l.enabled join public.channel_maps m on m.room_type_id = g.room_type_id and m.linked;
   -- rows whose hotel switched the channel off or whose room type is no longer linked: nothing to send
   update public.channel_outbox o set done_at = now(), error = 'not linked' where o.done_at is null and o.picked_at is not null and o.picked_at > now() - interval '1 minute'
-    and not exists (select 1 from public.channel_links l join public.channel_maps m on m.restaurant_id = l.restaurant_id and m.room_type_id = o.room_type_id where l.restaurant_id = o.restaurant_id and l.enabled);
+    and not exists (select 1 from public.channel_links l join public.channel_maps m on m.restaurant_id = l.restaurant_id and m.room_type_id = o.room_type_id and m.linked where l.restaurant_id = o.restaurant_id and l.enabled);
   return v_out;
 end $$;
 revoke all on function public.padh_channel_claim(int) from public, anon, authenticated;
@@ -303,7 +303,7 @@ begin
     update public.reservations set status = 'cancelled', cancel_reason = left('Cancelled on ' || v_chan, 200), external_rev = v_rev where id = r.id;
     return jsonb_build_object('action', 'cancelled', 'id', r.id);
   end if;
-  select room_type_id into v_type from public.channel_maps where restaurant_id = p_rid and ext_room_type_id = coalesce(j->>'ext_room_type_id', '');
+  select room_type_id into v_type from public.channel_maps where restaurant_id = p_rid and linked and ext_room_type_id = coalesce(j->>'ext_room_type_id', '');
   if v_type is null then return jsonb_build_object('action', 'unmapped'); end if;
   begin v_in := (j->>'check_in')::date; v_out := (j->>'check_out')::date; v_adults := coalesce((j->>'adults')::int, 1); v_rate := coalesce((j->>'rate_paise')::int, 0);
   exception when others then raise exception using errcode = 'GM015', message = 'invalid_input'; end;
