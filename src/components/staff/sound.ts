@@ -16,15 +16,15 @@ interface Tone {
 export type SoundKind = AlertKind | 'urgent' | 'housekeeping';
 
 export const TONES: Record<SoundKind, Tone> = {
-  order: { wave: 'sine', gain: 0.35, notes: [{ freq: 880, at: 0, dur: 0.2 }, { freq: 660, at: 0.22, dur: 0.35 }] },
-  waiter: { wave: 'square', gain: 0.18, notes: [{ freq: 1100, at: 0, dur: 0.1 }, { freq: 1100, at: 0.17, dur: 0.1 }, { freq: 1100, at: 0.34, dur: 0.1 }] },
-  bill: { wave: 'triangle', gain: 0.4, notes: [{ freq: 523, at: 0, dur: 0.16 }, { freq: 659, at: 0.18, dur: 0.16 }, { freq: 784, at: 0.36, dur: 0.34 }] },
+  order: { wave: 'sine', gain: 0.5, notes: [{ freq: 880, at: 0, dur: 0.2 }, { freq: 660, at: 0.22, dur: 0.35 }] },
+  waiter: { wave: 'square', gain: 0.25, notes: [{ freq: 1100, at: 0, dur: 0.1 }, { freq: 1100, at: 0.17, dur: 0.1 }, { freq: 1100, at: 0.34, dur: 0.1 }] },
+  bill: { wave: 'triangle', gain: 0.55, notes: [{ freq: 523, at: 0, dur: 0.16 }, { freq: 659, at: 0.18, dur: 0.16 }, { freq: 784, at: 0.36, dur: 0.34 }] },
   // a guest problem: ding-dong-ding-dong, unlike the other three
-  help: { wave: 'sine', gain: 0.42, notes: [{ freq: 988, at: 0, dur: 0.14 }, { freq: 740, at: 0.17, dur: 0.14 }, { freq: 988, at: 0.34, dur: 0.14 }, { freq: 740, at: 0.51, dur: 0.3 }] },
-  // urgent: a fast, loud siren (high-low four times), impossible to mistake for anything else
-  urgent: { wave: 'sawtooth', gain: 0.3, notes: [0, 1, 2, 3].flatMap((i) => [{ freq: 1400, at: i * 0.36, dur: 0.17 }, { freq: 800, at: i * 0.36 + 0.18, dur: 0.17 }]) },
+  help: { wave: 'sine', gain: 0.55, notes: [{ freq: 988, at: 0, dur: 0.14 }, { freq: 740, at: 0.17, dur: 0.14 }, { freq: 988, at: 0.34, dur: 0.14 }, { freq: 740, at: 0.51, dur: 0.3 }] },
+  // urgent: a fast, loud siren (high-low eight times), impossible to mistake for anything else
+  urgent: { wave: 'sawtooth', gain: 0.45, notes: [0, 1, 2, 3, 4, 5, 6, 7].flatMap((i) => [{ freq: 1400, at: i * 0.36, dur: 0.17 }, { freq: 800, at: i * 0.36 + 0.18, dur: 0.17 }]) },
   // housekeeping: two soft low notes, like a bell in a corridor
-  housekeeping: { wave: 'triangle', gain: 0.45, notes: [{ freq: 392, at: 0, dur: 0.35 }, { freq: 494, at: 0.4, dur: 0.5 }] },
+  housekeeping: { wave: 'triangle', gain: 0.6, notes: [{ freq: 392, at: 0, dur: 0.35 }, { freq: 494, at: 0.4, dur: 0.5 }] },
 };
 
 /** Browsers only allow sound after a tap, so `enable()` must be called from a click handler. */

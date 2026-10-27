@@ -712,6 +712,50 @@ test('billing: the owner sets the hotel\'s own taxes, reception checks a guest i
   }
 });
 
+test('the alarm keeps ringing when reception moves to another screen, and a waiting request shows a banner there', async ({ browser }) => {
+  test.setTimeout(120_000);
+  await q(`insert into public.rooms (restaurant_id, number) values (${RID}, '204') on conflict do nothing`);
+  const ctx = await browser.newContext({ viewport: { width: 1100, height: 900 } });
+  const r = await ctx.newPage();
+  await r.addInitScript(() => {
+    (window as unknown as { __beeps: number }).__beeps = 0;
+    const proto = window.AudioContext?.prototype;
+    if (proto) { const orig = proto.createOscillator; proto.createOscillator = function (this: AudioContext) { (window as unknown as { __beeps: number }).__beeps++; return orig.call(this); }; }
+  });
+  const beeps = () => r.evaluate(() => (window as unknown as { __beeps: number }).__beeps);
+  try {
+    await signIn(r, 'waiter@spice-garden.demo', /\/padharosaa\/desk$/, '/padharosaa/desk');
+    await expect(r.getByTestId('alarm-toggle')).toHaveText(/Alarm is off/);
+    await r.getByTestId('alarm-toggle').click();
+    await expect(r.getByTestId('alarm-toggle')).toHaveText(/Alarm is on/);
+    await r.evaluate(() => { (window as unknown as { __same: string }).__same = 'still this page'; }); // a full reload would lose this
+    await r.getByRole('navigation', { name: 'Screens' }).getByRole('link', { name: 'Billing' }).click();
+    await expect(r).toHaveURL(/\/padharosaa\/billing$/);
+    await expect(r.getByTestId('alarm-toggle')).toHaveText(/Alarm is on/);
+    expect(await r.evaluate(() => (window as unknown as { __same?: string }).__same)).toBe('still this page');
+    // a guest asks for something while reception is on the billing screen
+    const sid = (await q<{ id: string }>(`insert into public.guest_sessions (restaurant_id, room_id, guest_name, mobile_cc, mobile_enc, mobile_hash, token_hash, status)
+      select ${RID}, id, 'Alarm Guest', '+91', '\\x01', decode(md5(random()::text) || md5(random()::text), 'hex'), decode(md5(random()::text) || md5(random()::text), 'hex'), 'active' from public.rooms where restaurant_id = ${RID} and number = '204' returning id`))[0]!.id;
+    const before = await beeps();
+    await q(`select public.padh_guest_create_request('${sid}','housekeeping','Extra towels',null,true,gen_random_uuid()::text)`);
+    await expect(r.getByTestId('alarm-banner')).toContainText('Extra towels', { timeout: 20_000 });
+    await expect(r.getByTestId('alarm-banner')).toContainText('URGENT');
+    await expect.poll(beeps, { timeout: 20_000 }).toBeGreaterThan(before); // it rang while on this screen
+    await r.getByRole('link', { name: 'Open the desk' }).click();
+    await expect(r).toHaveURL(/\/padharosaa\/desk$/);
+    await expect(r.getByTestId('alarm-toggle')).toHaveText(/Alarm is on/);
+    // turning it off sticks across screens too
+    await r.getByTestId('alarm-toggle').click();
+    await expect(r.getByTestId('alarm-toggle')).toHaveText(/Alarm is off/);
+    await r.getByRole('navigation', { name: 'Screens' }).getByRole('link', { name: 'Billing' }).click();
+    await expect(r.getByTestId('alarm-toggle')).toHaveText(/Alarm is off/);
+  } finally {
+    await q(`delete from public.requests where restaurant_id = ${RID}`);
+    await q(`delete from public.guest_sessions where restaurant_id = ${RID} and guest_name = 'Alarm Guest'`);
+    await ctx.close();
+  }
+});
+
 test('a public demo hotel: one link, no sign-in, and the demo answers itself; a normal hotel has no demo link', async ({ browser }) => {
   test.setTimeout(150_000); // the demo answers after about 20 seconds
   const ctx = await browser.newContext({ viewport: { width: 375, height: 800 } });

@@ -12,7 +12,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   return staffRoute(req, { method: 'GET' }, async (ctx) => {
     const stay = idParam.safeParse(id);
     if (!stay.success) throw new ApiError(404, 'not_found');
-    await limit(`psb:${ctx.userId}`, 120, 60);
+    await limit(`pbl:${ctx.userId}`, 120, 60);
     const checkout = new URL(req.url).searchParams.get('checkout') === '1';
     return jsonOk(await staffRpc(ctx.db, 'padh_folio', { p_stay: stay.data, p_checkout: checkout }), ctx.requestId);
   });

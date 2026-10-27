@@ -1,11 +1,11 @@
 'use client';
 
 import { dialNumber } from '@/lib/padharosaa/phone';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { apiGet, apiPost } from '@/components/staff/hooks';
-import { AlertSound } from '@/components/staff/sound';
+import { alarm } from '@/components/staff/alarm-center';
 import { ApiFailure } from '@/lib/guest/client';
-import { GROUP_LABEL, GROUP_TEAMS, soundsFor, type Group } from '@/lib/padharosaa/areas';
+import { GROUP_LABEL, GROUP_TEAMS, type Group } from '@/lib/padharosaa/areas';
 import { AreaNav, type NavCurrent } from './AreaNav';
 import { BuffetManager } from './BuffetManager';
 import { ThemeToggle } from '@/components/ui/ns';
@@ -54,16 +54,10 @@ export function DeskApp({ role, hotel, title = 'Reception desk', current = 'desk
   const [calls, setCalls] = useState<BoardRequest[]>([]);
   const [sessions, setSessions] = useState<BoardSession[]>([]);
   const [orderRoomDining, setOrderRoomDining] = useState(true);
-  const seenOrders = useRef<Set<string>>(new Set());
-  const firstOrders = useRef(true);
   const [alerts, setAlerts] = useState<Alerts | null>(null);
   const [err, setErr] = useState<string | null>(null);
-  const [soundOn, setSoundOn] = useState(false);
   const [note, setNote] = useState<{ ok: boolean; text: string } | null>(null);
   const flash = useCallback((ok: boolean, text: string) => setNote({ ok, text }), []);
-  const sound = useRef(new AlertSound());
-  const seen = useRef<Set<string>>(new Set());
-  const first = useRef(true);
   const [, tick] = useState(0);
 
   const load = useCallback(async () => {
@@ -88,37 +82,11 @@ export function DeskApp({ role, hotel, title = 'Reception desk', current = 'desk
   const doneToday = useMemo(() => (reqs ?? []).filter((r) => !OPEN.includes(r.status)).sort((a, b) => Date.parse(b.completed_at ?? b.created_at) - Date.parse(a.completed_at ?? a.created_at)), [reqs]);
   const mineCount = useMemo(() => (reqs ?? []).filter((r) => OPEN.includes(r.status) && r.assigned_to === me).length, [reqs, me]);
   const open = useMemo(() => { const t = privileged ? GROUP_TEAMS[group] : null; return t ? allOpen.filter((r) => t.includes(r.team)) : allOpen; }, [allOpen, group, privileged]);
-  const pending = allOpen.filter((r) => r.status === 'received' && !muted.has(r.team));
 
-  // each kind of request has its own sound (urgent siren, food chime, help ding-dong, housekeeping bell, waiter beeps); several kinds play one after another
-  const playMany = (kinds: Parameters<AlertSound['play']>[0][]) => kinds.forEach((k, i) => setTimeout(() => sound.current.play(k), i * 1100));
-  // alarm: once for each new request, and again every 20 seconds while something unmuted is still waiting
+  // the alarm is not part of this page: it keeps ringing when reception goes to the manager console or billing. The desk only hands it what it fetched.
   useEffect(() => {
-    if (!reqs) return;
-    const fresh = pending.filter((r) => !seen.current.has(r.id));
-    for (const r of reqs) seen.current.add(r.id);
-    if (first.current) { first.current = false; return; }
-    if (fresh.length) playMany(soundsFor(fresh));
-  }, [reqs, pending]);
-  useEffect(() => { if (!pending.length) return; const i = setInterval(() => playMany(soundsFor(pending)), 20000); return () => clearInterval(i); }, [pending]);
-
-  // food orders ring the same alarm: once for each new order, and again every 20 seconds while one is still waiting
-  const waitingOrders = orders.filter((o) => o.status === 'placed');
-  useEffect(() => {
-    const fresh = waitingOrders.filter((o) => !seenOrders.current.has(o.id));
-    for (const o of orders) seenOrders.current.add(o.id);
-    if (firstOrders.current) { firstOrders.current = false; return; }
-    if (fresh.length && !muted.has('kitchen')) sound.current.play('order');
-  }, [orders, waitingOrders, muted]);
-  useEffect(() => { if (!waitingOrders.length || muted.has('kitchen')) return; const i = setInterval(() => sound.current.play('order'), 20000); return () => clearInterval(i); }, [waitingOrders.length, muted]);
-  const seenCalls = useRef<Set<string>>(new Set());
-  const firstCalls = useRef(true);
-  useEffect(() => {
-    const fresh = calls.filter((c) => !seenCalls.current.has(c.id));
-    for (const c of calls) seenCalls.current.add(c.id);
-    if (firstCalls.current) { firstCalls.current = false; return; }
-    if (fresh.length) playMany(fresh.some((c) => c.type === 'bill') ? (fresh.some((c) => c.type === 'waiter') ? ['bill', 'waiter'] : ['bill']) : ['waiter']);
-  }, [calls]);
+    if (reqs) alarm?.ingest({ requests: reqs, orders, calls, muted: [...muted] });
+  }, [reqs, orders, calls, muted]);
   const orderAct = async (f: () => Promise<unknown>) => {
     try { await f(); setErr(null); } catch { setErr('That did not go through. Please try again.'); }
     await load();
@@ -146,7 +114,7 @@ export function DeskApp({ role, hotel, title = 'Reception desk', current = 'desk
       <header className="flex flex-wrap items-start justify-between gap-3 border-b border-stone-200 pb-4">
         <div className="min-w-0"><p className="text-[11px] font-semibold uppercase tracking-[.16em] text-stone-500">{hotel}</p><h1 className="mt-1 text-2xl font-semibold tracking-tight">{title}</h1></div>
         <div className="flex flex-wrap gap-2"><ThemeToggle />
-        <button type="button" className={`min-h-11 shrink-0 rounded-lg border px-3 text-sm font-semibold ${soundOn ? 'border-indigo-900 bg-indigo-900 text-white' : 'border-stone-300 bg-white text-stone-900'}`} onClick={async () => setSoundOn(await sound.current.enable())} aria-pressed={soundOn}>{soundOn ? 'Alarm sound is ON' : 'Turn alarm sound on'}</button></div>
+</div>
       </header>
       <AreaNav role={role} current={current} kitchenDisplay={!!alerts?.kitchen_display} />
       {privileged && (
@@ -194,7 +162,7 @@ export function DeskApp({ role, hotel, title = 'Reception desk', current = 'desk
           </div>
           <p className="mt-3 text-xs font-bold uppercase tracking-wide text-stone-700">Hear each alarm (turn the sound on first)</p>
           <div className="mt-1 flex flex-wrap gap-2">
-            {([['urgent', 'Urgent'], ['order', 'Food order'], ['help', 'Help'], ['housekeeping', 'Housekeeping'], ['waiter', 'Waiter call'], ['bill', 'Bill']] as const).map(([k, label]) => <button key={k} type="button" onClick={() => sound.current.play(k)} className="min-h-11 rounded-full border-2 border-stone-400 px-3 text-sm font-semibold text-stone-900">▶ {label}</button>)}
+            {([['urgent', 'Urgent'], ['order', 'Food order'], ['help', 'Help'], ['housekeeping', 'Housekeeping'], ['waiter', 'Waiter call'], ['bill', 'Bill']] as const).map(([k, label]) => <button key={k} type="button" onClick={() => alarm?.play(k)} className="min-h-11 rounded-full border-2 border-stone-400 px-3 text-sm font-semibold text-stone-900">▶ {label}</button>)}
           </div>
         </details>
       )}

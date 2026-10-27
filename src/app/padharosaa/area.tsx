@@ -42,7 +42,7 @@ export async function renderArea(area: Area) {
     const env = publicEnv();
     return (
       <>
-        <div className="mx-auto max-w-5xl px-4 pt-3"><AreaNav role={m.role} current="menu" kitchenDisplay={kitchenDisplay} /></div>
+        <div className="mx-auto max-w-5xl px-4 pt-3"><AreaNav role={m.role} current="menu" kitchenDisplay={kitchenDisplay} alarm={false} /></div>
         <StaffApp me={me as StaffMe} hotel soldOutOnly supabase={{ url: env.NEXT_PUBLIC_SUPABASE_URL, anonKey: env.NEXT_PUBLIC_SUPABASE_ANON_KEY }} />
       </>
     );
@@ -52,7 +52,7 @@ export async function renderArea(area: Area) {
     const env = publicEnv();
     return (
       <>
-        {(m.role === 'owner' || m.role === 'manager') && <div className="mx-auto max-w-5xl px-4 pt-3"><AreaNav role={m.role} current="kitchen" kitchenDisplay={kitchenDisplay} /></div>}
+        {(m.role === 'owner' || m.role === 'manager') && <div className="mx-auto max-w-5xl px-4 pt-3"><AreaNav role={m.role} current="kitchen" kitchenDisplay={kitchenDisplay} alarm={false} /></div>}
         <StaffApp me={me as StaffMe} hotel supabase={{ url: env.NEXT_PUBLIC_SUPABASE_URL, anonKey: env.NEXT_PUBLIC_SUPABASE_ANON_KEY }} />
       </>
     );

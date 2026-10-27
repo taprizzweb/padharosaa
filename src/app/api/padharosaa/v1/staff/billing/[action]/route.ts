@@ -26,7 +26,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ action:
   const def = Object.hasOwn(ACTIONS, action) ? ACTIONS[action] : undefined;
   return staffRoute(req, { method: 'POST', schema: def?.schema }, async (ctx, body) => {
     if (!def) throw new ApiError(404, 'not_found');
-    await limit(`psb:${ctx.userId}`, 120, 60);
+    await limit(`pbl:${ctx.userId}`, 120, 60);
     return jsonOk(await def.run(ctx.db, (body ?? {}) as Body), ctx.requestId);
   });
 }

@@ -11,7 +11,7 @@ export async function GET(req: Request) {
   return staffRoute(req, { method: 'GET' }, async (ctx) => {
     const q = staysQuery.safeParse({ status: new URL(req.url).searchParams.get('status') ?? 'in_house' });
     if (!q.success) throw new ApiError(400, 'invalid_input');
-    await limit(`psb:${ctx.userId}`, 120, 60);
+    await limit(`pbl:${ctx.userId}`, 120, 60);
     return jsonOk({ stays: await staffRpc(ctx.db, 'padh_stays_list', { p_status: q.data.status }) }, ctx.requestId);
   });
 }
