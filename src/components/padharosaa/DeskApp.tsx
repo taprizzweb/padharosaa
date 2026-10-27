@@ -10,6 +10,7 @@ import { AreaNav, type NavCurrent } from './AreaNav';
 import { BuffetManager } from './BuffetManager';
 import { ThemeToggle } from '@/components/ui/ns';
 import { CheckoutPanel } from './CheckoutPanel';
+import { StayCodeTool } from './StayCode';
 import { OrderCardDesk, TableCallDesk, type OrderDeskActions, type TableCallActions } from './DeskOrders';
 import type { BoardOrder, BoardRequest, BoardSession } from '@/lib/staff/logic';
 
@@ -180,6 +181,11 @@ export function DeskApp({ role, hotel, title = 'Reception desk', current = 'desk
         );
       })()}
       <CheckoutPanel flash={flash} />
+      <details className="mt-4 rounded-xl border border-stone-200 bg-white p-4" data-testid="stay-code-tool">
+        <summary className="min-h-11 cursor-pointer py-2 text-sm font-semibold">Stay code for a new guest</summary>
+        <p className="mb-3 text-sm text-stone-600">If your hotel asks guests for a code, make it here at check-in and tell the guest.</p>
+        <StayCodeTool flash={flash} />
+      </details>
       {alerts && (
         <details aria-label="My alerts" className="mt-4 rounded-xl border border-stone-200 bg-white p-4">
           <summary className="min-h-11 cursor-pointer py-2 text-base font-semibold">My alerts and alarm sounds <span className="text-sm font-normal text-stone-500">(only for me)</span></summary>

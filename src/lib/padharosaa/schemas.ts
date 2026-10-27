@@ -204,6 +204,7 @@ export const roomActiveBody = z.object({ active: z.boolean() }).strict();
 
 export const buffetNotifyBody = z.object({ time: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/).or(z.literal('')).nullish(), onSave: z.boolean() });
 export const autoBillBody = z.object({ on: z.boolean() }).strict();
+export const verificationBody = z.object({ level: z.enum(['light', 'strict']) }).strict();
 export const assignBody = z.object({ version: z.number().int().min(1), user: z.string().uuid().nullable() }).strict();
 export const routingBody = z.object({ team: z.enum(['concierge', 'front_desk', 'housekeeping', 'kitchen', 'maintenance', 'manager']), user: z.string().uuid().nullable() }).strict();
 export const demoBody = z.object({ on: z.boolean() }).strict();

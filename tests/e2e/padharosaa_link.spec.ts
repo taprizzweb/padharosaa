@@ -576,6 +576,44 @@ test('a hotel that gives every guest their own Wi-Fi login: the owner pastes the
   }
 });
 
+test('guest sign-in: after the owner asks for the stay code a guest needs the code reception made; a wrong code is refused', async ({ browser }) => {
+  await q(`insert into public.rooms (restaurant_id, number) values (${RID}, '204') on conflict do nothing`);
+  await q(`update public.hotel_settings set verification_level = 'light' where restaurant_id = ${RID}`);
+  const octx = await browser.newContext();
+  const gctx = await browser.newContext({ viewport: { width: 375, height: 800 } });
+  const o = await octx.newPage();
+  const g = await gctx.newPage();
+  const fill = async (code: string) => {
+    await g.goto(second);
+    await g.getByLabel('Your name').fill('Code Guest');
+    await g.getByLabel('Mobile number').fill('9866666666');
+    await g.getByLabel('Room number').fill('204');
+    if (code) await g.getByLabel(/Stay code/).fill(code);
+    await g.getByRole('button', { name: 'Enter' }).click();
+  };
+  try {
+    await g.goto(second);
+    await g.getByRole('button', { name: 'Accept cookies' }).click();
+    await expect(g.getByLabel(/Stay code/)).toHaveCount(0); // a light hotel does not ask
+    await signIn(o, 'owner@spice-garden.demo', /\/padharosaa\/owner$/, '/padharosaa/owner');
+    await o.getByRole('tab', { name: 'Start' }).click();
+    await o.getByRole('radio', { name: /Also the 4-digit stay code/ }).click(); // saved on the server first, then ticked
+    await expect(o.getByText('Guests now need the stay code from reception.')).toBeVisible();
+    await o.getByText('Make a stay code').click();
+    await o.locator('select').filter({ hasText: '204' }).selectOption({ label: '204' }, { timeout: 10_000 });
+    await o.getByRole('button', { name: 'Make a new code' }).click();
+    const code = (await o.getByTestId('stay-code').innerText()).match(/\b\d{4}\b/)![0];
+    await fill(code === '0000' ? '1111' : '0000');
+    await expect(g.getByText(/could not sign you in/)).toBeVisible();
+    await fill(code);
+    await expect(g.getByText('Namaste, Code')).toBeVisible();
+  } finally {
+    await q(`update public.hotel_settings set verification_level = 'light' where restaurant_id = ${RID}`);
+    await octx.close();
+    await gctx.close();
+  }
+});
+
 test('a public demo hotel: one link, no sign-in, and the demo answers itself; a normal hotel has no demo link', async ({ browser }) => {
   test.setTimeout(150_000); // the demo answers after about 20 seconds
   const ctx = await browser.newContext({ viewport: { width: 375, height: 800 } });

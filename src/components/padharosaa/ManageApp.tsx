@@ -12,6 +12,7 @@ import { ThemeToggle } from '@/components/ui/ns';
 import { BuffetManager } from './BuffetManager';
 import { GuideManager } from './GuideManager';
 import { CheckoutPanel } from './CheckoutPanel';
+import { StayCodeTool } from './StayCode';
 import { GuestLinkPanel, RoomsCard, type LinkState } from './RoomsLink';
 import { prettyPhone } from '@/lib/padharosaa/phone';
 import { parseVoucherLines } from '@/lib/padharosaa/wifi';
@@ -23,7 +24,7 @@ const TEAMS: [Team, string][] = [['front_desk', 'Front desk'], ['concierge', 'Co
 interface Settings {
   brand_color: string | null; logo_path: string | null; hero_path: string | null; tripadvisor_url: string | null; menu_url: string | null; review_link: string | null;
   offer_text: string | null; offer_until: string | null; info_text: string | null; wifi_name: string | null; checkout_time: string | null; breakfast_text: string | null;
-  reception_phone: string | null; manager_phone: string | null; room_dining: boolean; kitchen_display?: boolean; server_ready?: boolean; service_start?: string | null; service_end?: string | null; pay_qr_path?: string | null; auto_room_bill?: boolean;
+  reception_phone: string | null; manager_phone: string | null; room_dining: boolean; kitchen_display?: boolean; server_ready?: boolean; service_start?: string | null; service_end?: string | null; pay_qr_path?: string | null; auto_room_bill?: boolean; verification_level?: string;
 }
 interface Person { user_id: string; email: string; name: string; role: string; active: boolean; department: Team | null; whatsapp: string | null; is_head: boolean }
 interface ImportResult { email: string; ok: boolean; error?: 'exists' | 'invalid' | 'failed' | string; temporary_password?: string }
@@ -77,6 +78,7 @@ export function ManageApp({ role, restaurant, supabase }: { role: string; restau
         <>
       <Checklist s={s} insta={insta} />
       <RoomsCard flash={flash} />
+      <VerificationCard s={s} save={save} flash={flash} />
       <CheckoutPanel flash={flash} />
       <GuestLinkPanel slug={restaurant.slug} flash={flash} load={() => apiGet<LinkState>('/api/padharosaa/v1/staff/qr')} create={(password) => apiPost<{ link: string }>('/api/padharosaa/v1/staff/qr/rotate', { password })} />
         </>
@@ -156,6 +158,21 @@ function PayQrCard({ s, save, restaurantId, sb }: { s: Settings; save: Save; res
       <input type="file" accept="image/jpeg,image/png,image/webp" aria-label="Choose the payment QR photo" disabled={busy} className="block min-h-11 w-full text-base" onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) void upload(f); }} />
       {bad && <p role="alert" className="text-sm font-semibold text-red-900">The photo could not be uploaded. Please try a smaller JPG or PNG.</p>}
       {url && <button type="button" className="min-h-11 text-sm font-semibold underline" onClick={() => void save('pay-qr', { path: null }, 'Payment QR removed.')}>Remove the QR</button>}
+    </Card>
+  );
+}
+
+/** Who may sign in as a room: anyone who knows a room number (light), or only a guest who was given the room's 4-digit code at check-in (strict). */
+function VerificationCard({ s, save, flash }: { s: Settings; save: Save; flash: (ok: boolean, text: string) => void }) {
+  const strict = s.verification_level === 'strict';
+  const pick = (level: 'light' | 'strict') => void save('verification', { level }, level === 'strict' ? 'Guests now need the stay code from reception.' : 'Guests sign in with name, mobile and room number.');
+  return (
+    <Card title="Guest sign-in" hint="Choose how strictly a guest is checked when they open the link.">
+      <div role="radiogroup" aria-label="Guest sign-in" className="space-y-2">
+        <label className="flex items-start gap-3 text-base font-semibold"><input type="radio" name="verif" className="mt-1 size-5" checked={!strict} onChange={() => pick('light')} /><span>Name, mobile and room number<span className="block text-sm font-normal text-stone-600">Quick. Anyone who knows a room number can sign in as that room.</span></span></label>
+        <label className="flex items-start gap-3 text-base font-semibold"><input type="radio" name="verif" className="mt-1 size-5" checked={strict} onChange={() => pick('strict')} /><span>Also the 4-digit stay code<span className="block text-sm font-normal text-stone-600">Safer. Reception gives each guest the code of their room at check-in. A wrong code is refused, and five wrong tries lock the sign-in for a while.</span></span></label>
+      </div>
+      {strict && <details className="mt-3"><summary className="min-h-11 cursor-pointer py-2 text-sm font-semibold">Make a stay code</summary><div className="pt-2"><StayCodeTool flash={flash} /></div></details>}
     </Card>
   );
 }
