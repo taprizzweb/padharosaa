@@ -289,7 +289,7 @@ test('the owner sets opening and closing time; after closing a guest sees it and
 test('reception sees only the desk, the menu (sold-out switches) and settings, and no console, dashboard or team tools', async ({ page }) => {
   await signIn(page, 'waiter@spice-garden.demo', /\/padharosaa\/desk$/, '/padharosaa/desk');
   const nav = page.getByRole('navigation', { name: 'Screens' });
-  await expect(nav.getByRole('link')).toHaveText(['Reception desk', 'Rooms', 'Billing', 'Counter billing', 'Menu', 'Settings']);
+  await expect(nav.getByRole('link')).toHaveText(['Reception desk', 'Rooms', 'Prices', 'Billing', 'Counter billing', 'Menu', 'Settings']);
   await expect(page.getByRole('heading', { name: 'Opening and closing time for requests' })).toHaveCount(0);
   await nav.getByRole('link', { name: 'Menu' }).click();
   await expect(page).toHaveURL(/\/padharosaa\/menu$/);
@@ -890,6 +890,61 @@ test('counter billing and reports: reception bills a dish and a custom item with
     await q(`update public.hotel_settings set round_off = true where restaurant_id = ${RID}`);
     await rctx.close();
     await octx.close();
+  }
+});
+
+test('prices: the owner opens a room type, changes one day and a range, closes days for sale and puts them back; reception sees but cannot change', async ({ browser }) => {
+  test.setTimeout(120_000);
+  const clean = async () => {
+    await q(`delete from public.room_rates where restaurant_id = ${RID}`);
+    await q(`update public.rooms set room_type_id = null where restaurant_id = ${RID}`);
+    await q(`delete from public.room_types where restaurant_id = ${RID}`);
+  };
+  await clean();
+  await q(`insert into public.room_types (restaurant_id, name, rate_paise) values (${RID}, 'Deluxe', 300000)`);
+  await q(`insert into public.rooms (restaurant_id, number) values (${RID}, '204') on conflict do nothing`);
+  await q(`update public.rooms set room_type_id = (select id from public.room_types where restaurant_id = ${RID} and name = 'Deluxe') where restaurant_id = ${RID} and number = '204'`);
+  const octx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  const rctx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  const o = await octx.newPage();
+  const r = await rctx.newPage();
+  try {
+    await signIn(o, 'owner@spice-garden.demo', /\/padharosaa\/owner$/, '/padharosaa/owner');
+    await o.getByRole('navigation', { name: 'Screens' }).getByRole('link', { name: 'Prices' }).click();
+    await o.getByTestId('rate-types').getByRole('button', { name: /Deluxe/ }).click();
+    const grid = o.getByTestId('rate-grid');
+    await expect(grid).toBeVisible();
+    // the last day of the month that can still be changed
+    const free = grid.getByRole('button', { disabled: false });
+    const n = await free.count();
+    expect(n).toBeGreaterThan(0);
+    const labels = await free.evaluateAll((els) => els.map((e) => e.getAttribute('aria-label') ?? ''));
+    const day1 = labels[n - 1]!.split(' ')[0]!;
+    await free.nth(n - 1).click();
+    await o.getByLabel('Price per night in ₹').fill('4500');
+    await o.getByRole('button', { name: 'Save', exact: true }).click();
+    await expect(o.getByText('Saved.')).toBeVisible();
+    await expect(grid.getByRole('button', { name: new RegExp(`^${day1} ₹4,500`) })).toBeVisible();
+    // close the same day for sale
+    await grid.getByRole('button', { name: new RegExp(`^${day1} `) }).click();
+    await o.getByLabel('Sale').selectOption('stop');
+    await o.getByRole('button', { name: 'Save', exact: true }).click();
+    await expect(grid.getByRole('button', { name: new RegExp(`^${day1} .*stop sell`) })).toBeVisible();
+    await expect(grid.getByRole('button', { name: new RegExp(`^${day1} .*stop sell`) })).toContainText('Closed');
+    // back to the everyday price
+    await grid.getByRole('button', { name: new RegExp(`^${day1} `) }).click();
+    await o.getByRole('button', { name: 'Back to everyday price' }).click();
+    await expect(grid.getByRole('button', { name: new RegExp(`^${day1} ₹3,000`) })).toBeVisible();
+    // reception can open it but the days are not clickable
+    await signIn(r, 'waiter@spice-garden.demo', /\/padharosaa\/desk$/, '/padharosaa/desk');
+    await r.goto('/padharosaa/rates');
+    await r.getByTestId('rate-types').getByRole('button', { name: /Deluxe/ }).click();
+    await expect(r.getByTestId('rate-grid').getByRole('button').first()).toBeDisabled();
+    await expect(r.getByText('Only the owner and manager change prices.')).toBeVisible();
+  } finally {
+    await clean();
+    await octx.close();
+    await rctx.close();
   }
 });
 

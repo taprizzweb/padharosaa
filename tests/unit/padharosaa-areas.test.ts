@@ -3,7 +3,7 @@ import { COPY, isHelpLabel, localLabel } from '@/components/padharosaa/copy';
 import { AREAS, GROUP_TEAMS, areaHref, canOpen, homeFor, isPadHost, soundForRequest, soundsFor } from '@/lib/padharosaa/areas';
 
 describe('padharosaa addresses: owner, manager, desk (and kitchen)', () => {
-  it('there are only these screens', () => expect([...AREAS]).toEqual(['owner', 'manager', 'desk', 'billing', 'rooms', 'pos', 'inventory', 'reports', 'qr', 'kitchen', 'menu', 'settings']));
+  it('there are only these screens', () => expect([...AREAS]).toEqual(['owner', 'manager', 'desk', 'billing', 'rooms', 'pos', 'rates', 'inventory', 'reports', 'qr', 'kitchen', 'menu', 'settings']));
   it('everyone has exactly one home; reception, concierge and housekeeping all work on the desk', () => {
     expect(homeFor('owner')).toBe('owner');
     expect(homeFor('manager')).toBe('manager');

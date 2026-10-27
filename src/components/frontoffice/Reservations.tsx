@@ -107,10 +107,19 @@ function BookingForm({ chart, draft, existing, flash, onClose, onSaved }: { char
     mode: existing?.advance_mode ?? 'cash', source: existing?.source ?? '', notes: existing?.notes ?? '',
   });
   const [busy, setBusy] = useState(false);
-  const set = (k: keyof typeof f, v: string) => setF((p) => ({ ...p, [k]: v }));
+  const [touched, setTouched] = useState(!!existing);
+  const set = (k: keyof typeof f, v: string) => { if (k === 'rate') setTouched(true); setF((p) => ({ ...p, [k]: v })); };
   const roomRow = chart.rooms.find((r) => r.id === f.room);
   const typeRate = roomRow?.rate_paise ?? null;
-  const pickRoom = (id: string) => { const r = chart.rooms.find((x) => x.id === id); setF((p) => ({ ...p, room: id, rate: r?.rate_paise !== null && r?.rate_paise !== undefined && !existing ? String(r.rate_paise / 100) : p.rate })); };
+  const pickRoom = (id: string) => setF((p) => ({ ...p, room: id }));
+  // the price of the chosen room type on the arrival day, from the price calendar (until the desk types its own)
+  const typeId = roomRow?.type_id ?? (f.type || null);
+  useEffect(() => {
+    if (touched || !typeId) return;
+    let alive = true;
+    apiGet<{ rate_paise: number }>(`${API}/rate-on?type=${typeId}&day=${f.from}`).then((r) => { if (alive) setF((p) => ({ ...p, rate: String(r.rate_paise / 100) })); }, () => undefined);
+    return () => { alive = false; };
+  }, [typeId, f.from, touched]);
   const ratePaise = f.rate.trim() ? parseRupeesToPaise(f.rate) : typeRate;
   const advPaise = f.advance.trim() ? parseRupeesToPaise(f.advance) : 0;
   const nights = nightsBetween(f.from, f.to);
@@ -136,7 +145,7 @@ function BookingForm({ chart, draft, existing, flash, onClose, onSaved }: { char
         <Label text="Arriving on"><input className={field} type="date" min={chart.today} value={f.from} onChange={(e) => { set('from', e.target.value); if (f.to <= e.target.value) set('to', addDays(e.target.value, 1)); }} /></Label>
         <Label text="Leaving on" hint={`${nights} night${nights === 1 ? '' : 's'}${ratePaise ? ` · ${rupees2(nights * ratePaise)} before tax` : ''}`}><input className={field} type="date" min={addDays(f.from, 1)} value={f.to} onChange={(e) => set('to', e.target.value)} /></Label>
         <Label text="Room" hint="Choose a room now, or only a type and pick the room at check-in."><select aria-label="Room" className={field} value={f.room} onChange={(e) => pickRoom(e.target.value)}><option value="">Not chosen yet</option>{chart.rooms.filter((r) => usableRoom(r) || r.id === f.room || r.occupied).map((r) => <option key={r.id} value={r.id}>{r.number}{r.type ? ` · ${r.type}` : ''}{r.occupied ? ' (guest now)' : ''}</option>)}</select></Label>
-        {!f.room && <Label text="Room type"><select aria-label="Room type" className={field} value={f.type} onChange={(e) => { set('type', e.target.value); const t = chart.rooms.find((r) => r.type_id === e.target.value); if (t?.rate_paise !== null && t?.rate_paise !== undefined && !f.rate) set('rate', String(t.rate_paise / 100)); }}><option value="">Any</option>{[...new Map(chart.rooms.filter((r) => r.type_id).map((r) => [r.type_id!, r.type!])).entries()].map(([id, name]) => <option key={id} value={id}>{name}</option>)}</select></Label>}
+        {!f.room && <Label text="Room type"><select aria-label="Room type" className={field} value={f.type} onChange={(e) => set('type', e.target.value)}><option value="">Any</option>{[...new Map(chart.rooms.filter((r) => r.type_id).map((r) => [r.type_id!, r.type!])).entries()].map(([id, name]) => <option key={id} value={id}>{name}</option>)}</select></Label>}
         <Label text="Rate per night in ₹"><input className={field} inputMode="decimal" value={f.rate} placeholder={typeRate ? String(typeRate / 100) : ''} onChange={(e) => set('rate', e.target.value)} /></Label>
         <Label text="Adults"><input className={field} inputMode="numeric" value={f.adults} onChange={(e) => set('adults', e.target.value)} /></Label>
         <Label text="Advance taken in ₹"><input className={field} inputMode="decimal" value={f.advance} onChange={(e) => set('advance', e.target.value)} /></Label>

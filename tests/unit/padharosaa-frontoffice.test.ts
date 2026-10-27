@@ -32,3 +32,18 @@ describe('room chart helpers', () => {
     expect(usableRoom(r({ hk_status: 'dirty' }))).toBe(true);
   });
 });
+
+import { daysInMonth, firstOfMonth, leadingBlanks, monthShift } from '@/lib/padharosaa/frontoffice';
+describe('price calendar helpers', () => {
+  it('month maths: first day, shifts across a year, length, and the Monday-first offset', () => {
+    expect(firstOfMonth('2026-10-27')).toBe('2026-10-01');
+    expect(monthShift('2026-12-01', 1)).toBe('2027-01-01');
+    expect(monthShift('2026-01-01', -1)).toBe('2025-12-01');
+    expect(daysInMonth('2026-02-01')).toBe(28);
+    expect(daysInMonth('2028-02-01')).toBe(29);
+    expect(daysInMonth('2026-10-01')).toBe(31);
+    expect(leadingBlanks('2026-10-01')).toBe(3); // 1 Oct 2026 is a Thursday
+    expect(leadingBlanks('2026-06-01')).toBe(0); // a Monday
+    expect(leadingBlanks('2026-03-01')).toBe(6); // a Sunday
+  });
+});

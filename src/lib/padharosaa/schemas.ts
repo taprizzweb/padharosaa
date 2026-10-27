@@ -274,3 +274,11 @@ export const posCreateBody = z.object({ lines: z.array(posLine).min(1).max(60), 
 export const posVoidBody = z.object({ id: uuid, reason: z.string().trim().min(1).max(200) }).strict();
 export const posListQuery = z.object({ day: day.nullish() });
 export const reportQuery = z.object({ from: day, to: day });
+
+// ---- price calendar (migration 0074) ----
+export const ratesQuery = z.object({ type: uuid, from: day.nullish(), days: z.coerce.number().int().min(1).max(62).default(31) });
+export const ratesSetBody = z.object({
+  type: uuid, from: day, to: day, rate_paise: paise.nullish(), stop_sell: z.boolean().nullish(), min_stay: z.number().int().min(0).max(30).nullish(),
+  weekdays: z.array(z.enum(['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'])).max(7).nullish(), reset: z.boolean().default(false),
+}).strict();
+export const rateOnQuery = z.object({ type: uuid, day });

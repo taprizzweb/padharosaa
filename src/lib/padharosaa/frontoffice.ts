@@ -33,3 +33,13 @@ export const usableRoom = (r: ChartRoom): boolean => !r.occupied && r.hk_status 
 
 /** Percent of rooms in use, 0 when the hotel has none */
 export const occupancy = (s: Chart['summary']): number => (s.rooms > 0 ? Math.round((s.in_house / s.rooms) * 100) : 0);
+
+// ---- price calendar ----
+export interface RateDay { day: string; rate_paise: number; custom: boolean; stop_sell: boolean; min_stay: number | null; free: number }
+export interface RateCalendar { type: { id: string; name: string; base_paise: number; rooms: number }; today: string; from: string; days: RateDay[] }
+export const firstOfMonth = (d: string): string => `${d.slice(0, 8)}01`;
+export const monthShift = (first: string, n: number): string => { const d = new Date(`${first}T00:00:00Z`); d.setUTCMonth(d.getUTCMonth() + n, 1); return d.toISOString().slice(0, 10); };
+export const daysInMonth = (first: string): number => { const d = new Date(`${first}T00:00:00Z`); return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0)).getUTCDate(); };
+/** blank cells before the 1st so the calendar starts on Monday: Monday = 0 ... Sunday = 6 */
+export const leadingBlanks = (first: string): number => (new Date(`${first}T00:00:00Z`).getUTCDay() + 6) % 7;
+export const WEEKDAYS = [['mon', 'Mon'], ['tue', 'Tue'], ['wed', 'Wed'], ['thu', 'Thu'], ['fri', 'Fri'], ['sat', 'Sat'], ['sun', 'Sun']] as const;
