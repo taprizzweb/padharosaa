@@ -27,7 +27,7 @@ export function FolioView({ stayId, setup, flash, onBack, onChanged }: { stayId:
 
   const run = async (fn: () => Promise<unknown>, ok: string) => {
     setBusy(true);
-    try { await fn(); flash(true, ok); setPanel(null); await load(); onChanged(); } catch (e) { flash(false, errText(e)); }
+    try { await fn(); flash(true, ok); setPanel(null); setEditing(null); await load(); onChanged(); } catch (e) { flash(false, errText(e)); }
     setBusy(false);
   };
 
