@@ -849,6 +849,7 @@ test('inventory: the owner adds an item and stocks it, the kitchen records use a
     await o.getByLabel('Total cost in ₹').fill('1500');
     await o.getByRole('button', { name: 'Save', exact: true }).click();
     await expect(row).toContainText('25 kg');
+    await expect(row.getByTestId('inv-updated')).toContainText('Today'); // the date and time of the last change
     await expect(o.getByTestId('inv-summary')).toContainText('₹1,500.00');
     // the kitchen can record use and waste, but not stock in
     await signIn(k, 'kitchen@spice-garden.demo', /\/padharosaa\/kitchen$/, '/padharosaa/kitchen');

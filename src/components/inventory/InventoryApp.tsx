@@ -14,6 +14,10 @@ interface Move { id: string; kind: 'in' | 'out' | 'waste' | 'adjust'; delta: num
 type Kind = Move['kind'];
 const KIND_LABEL: Record<Kind, string> = { in: 'Stock added', out: 'Used', waste: 'Spoiled', adjust: 'Counted' };
 const num = (n: number): string => String(Math.round(n * 1000) / 1000);
+const STAMP: Intl.DateTimeFormatOptions = { timeZone: 'Asia/Kolkata', day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit' };
+/** "28 Oct 2026, 9:15 pm": when the stock was last touched */
+const stamp = (iso: string): string => new Date(iso).toLocaleString('en-IN', STAMP);
+const dayOf = (iso: string): string => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date(iso));
 
 /** Stock of supplies: what is on the shelf, what is running low, what was used or wasted, and what was bought. */
 export function InventoryApp({ role }: { role: string }) {
@@ -54,7 +58,7 @@ export function InventoryApp({ role }: { role: string }) {
               {log.moves.map((m) => (
                 <li key={m.id} className="flex flex-wrap items-baseline justify-between gap-2 py-2">
                   <span><b>{KIND_LABEL[m.kind]}</b> {m.delta > 0 ? '+' : ''}{num(m.delta)} {log.item.unit}{m.cost_paise ? ` · ${rupees2(m.cost_paise)}` : ''}{m.note ? ` · ${m.note}` : ''}</span>
-                  <span className="text-xs text-stone-500">{new Date(m.at).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}{m.by ? ` · ${m.by}` : ''}</span>
+                  <span className="text-xs text-stone-500">{stamp(m.at)}{m.by ? ` · ${m.by}` : ''}</span>
                 </li>
               ))}
               {log.moves.length === 0 && <li className="py-3 text-stone-600">Nothing recorded yet.</li>}
@@ -69,13 +73,14 @@ export function InventoryApp({ role }: { role: string }) {
             </div>
             <div className="mt-3 overflow-x-auto rounded-xl border border-stone-200 bg-white">
               <table className="w-full min-w-[40rem] text-sm">
-                <thead className="border-b border-stone-200 bg-stone-50"><tr><th className={th}>Item</th><th className={`${th} text-right`}>In stock</th><th className={`${th} text-right`}>Used, 30 days</th><th className={th} /></tr></thead>
+                <thead className="border-b border-stone-200 bg-stone-50"><tr><th className={th}>Item</th><th className={`${th} text-right`}>In stock</th><th className={`${th} text-right`}>Used, 30 days</th><th className={th}>Last updated</th><th className={th} /></tr></thead>
                 <tbody className="divide-y divide-stone-100">
                   {shown.map((i) => (
                     <tr key={i.id} data-testid="inv-row" className={!i.active ? 'opacity-50' : ''}>
                       <td className={td}><span className="font-semibold">{i.name}</span>{i.category && <span className="block text-xs text-stone-500">{i.category}</span>}</td>
                       <td className={`${td} text-right`}><span className={`font-semibold ${i.low ? 'text-red-800' : ''}`}>{num(i.stock)} {i.unit}</span>{i.low && <span className="ml-2 rounded bg-red-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-red-900">Low</span>}{i.min_qty > 0 && <span className="block text-xs text-stone-500">level {num(i.min_qty)}</span>}</td>
                       <td className={`${td} text-right`}>{num(i.used_30)} {i.unit}</td>
+                      <td className={`${td} text-xs text-stone-600`} data-testid="inv-updated">{i.last_at ? <>{stamp(i.last_at)}{dayOf(i.last_at) === dayOf(new Date().toISOString()) && <span className="ml-1.5 rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-emerald-900">Today</span>}</> : <span className="text-stone-400">Nothing yet</span>}</td>
                       <td className={`${td} text-right`}>
                         {i.active && <span className="flex flex-wrap justify-end gap-1.5">
                           <button type="button" className={small} onClick={() => setAct({ item: i, kind: 'out' })}>Use</button>
@@ -87,7 +92,7 @@ export function InventoryApp({ role }: { role: string }) {
                       </td>
                     </tr>
                   ))}
-                  {items && shown.length === 0 && <tr><td colSpan={4} className="px-3 py-6 text-center text-stone-600">{items.length === 0 ? (boss ? 'No items yet. Press Add an item and add rice, oil, towels, soap… anything you want to keep count of. Example: Rice · counted in kg · warn me below 10.' : 'No items yet. The owner or manager adds them.') : 'Nothing matches.'}</td></tr>}
+                  {items && shown.length === 0 && <tr><td colSpan={5} className="px-3 py-6 text-center text-stone-600">{items.length === 0 ? (boss ? 'No items yet. Press Add an item and add rice, oil, towels, soap… anything you want to keep count of. Example: Rice · counted in kg · warn me below 10.' : 'No items yet. The owner or manager adds them.') : 'Nothing matches.'}</td></tr>}
                 </tbody>
               </table>
             </div>
