@@ -13,7 +13,7 @@ interface MenuItem { id: string; name: string; price_paise: number; diet: string
 interface Menu { tax_bp: number; rules: TaxRule[]; tax_rates: { id: string; name: string; rate_bp: number }[]; categories: { id: string; name: string; items: MenuItem[] }[] }
 interface BillRow { id: string; number: string; label: string | null; customer: string | null; total_paise: number; pay_mode: string; status: string; created_at: string; guest: string | null; room: string | null }
 interface Bill { number: string; at: string; label: string | null; customer: string | null; lines: { name: string; qty: number; unit_paise: number; amount_paise: number; tax_bp?: number }[]; subtotal_paise: number; discount_paise: number; service_bp: number; service_paise: number; tax_bp: number; tax_paise: number; tax_groups: { tax_bp: number; taxable_paise: number; tax_paise: number }[]; round_paise: number; total_paise: number; pay_mode: string; status: string; void_reason: string | null; room: string | null; guest: string | null; hotel: { name: string; legal_name: string | null; gstin: string | null; address: string | null } }
-type CartLine = { key: string; item?: string; name: string; unit: number; qty: number };
+type CartLine = { key: string; item?: string; name: string; unit: number; qty: number; tax?: number }; // tax: the GST picked for this line by hand (0 = none)
 const DIET: Record<string, string> = { veg: 'bg-emerald-600', nonveg: 'bg-red-600', egg: 'bg-amber-500', jain: 'bg-lime-600' };
 
 /** Counter billing: pick dishes, add anything else, take the payment (or put it on a guest's room bill), print the bill. */
@@ -53,7 +53,7 @@ export function PosApp({ role }: { role: string }) {
   const discPaise = discount.trim() ? parseRupeesToPaise(discount) : 0;
   const serviceBp = servicePct.trim() ? parsePercent(servicePct) : 0;
   const sectionOf = useMemo(() => { const m = new Map<string, string>(); for (const c of menu?.categories ?? []) for (const i of c.items) m.set(i.id, c.name); return m; }, [menu]);
-  const lineBp = (l: CartLine) => (tax === 'none' ? 0 : tax !== 'default' ? Number(tax) : ruleBp(menu?.rules ?? [], l.name, l.item ? sectionOf.get(l.item) : null) ?? menu?.tax_bp ?? 0);
+  const lineBp = (l: CartLine) => (tax === 'none' ? 0 : tax !== 'default' ? Number(tax) : l.tax !== undefined ? l.tax : ruleBp(menu?.rules ?? [], l.name, l.item ? sectionOf.get(l.item) : null) ?? menu?.tax_bp ?? 0);
   const inputsOk = discPaise !== null && discPaise < Math.max(sub, 1) && serviceBp !== null && serviceBp <= 3000;
   const split = splitBill(cart.map((l) => ({ amount: l.unit * l.qty, bp: lineBp(l) })), inputsOk ? discPaise ?? 0 : 0, inputsOk ? serviceBp ?? 0 : 0);
   const net = Math.max(0, sub - (discPaise ?? 0));
@@ -66,7 +66,7 @@ export function PosApp({ role }: { role: string }) {
   const pay = async () => {
     setBusy(true);
     try {
-      const r = await apiPost<{ id: string; number: string }>(`${API}/pos/create`, { lines: cart.map((l) => (l.item ? { item: l.item, qty: l.qty } : { name: l.name, qty: l.qty, unit_paise: l.unit })), label: label.trim() || null, customer: customer.trim() || null, mode, stay: mode === 'room' ? stay : null,
+      const r = await apiPost<{ id: string; number: string }>(`${API}/pos/create`, { lines: cart.map((l) => (l.item ? { item: l.item, qty: l.qty, tax_bp: l.tax ?? null } : { name: l.name, qty: l.qty, unit_paise: l.unit, tax_bp: l.tax ?? null })), label: label.trim() || null, customer: customer.trim() || null, mode, stay: mode === 'room' ? stay : null,
         tax_bp: tax === 'default' ? null : tax === 'none' ? 0 : Number(tax), service_bp: serviceBp ?? 0, discount_paise: discPaise ?? 0 });
       setBill(await apiGet<Bill>(`${API}/pos/bill?id=${r.id}`));
       setCart([]); setLabel(''); setCustomer(''); setStay(''); setMode('cash'); setMsg(null); setDiscount(''); setServicePct(''); setTax('default');
@@ -139,7 +139,13 @@ export function PosApp({ role }: { role: string }) {
             <ul className="mt-2 divide-y divide-stone-100" data-testid="pos-cart">
               {cart.map((l) => (
                 <li key={l.key} className="flex items-center justify-between gap-2 py-2 text-sm">
-                  <span className="min-w-0 flex-1 truncate">{l.name}<span className="ml-1.5 text-xs text-stone-500">{lineBp(l) === 0 ? 'no GST' : `GST ${lineBp(l) / 100}%`}</span></span>
+                  <span className="min-w-0 flex-1"><span className="block truncate">{l.name}</span>
+                    <select aria-label={`GST for ${l.name}`} disabled={tax !== 'default'} className="mt-0.5 rounded border border-stone-200 bg-white px-1 py-0.5 text-xs text-stone-600" value={l.tax === undefined ? 'auto' : String(l.tax)}
+                      onChange={(e) => setCart((c) => c.map((x) => (x.key === l.key ? { ...x, tax: e.target.value === 'auto' ? undefined : Number(e.target.value) } : x)))}>
+                      <option value="auto">{`Automatic: ${(() => { const a = tax === 'default' ? (ruleBp(menu?.rules ?? [], l.name, l.item ? sectionOf.get(l.item) : null) ?? menu?.tax_bp ?? 0) : lineBp(l); return a === 0 ? 'no GST' : `GST ${a / 100}%`; })()}`}</option>
+                      <option value="0">No GST</option>
+                      {menu?.tax_rates.filter((t) => t.rate_bp > 0).map((t) => <option key={t.id} value={t.rate_bp}>{t.name}</option>)}
+                    </select></span>
                   <span className="flex items-center gap-1"><button type="button" aria-label={`Less ${l.name}`} className={small} onClick={() => bump(l.key, -1)}>−</button><b className="w-6 text-center">{l.qty}</b><button type="button" aria-label={`More ${l.name}`} className={small} onClick={() => bump(l.key, 1)}>+</button></span>
                   <span className="w-20 text-right font-semibold">{rupees2(l.unit * l.qty)}</span>
                 </li>

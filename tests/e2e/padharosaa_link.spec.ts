@@ -694,6 +694,15 @@ test('billing: the owner sets the hotel\'s own taxes, reception checks a guest i
     await r.getByRole('button', { name: 'Add to the bill' }).click();
     await expect(r.getByText('Charge added.')).toBeVisible();
     await expect(r.getByTestId('folio-balance')).toHaveText('₹1,610.00');
+    // every line can be corrected by hand: the price goes up and comes back
+    await r.getByRole('button', { name: 'Edit Laundry, 5 shirts' }).click();
+    await r.getByLabel('Price of one, in ₹').fill('300');
+    await r.getByRole('button', { name: 'Save this line' }).click();
+    await expect(r.getByTestId('folio-balance')).toHaveText('₹1,660.00');
+    await r.getByRole('button', { name: 'Edit Laundry, 5 shirts' }).click();
+    await r.getByLabel('Price of one, in ₹').fill('250');
+    await r.getByRole('button', { name: 'Save this line' }).click();
+    await expect(r.getByTestId('folio-balance')).toHaveText('₹1,610.00');
     // check-out is refused while money is due, then allowed once it is paid
     await expect(r.getByRole('button', { name: 'Check out and make the invoice' })).toBeDisabled();
     await r.getByRole('button', { name: '+ Record a payment' }).click();
@@ -899,9 +908,12 @@ test('counter billing and reports: reception bills a dish and a custom item with
     await r.getByLabel('Item name').fill('Kingfisher beer');
     await r.getByLabel('Price in ₹').fill('300');
     await r.getByRole('button', { name: 'Add', exact: true }).click();
-    await expect(r.getByTestId('pos-cart')).toContainText('Kingfisher beerno GST');
-    await expect(r.getByTestId('pos-cart')).toContainText('Masala teaGST 5%');
+    await expect(r.getByLabel('GST for Kingfisher beer')).toContainText('Automatic: no GST');
+    await expect(r.getByLabel('GST for Masala tea')).toContainText('Automatic: GST 5%');
     await expect(r.getByTestId('pos-totals')).toContainText('₹720.00'); // 700 + 5% of 400
+    await r.getByLabel('GST for Masala tea').selectOption('0'); // the cashier can pick the GST of any line
+    await expect(r.getByTestId('pos-totals')).toContainText('₹710.00'); // 700 + 5% of 200
+    await r.getByLabel('GST for Masala tea').selectOption('auto');
     await r.getByRole('button', { name: 'Less Kingfisher beer' }).click();
     // 2 x 100 + 200 = 400, 2.5% + 2.5% = 20, total 420
     await expect(r.getByTestId('pos-totals')).toContainText('₹400.00');

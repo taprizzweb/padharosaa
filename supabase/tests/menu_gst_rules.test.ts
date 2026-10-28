@@ -126,6 +126,58 @@ describe('counter billing taxed line by line', () => {
   });
 });
 
+describe('every line can be corrected by hand', () => {
+  const item = async (name: string) => orderLines(await folio()).find((l: any) => l.description.endsWith(name));
+  const edit = (uid: string, id: string, tax: number | null, unit: number | null, qty: number | null, removed = false, reason: string | null = null) =>
+    asU(uid, `select public.padh_folio_item_edit($1::uuid,$2::uuid,$3::int,$4::int,$5::int,$6::boolean,$7) as r`, [stay, id, tax, unit, qty, removed, reason]);
+  it('one dish: the GST is set by hand (even against a word rule), the price and quantity change, and it can be put back', async () => {
+    const beerLine = await item('Kingfisher Beer');
+    expect(beerLine).toMatchObject({ tax_bp: 0, amount_paise: 30000 }); // the word rule says no GST
+    await edit(w.A.waiter, beerLine.line_id, 500, null, null);
+    expect(await item('Kingfisher Beer')).toMatchObject({ tax_bp: 500, amount_paise: 30000 });
+    await edit(w.A.waiter, beerLine.line_id, 1800, 25000, 2);
+    expect(await item('Kingfisher Beer')).toMatchObject({ tax_bp: 1800, qty: 2, unit_paise: 25000, amount_paise: 50000 });
+    await edit(w.A.waiter, beerLine.line_id, null, null, null); // back as ordered
+    expect(await item('Kingfisher Beer')).toMatchObject({ tax_bp: 0, amount_paise: 30000 });
+  });
+  it('a dish is taken off with a reason and put back from the removed list; strangers, bad rates and other hotels are refused', async () => {
+    const chai = await item('Masala Chai');
+    const total = (await folio()).folio.total_paise;
+    expect((await errU(w.A.waiter, `select public.padh_folio_item_edit($1::uuid,$2::uuid,null,null,null,true,null)`, [stay, chai.line_id]))?.code).toBe('GM014');
+    await edit(w.A.waiter, chai.line_id, null, null, null, true, 'Spilled');
+    expect(await item('Masala Chai')).toBeUndefined();
+    const fo = await folio();
+    expect(fo.removed_items).toMatchObject([{ item_id: chai.line_id, name: 'Masala Chai', qty: 2 }]);
+    expect(fo.folio.total_paise).toBeLessThan(total);
+    await edit(w.A.waiter, chai.line_id, null, null, null);
+    expect((await folio()).folio.total_paise).toBe(total);
+    expect((await errU(w.A.waiter, `select public.padh_folio_item_edit($1::uuid,$2::uuid,777,null,null,false,null)`, [stay, chai.line_id]))?.code).toBe('GM015');
+    expect((await errU(w.A.waiter, `select public.padh_folio_item_edit($1::uuid,$2::uuid,null,null,null,false,null)`, [stay, '00000000-0000-0000-0000-000000000000']))?.code).toBe('GM012');
+    expect((await errU(w.B.waiter, `select public.padh_folio_item_edit($1::uuid,$2::uuid,null,null,null,false,null)`, [stay, chai.line_id]))?.code).toMatch(/^GM01[12]$/); // hotel B has no front office: refused either way
+  });
+  it('a charge added at the desk: words, quantity, price and GST can all be changed', async () => {
+    const cats = (await asU(w.A.owner, `select public.padh_billing_get() as r`)).categories;
+    const other = cats.find((c: any) => c.kind === 'other');
+    await asU(w.A.waiter, `select public.padh_folio_add($1::uuid,$2::uuid,'Laundry',1,20000) as r`, [stay, other.id]);
+    const line = (await folio()).lines.find((l: any) => l.description === 'Laundry');
+    await asU(w.A.waiter, `select public.padh_folio_line_edit($1::uuid,'Laundry · 3 shirts',3,10000,500) as r`, [line.id]);
+    const l = (await folio()).folio.lines.find((x: any) => x.src === 'manual' && x.description === 'Laundry · 3 shirts');
+    expect(l).toMatchObject({ qty: 3, unit_paise: 10000, amount_paise: 30000, tax_bp: 500 });
+    await asU(w.A.waiter, `select public.padh_folio_line_edit($1::uuid,'Laundry · 3 shirts',3,10000,-1) as r`, [line.id]); // the usual tax of its kind again
+    expect((await folio()).folio.lines.find((x: any) => x.description === 'Laundry · 3 shirts').tax_bp).toBe(0);
+    expect((await errU(w.A.waiter, `select public.padh_folio_line_edit($1::uuid,'x',0,10000,0)`, [line.id]))?.code).toBe('GM015');
+    expect((await errU(w.A.waiter, `select public.padh_folio_line_edit($1::uuid,'x',1,10000,777)`, [line.id]))?.code).toBe('GM015');
+    await asU(w.A.waiter, `select public.padh_folio_void($1::uuid,'test') as r`, [line.id]);
+  });
+  it('counter billing: the GST is chosen for one line; a rate that is not the hotel\'s is refused', async () => {
+    const b = await pos([{ name: 'Tea', qty: 1, unit_paise: 10000, tax_bp: 0 }, { name: 'Cake', qty: 1, unit_paise: 10000 }]);
+    const g = await asU(w.A.waiter, `select public.padh_pos_get($1::uuid) as r`, [b.id]);
+    expect(g.lines.map((x: any) => x.tax_bp)).toEqual([0, 500]);
+    expect(g.tax_paise).toBe(500);
+    expect((await errU(w.A.waiter, `select public.padh_pos_bill($1,null,null,'cash',null,null,0,0)`, [JSON.stringify([{ name: 'Tea', qty: 1, unit_paise: 10000, tax_bp: 777 }])]))?.code).toBe('GM015');
+  });
+});
+
 describe('check-in time', () => {
   it('the desk sets the arrival time of today; a time ahead is held at now; a bad time or a stranger is refused', async () => {
     await asU(w.A.waiter, `select public.padh_stay_set_checkin($1::uuid,'00:01') as r`, [stay]);

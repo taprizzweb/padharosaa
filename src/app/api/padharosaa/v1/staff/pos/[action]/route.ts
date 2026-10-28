@@ -38,7 +38,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ action:
     await limit(`ppw:${ctx.userId}`, 120, 60);
     if (action === 'create') {
       const b = body as z.infer<typeof posCreateBody>;
-      return jsonOk(await staffRpc(ctx.db, 'padh_pos_bill', { p_lines: JSON.stringify(b.lines.map((l) => ({ item: l.item ?? undefined, name: l.name ?? undefined, qty: l.qty, unit_paise: l.unit_paise ?? undefined }))), p_label: b.label ?? null, p_customer: b.customer ?? null, p_mode: b.mode, p_stay: b.stay ?? null, p_tax_bp: b.tax_bp ?? null, p_service_bp: b.service_bp, p_discount_paise: b.discount_paise }), ctx.requestId);
+      return jsonOk(await staffRpc(ctx.db, 'padh_pos_bill', { p_lines: JSON.stringify(b.lines.map((l) => ({ item: l.item ?? undefined, name: l.name ?? undefined, qty: l.qty, unit_paise: l.unit_paise ?? undefined, tax_bp: l.tax_bp ?? undefined }))), p_label: b.label ?? null, p_customer: b.customer ?? null, p_mode: b.mode, p_stay: b.stay ?? null, p_tax_bp: b.tax_bp ?? null, p_service_bp: b.service_bp, p_discount_paise: b.discount_paise }), ctx.requestId);
     }
     const v = body as z.infer<typeof posVoidBody>;
     return jsonOk(await staffRpc(ctx.db, 'padh_pos_void', { p_id: v.id, p_reason: v.reason }), ctx.requestId);

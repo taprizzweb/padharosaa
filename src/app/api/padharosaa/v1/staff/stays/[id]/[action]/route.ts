@@ -2,13 +2,13 @@ import type { ZodTypeAny } from 'zod';
 import { jsonOk, staffRoute } from '@/lib/api/route';
 import { ApiError } from '@/lib/errors';
 import { limit } from '@/lib/guest/rpc';
-import { chargeBody, idParam, orderSkipBody, paymentBody, stayUpdateBody } from '@/lib/padharosaa/schemas';
+import { chargeBody, idParam, itemEditBody, lineEditBody, orderSkipBody, paymentBody, stayUpdateBody } from '@/lib/padharosaa/schemas';
 import { kickChannels } from '@/lib/padharosaa/channels';
 import { staffRpc } from '@/lib/staff/rpc';
 
 export const dynamic = 'force-dynamic';
 
-const SCHEMAS: Record<string, ZodTypeAny | undefined> = { charges: chargeBody, payments: paymentBody, update: stayUpdateBody, 'order-skip': orderSkipBody, checkout: undefined };
+const SCHEMAS: Record<string, ZodTypeAny | undefined> = { charges: chargeBody, payments: paymentBody, update: stayUpdateBody, 'order-skip': orderSkipBody, 'item-edit': itemEditBody, 'line-edit': lineEditBody, checkout: undefined };
 
 // charges: add a line to the bill. order-skip: cross a room-service order off the bill, or bring it back. payments: record money taken or given back. update: rate, last night, company. checkout: invoice and check-out.
 export async function POST(req: Request, { params }: { params: Promise<{ id: string; action: string }> }) {
@@ -22,6 +22,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     if (action === 'charges') return jsonOk(await staffRpc(ctx.db, 'padh_folio_add', { p_stay: stay.data, p_category: b.category, p_description: b.description, p_qty: b.qty, p_unit_paise: b.unit_paise }), ctx.requestId);
     if (action === 'payments') return jsonOk(await staffRpc(ctx.db, 'padh_payment_add', { p_stay: stay.data, p_kind: b.kind, p_mode: b.mode, p_amount_paise: b.amount_paise, p_ref: b.ref ?? null }), ctx.requestId);
     if (action === 'order-skip') return jsonOk(await staffRpc(ctx.db, 'padh_folio_order_skip', { p_stay: stay.data, p_order: b.order, p_skip: b.skip, p_reason: b.reason ?? null }), ctx.requestId);
+    if (action === 'item-edit') return jsonOk(await staffRpc(ctx.db, 'padh_folio_item_edit', { p_stay: stay.data, p_item: b.item, p_tax_bp: b.tax_bp ?? null, p_unit_paise: b.unit_paise ?? null, p_qty: b.qty ?? null, p_removed: b.removed, p_reason: b.reason ?? null }), ctx.requestId);
+    if (action === 'line-edit') return jsonOk(await staffRpc(ctx.db, 'padh_folio_line_edit', { p_line: b.line, p_description: b.description, p_qty: b.qty, p_unit_paise: b.unit_paise, p_tax_bp: b.tax_bp }), ctx.requestId);
     if (action === 'update') return jsonOk(await staffRpc(ctx.db, 'padh_stay_update', { p_stay: stay.data, p_rate_paise: b.rate_paise ?? null, p_out_on: b.out_on ?? null, p_company: b.company ?? null, p_gstin: b.gstin ?? null, p_inter_state: b.inter_state ?? null }), ctx.requestId);
     const out = await staffRpc(ctx.db, 'padh_stay_checkout', { p_stay: stay.data });
     kickChannels(); // the room is free again

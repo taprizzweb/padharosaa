@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { Fragment, useCallback, useEffect, useState } from 'react';
 import { apiGet, apiPost } from '@/components/staff/hooks';
 import { ns } from '@/components/ui/ns';
 import { PAY_MODES, dateLabel, payModeLabel, pct, rupees2, type BillingSetup, type FolioResponse } from '@/lib/padharosaa/billing';
@@ -14,6 +14,7 @@ export function FolioView({ stayId, setup, flash, onBack, onChanged }: { stayId:
   const [d, setD] = useState<FolioResponse | null>(null);
   const [preview, setPreview] = useState<FolioResponse | null>(null);
   const [busy, setBusy] = useState(false);
+  const [editing, setEditing] = useState<string | null>(null);
   const [panel, setPanel] = useState<null | 'charge' | 'pay' | 'edit'>(null);
   const load = useCallback(async () => {
     try {
@@ -75,16 +76,30 @@ export function FolioView({ stayId, setup, flash, onBack, onChanged }: { stayId:
 
       <section className={`mt-4 ${ns.card} !p-0 overflow-x-auto`}>
         <table className="w-full min-w-[560px] text-sm">
-          <thead><tr className="border-b border-stone-200 bg-stone-50"><th className={th}>Item</th><th className={`${th} text-right`}>Qty</th><th className={`${th} text-right`}>Amount</th><th className={`${th} text-right`}>Tax</th></tr></thead>
+          <thead><tr className="border-b border-stone-200 bg-stone-50"><th className={th}>Item</th><th className={`${th} text-right`}>Qty</th><th className={`${th} text-right`}>Amount</th><th className={`${th} text-right`}>Tax</th>{open && <th className={th}><span className="sr-only">Edit</span></th>}</tr></thead>
           <tbody>
-            {f.lines.map((l, i) => (
-              <tr key={i} className="border-b border-stone-100">
-                <td className={td}>{l.description}{l.sac ? <span className="ml-2 text-xs text-stone-400">SAC {l.sac}</span> : null}</td>
-                <td className={`${td} text-right tabular-nums`}>{l.qty}</td>
-                <td className={`${td} text-right tabular-nums`}>{rupees2(l.amount_paise)}</td>
-                <td className={`${td} text-right text-stone-500`}>{taxLabel(l.tax_bp)}</td>
-              </tr>
-            ))}
+            {f.lines.map((l, i) => {
+              const key = l.line_id ?? '';
+              const canEdit = open && !!l.line_id && (l.src === 'order' || l.src === 'manual');
+              return (
+                <Fragment key={i}>
+                  <tr className="border-b border-stone-100">
+                    <td className={td}>{l.description}{l.sac ? <span className="ml-2 text-xs text-stone-400">SAC {l.sac}</span> : null}</td>
+                    <td className={`${td} text-right tabular-nums`}>{l.qty}</td>
+                    <td className={`${td} text-right tabular-nums`}>{rupees2(l.amount_paise)}</td>
+                    <td className={`${td} text-right text-stone-500`}>{taxLabel(l.tax_bp)}</td>
+                    {open && <td className={td}>{canEdit && <button type="button" className="text-sm font-semibold text-indigo-800 underline" aria-label={`Edit ${l.description}`} onClick={() => setEditing(editing === key ? null : key)}>Edit</button>}</td>}
+                  </tr>
+                  {canEdit && editing === key && (
+                    <tr className="border-b border-stone-100 bg-stone-50"><td colSpan={5} className="px-3 py-3">
+                      <LineEdit line={l} setup={setup} busy={busy}
+                        saveItem={(b: object) => run(() => apiPost(`${API}/stays/${stayId}/item-edit`, { item: key, ...b }), 'Saved.')}
+                        saveLine={(b: object) => run(() => apiPost(`${API}/stays/${stayId}/line-edit`, { line: key, ...b }), 'Saved.')} />
+                    </td></tr>
+                  )}
+                </Fragment>
+              );
+            })}
           </tbody>
         </table>
         <div className="space-y-1 border-t border-stone-200 bg-stone-50 p-4 text-sm" data-testid="folio-totals">
@@ -112,12 +127,23 @@ export function FolioView({ stayId, setup, flash, onBack, onChanged }: { stayId:
         </section>
       )}
 
-      {open && (orders.length > 0 || skipped.length > 0) && (
+      {open && (orders.length > 0 || skipped.length > 0 || (d.removed_items ?? []).length > 0) && (
         <section className={`mt-4 ${ns.card}`} data-testid="room-orders">
           <h3 className="text-sm font-semibold">Room service on this bill</h3>
           {orders.length > 0 && <ul className="mt-2 divide-y divide-stone-100 text-sm">
             {orders.map((o) => <OrderRow key={o.id} label={`Order #${o.no} · ${o.dishes} ${o.dishes === 1 ? 'line' : 'lines'}`} amount={o.amount} busy={busy} onCross={(reason) => run(() => apiPost(`${API}/stays/${stayId}/order-skip`, { order: o.id, skip: true, reason }), `Order #${o.no} crossed out.`)} />)}
           </ul>}
+          {(d.removed_items ?? []).length > 0 && <>
+            <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-stone-500">Dishes taken off the bill</p>
+            <ul className="mt-1 divide-y divide-stone-100 text-sm">
+              {(d.removed_items ?? []).map((k) => (
+                <li key={k.item_id} className="flex flex-wrap items-center justify-between gap-2 py-2">
+                  <span>{k.name} × {k.qty} · order #{k.order_no}</span>
+                  <button type="button" className="text-sm font-semibold text-indigo-800 underline" disabled={busy} onClick={() => void run(() => apiPost(`${API}/stays/${stayId}/item-edit`, { item: k.item_id, removed: false }), `${k.name} is back on the bill.`)}>Put back</button>
+                </li>
+              ))}
+            </ul>
+          </>}
           {skipped.length > 0 && <>
             <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-stone-500">Crossed out (not on the bill)</p>
             <ul className="mt-1 divide-y divide-stone-100 text-sm">
@@ -172,6 +198,48 @@ export function FolioView({ stayId, setup, flash, onBack, onChanged }: { stayId:
         </section>
       )}
     </div>
+  );
+}
+
+/** Correct one line of the open bill by hand: the GST, the price, the quantity (and the words of a charge added at the desk), or take a dish off. */
+function LineEdit({ line, setup, busy, saveItem, saveLine }: { line: FolioResponse['folio']['lines'][number]; setup: BillingSetup; busy: boolean; saveItem: (b: object) => void; saveLine: (b: object) => void }) {
+  const isOrder = line.src === 'order';
+  const [desc, setDesc] = useState(line.description);
+  const [qty, setQty] = useState(String(line.qty));
+  const [price, setPrice] = useState(line.unit_paise !== null ? String(Math.abs(line.unit_paise) / 100) : '');
+  const neg = (line.unit_paise ?? 0) < 0;
+  const [tax, setTax] = useState(isOrder ? 'auto' : 'kind'); // auto / kind = as set up; otherwise a rate in basis points ('0' = none)
+  const [reason, setReason] = useState('');
+  const paise = parseRupeesToPaise(price);
+  const ok = paise !== null && (isOrder ? paise >= 0 : paise > 0) && /^\d{1,2}$/.test(qty) && Number(qty) >= 1 && (isOrder || desc.trim().length > 0);
+  const rates = setup.tax_rates.filter((t) => t.active && t.rate_bp > 0);
+  const select = (
+    <Label text="GST on this line"><select aria-label="GST on this line" className={field} value={tax} onChange={(e) => setTax(e.target.value)}>
+      <option value={isOrder ? 'auto' : 'kind'}>{isOrder ? 'As set up (your GST rules)' : 'As set up for this kind of charge'}</option>
+      <option value="0">No GST</option>
+      {rates.map((t) => <option key={t.id} value={t.rate_bp}>{t.name}</option>)}
+    </select></Label>
+  );
+  return (
+    <form className="grid gap-3 sm:grid-cols-4" onSubmit={(e) => {
+      e.preventDefault();
+      if (!ok) return;
+      if (isOrder) saveItem({ tax_bp: tax === 'auto' ? null : Number(tax), unit_paise: paise, qty: Number(qty), removed: false });
+      else saveLine({ description: desc.trim(), qty: Number(qty), unit_paise: (neg ? -1 : 1) * paise!, tax_bp: tax === 'kind' ? -1 : Number(tax) });
+    }}>
+      {!isOrder && <div className="sm:col-span-4"><Label text="What for"><input className={field} value={desc} maxLength={120} onChange={(e) => setDesc(e.target.value)} /></Label></div>}
+      <Label text="How many"><input className={field} inputMode="numeric" value={qty} onChange={(e) => setQty(e.target.value)} /></Label>
+      <Label text="Price of one, in ₹"><input className={field} inputMode="decimal" value={price} onChange={(e) => setPrice(e.target.value)} /></Label>
+      <div className="sm:col-span-2">{select}</div>
+      <div className="flex flex-wrap items-end gap-2 sm:col-span-4">
+        <button type="submit" className={ns.primary} disabled={busy || !ok}>Save this line</button>
+        {isOrder && <>
+          <button type="button" className={ns.secondary} disabled={busy} onClick={() => saveItem({ tax_bp: null, unit_paise: null, qty: null, removed: false })}>Back as ordered</button>
+          <Label text="Take this dish off the bill. Why?"><input className={`${field} !mt-1 w-64`} value={reason} maxLength={200} onChange={(e) => setReason(e.target.value)} /></Label>
+          <button type="button" className={ns.danger} disabled={busy || !reason.trim()} onClick={() => saveItem({ removed: true, reason: reason.trim() })}>Take it off</button>
+        </>}
+      </div>
+    </form>
   );
 }
 

@@ -1,7 +1,7 @@
 import { formatPaise } from '@/lib/money';
 
 // What the billing screens show. Every amount arrives from the database as whole paise; nothing here adds up a bill (the database does).
-export interface FolioLine { src: 'room' | 'order' | 'manual' | 'extra'; description: string; qty: number; unit_paise: number | null; amount_paise: number; tax_bp: number; sac: string | null; at: string; order_id?: string | null }
+export interface FolioLine { src: 'room' | 'order' | 'manual' | 'extra'; description: string; qty: number; unit_paise: number | null; amount_paise: number; tax_bp: number; sac: string | null; at: string; order_id?: string | null; line_id?: string | null }
 export interface TaxGroup { tax_bp: number; taxable_paise: number; cgst_paise: number; sgst_paise: number; igst_paise: number; tax_paise: number }
 export interface Payment { id: string; kind: 'advance' | 'payment' | 'refund'; mode: string; amount_paise: number; ref: string | null; at: string }
 export interface Folio {
@@ -9,7 +9,7 @@ export interface Folio {
     room: string; room_type: string | null; check_in_at: string; check_out_on: string; checked_out_at: string | null; nights: number; rate_paise: number };
   lines: FolioLine[]; tax_groups: TaxGroup[]; subtotal_paise: number; tax_paise: number; round_off_paise: number; total_paise: number; payments: Payment[]; paid_paise: number; balance_paise: number;
 }
-export interface FolioResponse { folio: Folio; invoice: { number: string; issued_at: string } | null; lines?: { id: string; description: string; qty: number; unit_paise: number; posted_at: string }[]; skipped_orders?: { order_id: string; order_no: number; total_paise: number; reason: string }[] }
+export interface FolioResponse { folio: Folio; invoice: { number: string; issued_at: string } | null; lines?: { id: string; description: string; qty: number; unit_paise: number; posted_at: string }[]; removed_items?: { item_id: string; name: string; qty: number; unit_paise: number; order_no: number }[]; skipped_orders?: { order_id: string; order_no: number; total_paise: number; reason: string }[] }
 export interface InvoiceResponse { number: string; issued_at: string; hotel: { name: string; legal_name: string | null; gstin: string | null; address: string | null; terms: string | null }; folio: Folio }
 
 /** ₹1,234.50 with Indian digit grouping, always two decimals (invoices) */
