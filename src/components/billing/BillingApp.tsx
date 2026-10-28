@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { apiGet } from '@/components/staff/hooks';
 import { taxesMissing, type BillingSetup, type StayRow } from '@/lib/padharosaa/billing';
+import { GuestRegister } from './GuestRegister';
 import { CheckIn } from './CheckIn';
 import { FolioView } from './FolioView';
 import { SetupPanel } from './SetupPanel';
@@ -10,7 +11,7 @@ import { Stays } from './Stays';
 import { errText } from './common';
 
 const API = '/api/padharosaa/v1/staff';
-type Tab = 'house' | 'checkin' | 'past' | 'setup';
+type Tab = 'house' | 'checkin' | 'past' | 'register' | 'setup';
 
 /** Front office and billing: who is in the hotel, check-in, each guest's bill and invoice, and (owner and manager) the billing setup. */
 export function BillingApp({ role }: { role: string }) {
@@ -40,7 +41,7 @@ export function BillingApp({ role }: { role: string }) {
   useEffect(() => { const i = setInterval(() => { if (!document.hidden) void loadStays(); }, 30_000); return () => clearInterval(i); }, [loadStays]);
 
   const open = (id: string) => { setStayId(id); setTab('house'); };
-  const tabs: [Tab, string][] = [['house', `In the hotel${inHouse ? ` (${inHouse.length})` : ''}`], ['checkin', 'Check in'], ['past', 'Past guests'], ...(canSetup ? ([['setup', 'Taxes & rates']] as [Tab, string][]) : [])];
+  const tabs: [Tab, string][] = [['house', `In the hotel${inHouse ? ` (${inHouse.length})` : ''}`], ['checkin', 'Check in'], ['past', 'Past guests'], ['register', 'Guest register'], ...(canSetup ? ([['setup', 'Taxes & rates']] as [Tab, string][]) : [])];
 
   return (
     <div className="mx-auto max-w-5xl px-4 pb-24 pt-3 text-stone-900">
@@ -63,6 +64,7 @@ export function BillingApp({ role }: { role: string }) {
           {tab === 'house' && <Stays rows={inHouse} onOpen={open} />}
           {tab === 'checkin' && <CheckIn presetRoom={presetRoom} setup={setup} inHouse={inHouse ?? []} flash={flash} onDone={() => void loadStays()} onOpen={open} />}
           {tab === 'past' && <Stays rows={past} past onOpen={open} />}
+          {tab === 'register' && <GuestRegister flash={flash} />}
           {tab === 'setup' && canSetup && <SetupPanel setup={setup} reload={loadSetup} flash={flash} />}
         </>
       )}

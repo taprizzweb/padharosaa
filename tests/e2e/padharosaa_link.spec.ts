@@ -717,6 +717,10 @@ test('billing: the owner sets the hotel\'s own taxes, reception checks a guest i
     await r.getByRole('button', { name: '← All guests' }).click();
     await r.getByRole('tab', { name: 'Past guests' }).click();
     await expect(r.getByTestId('past-guests')).toContainText('Anita Sharma');
+    // the guest register: the guest is listed for the day, with the room and the time of arrival and departure
+    await r.getByRole('tab', { name: 'Guest register' }).click();
+    await expect(r.getByTestId('guest-register')).toContainText('Anita Sharma');
+    await expect(r.getByTestId('guest-register')).toContainText('Left');
   } finally {
     await clean();
     await octx.close();
