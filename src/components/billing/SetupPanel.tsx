@@ -23,7 +23,7 @@ export function SetupPanel({ setup, reload, flash }: { setup: BillingSetup; relo
       <LegalCard setup={setup} save={save} />
       <RatesCard setup={setup} save={save} />
       <CategoriesCard setup={setup} save={save} />
-      <GstRules flash={flash} />
+      <GstRules key={setup.tax_rates.map((t) => `${t.id}${t.rate_bp}${t.active}`).join()} flash={flash} />
       <SlabsCard setup={setup} save={save} rateName={rateName} />
       <ExtrasCard setup={setup} save={save} />
       <RoomTypesCard setup={setup} save={save} />
